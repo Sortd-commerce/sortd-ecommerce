@@ -1,0 +1,20 @@
+"""Stable, client-facing error messages."""
+
+
+class ErrorMessage:
+    GENERIC = "Something went wrong. Please try again."
+    VALIDATION = "The request data is invalid."
+    UNAUTHORIZED = "Authentication credentials were not provided or are invalid."
+    FORBIDDEN = "You do not have permission to perform this action."
+    NOT_FOUND = "The requested resource was not found."
+    THROTTLED = "Too many requests. Please try again later."
+    INVALID_CREDENTIALS = "No active account found with the given credentials."
+    CONFLICT = "The request could not be completed because of a conflict."
+    EMAIL_NOT_VERIFIED = "Verify your email before logging in."
+    EMAIL_UNAVAILABLE = "Unable to send email. Please try again."
+    INVALID_VERIFICATION = "The verification link is invalid or has expired."
+    OUT_OF_STOCK = "One or more items are no longer available in that quantity."
+    NOT_SERVICEABLE = "We do not deliver to this address."
+    SLOT_UNAVAILABLE = "That delivery window is no longer available."
+    TOTAL_MISMATCH = "The order total changed. Review your cart and try again."
+    CANNOT_CANCEL = "This order can no longer be cancelled."

@@ -1,0 +1,124 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import type { ActionState } from "@/lib/action-state";
+import { apiFetch } from "@/lib/api";
+import { clearAuthCookies, setAuthCookies } from "@/lib/auth";
+import { unwrapVerificationToken } from "@/lib/verification";
+
+type AuthPayload = {
+  user: { id: number; email: string; first_name: string; last_name: string; phone: string };
+  tokens: { access: string; refresh: string };
+};
+
+export async function signupAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const email = String(formData.get("email") || "");
+  const result = await apiFetch("/auth/signup", {
+    method: "POST",
+    auth: false,
+    body: {
+      email,
+      password: String(formData.get("password") || ""),
+      first_name: String(formData.get("first_name") || ""),
+      last_name: String(formData.get("last_name") || ""),
+      phone: String(formData.get("phone") || ""),
+    },
+  });
+  if (!result.ok) return { ok: false, message: result.message };
+  redirect(`/verify-email?email=${encodeURIComponent(email)}`);
+}
+
+export async function loginAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const result = await apiFetch<AuthPayload>("/auth/login", {
+    method: "POST",
+    auth: false,
+    body: {
+      email: String(formData.get("email") || ""),
+      password: String(formData.get("password") || ""),
+    },
+  });
+  if (!result.ok || !result.data) return { ok: false, message: result.message };
+  await setAuthCookies(result.data.tokens.access, result.data.tokens.refresh);
+  redirect("/");
+}
+
+export async function verifyEmailAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const result = await apiFetch<AuthPayload>("/auth/verify-email", {
+    method: "POST",
+    auth: false,
+    body: { token: unwrapVerificationToken(String(formData.get("token") || "")) },
+  });
+  if (!result.ok || !result.data) return { ok: false, message: result.message };
+  await setAuthCookies(result.data.tokens.access, result.data.tokens.refresh);
+  redirect("/");
+}
+
+export async function resendVerificationAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const email = String(formData.get("email") || "").trim();
+  const result = await apiFetch("/auth/resend-verification", {
+    method: "POST",
+    auth: false,
+    body: { email },
+  });
+  if (!result.ok) return { ok: false, message: result.message };
+  return { ok: true, message: "If that account still needs verifying, we sent a new link." };
+}
+
+export async function logoutAction() {
+  await clearAuthCookies();
+  redirect("/login");
+}
+
+export async function addToCartFormAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const variantId = Number(formData.get("variant_id"));
+  const result = await apiFetch("/cart/items", {
+    method: "POST",
+    body: { items: [{ variant_id: variantId, quantity: 1 }] },
+  });
+  if (!result.ok) return { ok: false, message: result.message };
+  revalidatePath("/cart");
+  return { ok: true, message: "Added to cart." };
+}
+
+export async function placeOrderAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const payload = {
+    address_id: Number(formData.get("address_id")),
+    delivery_date: String(formData.get("delivery_date") || ""),
+    window_id: Number(formData.get("window_id")),
+    window_source: String(formData.get("window_source") || "weekly"),
+    note: String(formData.get("note") || ""),
+    expected_total: String(formData.get("expected_total") || ""),
+    payment_method: "cod",
+    discount_code: String(formData.get("discount_code") || "") || null,
+  };
+  const key = crypto.randomUUID();
+  const result = await apiFetch("/orders", {
+    method: "POST",
+    body: payload,
+    headers: { "Idempotency-Key": key },
+  });
+  if (!result.ok || !result.data) return { ok: false, message: result.message };
+  const number = (result.data as { number: string }).number;
+  redirect(`/orders/${number}`);
+}
+
+export async function saveAddressAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const result = await apiFetch("/addresses", {
+    method: "POST",
+    body: {
+      line1: String(formData.get("line1") || ""),
+      line2: String(formData.get("line2") || ""),
+      city: String(formData.get("city") || ""),
+      region: String(formData.get("region") || ""),
+      postal_code: String(formData.get("postal_code") || ""),
+      country: "AE",
+      formatted_address: String(formData.get("formatted_address") || formData.get("line1") || ""),
+      place_id: String(formData.get("place_id") || ""),
+      is_default: true,
+    },
+  });
+  if (!result.ok) return { ok: false, message: result.message };
+  revalidatePath("/checkout");
+  return { ok: true, message: "Address saved." };
+}

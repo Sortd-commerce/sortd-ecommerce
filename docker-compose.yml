@@ -1,0 +1,20 @@
+services:
+  db:
+    image: postgres:16
+    container_name: sortd-postgres
+    environment:
+      POSTGRES_DB: sortd
+      POSTGRES_USER: sortd
+      POSTGRES_PASSWORD: sortd
+    ports:
+      - "5432:5432"
+    volumes:
+      - sortd_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sortd -d sortd"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  sortd_pgdata:
