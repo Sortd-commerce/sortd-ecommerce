@@ -28,6 +28,13 @@ cd backend
 ..\.venv\Scripts\python.exe src\manage.py runserver 8000
 ```
 
+Local Windows stays on `runserver`. Production (Linux / Render) uses Gunicorn from the `backend` folder:
+
+```bash
+python src/manage.py migrate --noinput
+gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --chdir src
+```
+
 Create a staff user for the Next.js admin app:
 
 ```powershell
