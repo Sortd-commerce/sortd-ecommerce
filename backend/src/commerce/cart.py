@@ -60,6 +60,15 @@ class CartService:
                 self._upsert(cart, line.variant_id, line.quantity, add=True)
         return self.view(user)
 
+    def replace(self, user, lines: list[CartLineCommand]) -> dict:
+        cart = self.get_or_create(user)
+        wanted = {line.variant_id: line.quantity for line in lines if line.quantity > 0}
+        with transaction.atomic():
+            CartItem.objects.filter(cart=cart).exclude(variant_id__in=wanted.keys()).delete()
+            for variant_id, quantity in wanted.items():
+                self._upsert(cart, variant_id, quantity, add=False)
+        return self.view(user)
+
     def set_item(self, user, *, variant_id: int, quantity: int) -> dict:
         cart = self.get_or_create(user)
         with transaction.atomic():

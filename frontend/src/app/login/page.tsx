@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { loginAction } from "@/lib/actions";
 import { ActionForm, SubmitButton } from "@/components/ActionForm";
+import { PasswordField } from "@/components/PasswordField";
 
 export default function LoginPage() {
   return (
@@ -12,12 +13,14 @@ export default function LoginPage() {
           <span>Email</span>
           <input name="email" type="email" autoComplete="email" spellCheck={false} required />
         </label>
-        <label className="field">
-          <span>Password</span>
-          <input name="password" type="password" autoComplete="current-password" required />
-        </label>
+        <PasswordField autoComplete="current-password" />
         <SubmitButton pendingLabel="Signing in…">Log in</SubmitButton>
       </ActionForm>
+      <p className="mt-4 text-sm text-ink/60">
+        <Link href="/forgot-password" className="font-semibold text-forest">
+          Forgot password?
+        </Link>
+      </p>
       <p className="mt-4 text-sm text-ink/60">
         New here?{" "}
         <Link href="/signup" className="font-semibold text-forest">

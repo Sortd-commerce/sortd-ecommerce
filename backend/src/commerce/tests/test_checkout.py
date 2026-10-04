@@ -1,6 +1,8 @@
 from datetime import timedelta
 from decimal import Decimal
+import json
 
+from django.core import mail
 from django.utils import timezone
 
 from accounts.tests.helpers import ApiTestCase, bearer, post_json, signup_and_verify
@@ -77,6 +79,82 @@ class CheckoutTests(ApiTestCase):
         blocked = post_json(self.client, "/api/v1/delivery/check", {"address": "outside"})
         self.assertFalse(blocked.json()["data"]["serviceable"])
 
+    def test_delivery_autocomplete_returns_fixture_suggestions(self):
+        response = post_json(self.client, "/api/v1/delivery/autocomplete", {"q": "marina"})
+        self.assertEqual(response.status_code, 200)
+        rows = response.json()["data"]
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["place_id"], "fixture-dubai-marina")
+
+    def test_delivery_check_accepts_lat_lng(self):
+        response = post_json(
+            self.client,
+            "/api/v1/delivery/check",
+            {"latitude": "25.080500", "longitude": "55.140300"},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()["data"]["serviceable"])
+        self.assertEqual(response.json()["data"]["place_id"], "fixture-dubai-marina")
+
+    def test_address_save_rejects_unserviceable_place(self):
+        response = post_json(
+            self.client,
+            "/api/v1/addresses",
+            {
+                "line1": "Somewhere",
+                "city": "Abu Dhabi",
+                "place_id": "fixture-abu-dhabi",
+                "formatted_address": "outside",
+                "is_default": True,
+            },
+            **self.auth,
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["message"], ErrorMessage.NOT_SERVICEABLE)
+        self.assertEqual(Address.objects.filter(user=self.user).count(), 1)
+
+    def test_address_save_persists_geocoded_serviceable_place(self):
+        response = post_json(
+            self.client,
+            "/api/v1/addresses",
+            {
+                "place_id": "fixture-dubai-marina",
+                "is_default": True,
+            },
+            **self.auth,
+        )
+        self.assertEqual(response.status_code, 201)
+        data = response.json()["data"]
+        self.assertEqual(data["postal_code"], "00000")
+        self.assertEqual(data["place_id"], "fixture-dubai-marina")
+        self.assertTrue(data["formatted_address"])
+        self.assertEqual(data["latitude"], "25.080500")
+        self.assertEqual(data["longitude"], "55.140300")
+
+    def test_cart_sync_replaces_client_lines(self):
+        first = self.client.put(
+            "/api/v1/cart/sync",
+            data=json.dumps({"items": [{"variant_id": self.variant.id, "quantity": 2}]}),
+            content_type="application/json",
+            **self.auth,
+        )
+        self.assertEqual(first.status_code, 200)
+        self.assertEqual(first.json()["data"]["items"][0]["quantity"], 2)
+        replaced = self.client.put(
+            "/api/v1/cart/sync",
+            data=json.dumps({"items": [{"variant_id": self.variant.id, "quantity": 1}]}),
+            content_type="application/json",
+            **self.auth,
+        )
+        self.assertEqual(replaced.json()["data"]["items"][0]["quantity"], 1)
+        emptied = self.client.put(
+            "/api/v1/cart/sync",
+            data=json.dumps({"items": []}),
+            content_type="application/json",
+            **self.auth,
+        )
+        self.assertEqual(emptied.json()["data"]["items"], [])
+
     def test_cart_prices_from_the_live_variant(self):
         added = self._add_to_cart(2)
         self.assertEqual(added.status_code, 200)
@@ -96,6 +174,8 @@ class CheckoutTests(ApiTestCase):
         self.assertEqual(self.variant.on_hand, 3)
         self.assertEqual(response.json()["data"]["total"], "33.80")
         self.assertEqual(response.json()["data"]["note"], "Leave at reception")
+        self.assertIn(response.json()["data"]["number"], mail.outbox[-1].subject)
+        self.assertIn("confirmed", mail.outbox[-1].subject.lower())
 
     def test_idempotency_replay_does_not_decrement_again(self):
         self._add_to_cart(1)

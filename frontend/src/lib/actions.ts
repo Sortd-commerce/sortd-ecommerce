@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import type { ActionState } from "@/lib/action-state";
 import { apiFetch } from "@/lib/api";
 import { clearAuthCookies, setAuthCookies } from "@/lib/auth";
+import type { RemoteCart } from "@/lib/cart-store";
 import { unwrapVerificationToken } from "@/lib/verification";
 
 type AuthPayload = {
@@ -65,23 +66,61 @@ export async function resendVerificationAction(_prev: ActionState, formData: For
   return { ok: true, message: "If that account still needs verifying, we sent a new link." };
 }
 
+export async function forgotPasswordAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const result = await apiFetch("/auth/forgot-password", {
+    method: "POST",
+    auth: false,
+    body: { email: String(formData.get("email") || "").trim() },
+  });
+  if (!result.ok) return { ok: false, message: result.message };
+  return { ok: true, message: "If that account exists, we sent a reset link." };
+}
+
+export async function resetPasswordAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const result = await apiFetch("/auth/reset-password", {
+    method: "POST",
+    auth: false,
+    body: {
+      token: unwrapVerificationToken(String(formData.get("token") || "")),
+      password: String(formData.get("password") || ""),
+    },
+  });
+  if (!result.ok) return { ok: false, message: result.message };
+  redirect("/login");
+}
+
 export async function logoutAction() {
   await clearAuthCookies();
   redirect("/login");
 }
 
-export async function addToCartFormAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
-  const variantId = Number(formData.get("variant_id"));
-  const result = await apiFetch("/cart/items", {
-    method: "POST",
-    body: { items: [{ variant_id: variantId, quantity: 1 }] },
+export async function fetchCartAction(): Promise<{ ok: boolean; status: number; data?: RemoteCart }> {
+  const result = await apiFetch<RemoteCart>("/cart");
+  return { ok: result.ok, status: result.status, data: result.data };
+}
+
+export async function syncCartAction(
+  items: Array<{ variant_id: number; quantity: number }>,
+): Promise<{ ok: boolean; status: number; message: string; data?: RemoteCart }> {
+  const result = await apiFetch<RemoteCart>("/cart/sync", {
+    method: "PUT",
+    body: { items },
   });
-  if (!result.ok) return { ok: false, message: result.message };
-  revalidatePath("/cart");
-  return { ok: true, message: "Added to cart." };
+  if (result.ok) revalidatePath("/cart");
+  return { ok: result.ok, status: result.status, message: result.message, data: result.data };
 }
 
 export async function placeOrderAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const rawCart = String(formData.get("cart_json") || "").trim();
+  if (rawCart) {
+    try {
+      const items = JSON.parse(rawCart) as Array<{ variant_id: number; quantity: number }>;
+      const synced = await apiFetch("/cart/sync", { method: "PUT", body: { items } });
+      if (!synced.ok) return { ok: false, message: synced.message };
+    } catch {
+      return { ok: false, message: "Cart could not be synced. Refresh and try again." };
+    }
+  }
   const payload = {
     address_id: Number(formData.get("address_id")),
     delivery_date: String(formData.get("delivery_date") || ""),
@@ -104,17 +143,21 @@ export async function placeOrderAction(_prev: ActionState, formData: FormData): 
 }
 
 export async function saveAddressAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const latitude = String(formData.get("latitude") || "").trim();
+  const longitude = String(formData.get("longitude") || "").trim();
   const result = await apiFetch("/addresses", {
     method: "POST",
     body: {
       line1: String(formData.get("line1") || ""),
       line2: String(formData.get("line2") || ""),
-      city: String(formData.get("city") || ""),
+      city: String(formData.get("city") || "Dubai"),
       region: String(formData.get("region") || ""),
       postal_code: String(formData.get("postal_code") || ""),
       country: "AE",
       formatted_address: String(formData.get("formatted_address") || formData.get("line1") || ""),
       place_id: String(formData.get("place_id") || ""),
+      latitude: latitude || null,
+      longitude: longitude || null,
       is_default: true,
     },
   });

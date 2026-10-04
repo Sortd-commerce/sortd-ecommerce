@@ -157,8 +157,21 @@ SERVICE_TOKEN_ISSUERS = env.list("SERVICE_TOKEN_ISSUERS", default=["storefront",
 SERVICE_TOKEN_AUDIENCE = "sortd-api"
 SERVICE_TOKEN_MAX_SECONDS = env("SERVICE_TOKEN_MAX_SECONDS")
 EMAIL_VERIFICATION_MINUTES = 60
+PASSWORD_RESET_MINUTES = 60
+GEOCODER_PROVIDER = env("GEOCODER_PROVIDER", default="")
+LOCATIONIQ_API_KEY = env("LOCATIONIQ_API_KEY", default="")
+LOCATIONIQ_AUTOCOMPLETE_URL = env(
+    "LOCATIONIQ_AUTOCOMPLETE_URL", default="https://api.locationiq.com/v1/autocomplete"
+)
+LOCATIONIQ_SEARCH_URL = env("LOCATIONIQ_SEARCH_URL", default="https://us1.locationiq.com/v1/search")
+LOCATIONIQ_REVERSE_URL = env("LOCATIONIQ_REVERSE_URL", default="https://us1.locationiq.com/v1/reverse")
+LOCATIONIQ_LOOKUP_URL = env("LOCATIONIQ_LOOKUP_URL", default="https://us1.locationiq.com/v1/lookup")
 GOOGLE_MAPS_API_KEY = env("GOOGLE_MAPS_API_KEY", default="")
-GOOGLE_GEOCODE_URL = "https://maps.googleapis.com/maps/api/geocode/json"
+GOOGLE_GEOCODE_URL = env("GOOGLE_GEOCODE_URL", default="https://maps.googleapis.com/maps/api/geocode/json")
+GOOGLE_PLACES_AUTOCOMPLETE_URL = env(
+    "GOOGLE_PLACES_AUTOCOMPLETE_URL",
+    default="https://maps.googleapis.com/maps/api/place/autocomplete/json",
+)
 
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="Sortd <noreply@localhost>")
 if ENVIRONMENT == PRODUCTION:
@@ -221,6 +234,8 @@ NINJA_EXTRA = {
         "signup": env("THROTTLE_SIGNUP", default="5/min"),
         "verify": env("THROTTLE_VERIFY", default="10/min"),
         "resend": env("THROTTLE_RESEND", default="3/min"),
+        "password_reset": env("THROTTLE_PASSWORD_RESET", default="5/min"),
+        "places": env("THROTTLE_PLACES", default="30/min"),
     },
 }
 

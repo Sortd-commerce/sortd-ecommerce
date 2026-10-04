@@ -8,6 +8,8 @@ from django.conf import settings
 from django.db import IntegrityError, transaction
 from ninja_extra.exceptions import NotFound, ValidationError
 
+import logging
+
 from catalog.models import ProductStatus, ProductVariant
 from catalog.stock import StockService
 from commerce.cart import CartService, MAX_QUANTITY
@@ -28,6 +30,8 @@ from core.exceptions import Conflict
 from core.messages import ErrorMessage
 from core.money import ZERO, money, money_str
 
+logger = logging.getLogger(__name__)
+
 
 @dataclass(frozen=True)
 class PlaceOrderCommand:
@@ -42,11 +46,12 @@ class PlaceOrderCommand:
 
 
 class OrderService:
-    def __init__(self, *, clock, delivery: DeliveryService, stock: StockService, cart: CartService) -> None:
+    def __init__(self, *, clock, delivery: DeliveryService, stock: StockService, cart: CartService, email_sender=None) -> None:
         self._clock = clock
         self._delivery = delivery
         self._stock = stock
         self._cart = cart
+        self._email_sender = email_sender
 
     def place(self, user, command: PlaceOrderCommand, *, idempotency_key: str, request_hash: str) -> Order:
         if not user.is_active or user.email_verified_at is None:
@@ -62,7 +67,12 @@ class OrderService:
         address = Address.objects.filter(user=user, pk=command.address_id).first()
         if address is None:
             raise NotFound(ErrorMessage.NOT_FOUND)
-        geo = self._delivery.check_address(address=address.formatted_address or None, place_id=address.place_id or None)
+        geo = self._delivery.check_address(
+            address=address.formatted_address or None,
+            place_id=address.place_id or None,
+            latitude=address.latitude,
+            longitude=address.longitude,
+        )
         result = GeocodeResult(
             status=geo["status"],
             formatted_address=geo["formatted_address"],
@@ -162,12 +172,13 @@ class OrderService:
                     )
                     self._stock.decrement_for_sale(variant=variant, quantity=qty, order_id=order.id, actor=user)
                 cart.items.all().delete()
-                return order
         except IntegrityError:
             existing = Order.objects.filter(user=user, idempotency_key=idempotency_key).first()
             if existing and existing.request_hash == request_hash:
                 return existing
             raise Conflict("The request could not be completed because of a conflict.") from None
+        self._notify_placed(user, order)
+        return order
 
     def list_for(self, user):
         return Order.objects.filter(user=user).prefetch_related("lines")
@@ -223,6 +234,19 @@ class OrderService:
         prefix = today.strftime("SRT-%Y%m%d-")
         count = Order.objects.filter(number__startswith=prefix).count() + 1
         return f"{prefix}{count:04d}"
+
+    def _notify_placed(self, user, order: Order) -> None:
+        if self._email_sender is None:
+            return
+        try:
+            order = Order.objects.prefetch_related("lines").get(pk=order.pk)
+            self._email_sender.send_order_confirmation(
+                to=user.email,
+                order=serialize_order(order),
+                first_name=user.first_name,
+            )
+        except Exception:
+            logger.exception("Order confirmation email failed for %s", order.number)
 
 
 def request_hash_for(payload: dict) -> str:

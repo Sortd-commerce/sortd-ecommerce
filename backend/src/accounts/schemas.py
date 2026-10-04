@@ -84,6 +84,29 @@ class ResendVerificationIn(Schema):
         return value.strip().lower()
 
 
+class ForgotPasswordIn(Schema):
+    email: str = Field(max_length=254)
+
+    @field_validator("email")
+    @classmethod
+    def normalize_email(cls, value: str) -> str:
+        return value.strip().lower()
+
+
+class ResetPasswordIn(Schema):
+    token: str = Field(min_length=1)
+    password: str = Field(min_length=8, max_length=128)
+
+    @field_validator("password")
+    @classmethod
+    def validate_password_strength(cls, value: str) -> str:
+        try:
+            validate_password(value)
+        except DjangoValidationError as exc:
+            raise ValueError(" ".join(exc.messages)) from exc
+        return value
+
+
 class ProfileUpdateIn(Schema):
     first_name: str | None = Field(default=None, max_length=150)
     last_name: str | None = Field(default=None, max_length=150)

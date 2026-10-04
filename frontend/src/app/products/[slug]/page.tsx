@@ -13,6 +13,7 @@ type ProductDetail = {
   images: Array<{ url: string; alt: string; role: string }>;
   variants: Array<{
     id: number;
+    sku: string;
     title: string;
     price: string;
     compare_at_price: string | null;

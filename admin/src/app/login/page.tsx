@@ -1,5 +1,6 @@
 import { loginAction } from "@/lib/actions";
 import { ActionForm, SubmitButton } from "@/components/ActionForm";
+import { PasswordField } from "@/components/PasswordField";
 
 export default function AdminLoginPage() {
   return (
@@ -11,10 +12,7 @@ export default function AdminLoginPage() {
           <span>Email</span>
           <input name="email" type="email" autoComplete="email" required />
         </label>
-        <label className="field">
-          <span>Password</span>
-          <input name="password" type="password" autoComplete="current-password" required />
-        </label>
+        <PasswordField autoComplete="current-password" />
         <SubmitButton pendingLabel="Signing in…">Enter admin</SubmitButton>
       </ActionForm>
     </div>

@@ -54,7 +54,12 @@ class User(AbstractBaseUser, PermissionsMixin):
 
 
 class EmailVerification(models.Model):
+    class Kind(models.TextChoices):
+        VERIFY = "verify", "Verify email"
+        RESET = "reset", "Reset password"
+
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="email_verifications")
+    kind = models.CharField(max_length=16, choices=Kind.choices, default=Kind.VERIFY)
     token_hash = models.CharField(max_length=64, unique=True)
     expires_at = models.DateTimeField()
     used_at = models.DateTimeField(blank=True, null=True)
@@ -64,4 +69,5 @@ class EmailVerification(models.Model):
     class Meta:
         indexes = [
             models.Index(fields=["user", "created_at"]),
+            models.Index(fields=["user", "kind"]),
         ]

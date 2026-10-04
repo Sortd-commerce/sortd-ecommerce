@@ -2,19 +2,30 @@ from datetime import date
 from decimal import Decimal
 
 from ninja import Schema
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 
 
 class AddressIn(Schema):
-    line1: str = Field(min_length=1, max_length=200)
+    line1: str = Field(default="", max_length=200)
     line2: str = Field(default="", max_length=200)
-    city: str = Field(min_length=1, max_length=120)
+    city: str = Field(default="", max_length=120)
     region: str = Field(default="", max_length=120)
     postal_code: str = Field(default="", max_length=20)
     country: str = Field(default="AE", max_length=2)
     place_id: str = Field(default="", max_length=256)
     formatted_address: str = Field(default="", max_length=400)
+    latitude: Decimal | None = None
+    longitude: Decimal | None = None
     is_default: bool = False
+
+    @model_validator(mode="after")
+    def require_location_hint(self):
+        has_text = bool(self.line1.strip() or self.formatted_address.strip())
+        has_place = bool(self.place_id.strip())
+        has_coords = self.latitude is not None and self.longitude is not None
+        if not (has_text or has_place or has_coords):
+            raise ValueError("Provide place_id, coordinates, or an address.")
+        return self
 
 
 class AddressOut(Schema):
@@ -27,12 +38,33 @@ class AddressOut(Schema):
     country: str
     place_id: str
     formatted_address: str
+    latitude: Decimal | None = None
+    longitude: Decimal | None = None
     is_default: bool
 
 
 class DeliveryCheckIn(Schema):
     address: str | None = None
     place_id: str | None = None
+    latitude: Decimal | None = None
+    longitude: Decimal | None = None
+
+    @model_validator(mode="after")
+    def require_one_locator(self):
+        has_address = bool((self.address or "").strip())
+        has_place = bool((self.place_id or "").strip())
+        has_coords = self.latitude is not None and self.longitude is not None
+        if not (has_address or has_place or has_coords):
+            raise ValueError("Provide place_id, latitude/longitude, or address.")
+        if (self.latitude is None) ^ (self.longitude is None):
+            raise ValueError("latitude and longitude must be provided together.")
+        return self
+
+
+class AutocompleteIn(Schema):
+    q: str = Field(min_length=1, max_length=200)
+    country: str = Field(default="ae", max_length=8)
+    limit: int = Field(default=8, ge=1, le=10)
 
 
 class CartItemIn(Schema):
@@ -41,6 +73,10 @@ class CartItemIn(Schema):
 
 
 class CartMergeIn(Schema):
+    items: list[CartItemIn]
+
+
+class CartSyncIn(Schema):
     items: list[CartItemIn]
 
 

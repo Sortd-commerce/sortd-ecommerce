@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { AddToCartButton } from "@/app/products/[slug]/AddToCartButton";
+import { AddToCartButton } from "@/components/AddToCartButton";
 
 type Offer = {
   id: number;
+  sku: string;
   title: string;
   price: string;
   compare_at_price: string | null;
@@ -89,7 +90,15 @@ export function BuyBox({
       )}
 
       <p className="mt-2 text-sm text-ink/60">{selected ? `${selected.on_hand} in stock` : "Unavailable"}</p>
-      {selected ? <AddToCartButton variantId={selected.id} /> : null}
+      {selected ? (
+        <AddToCartButton
+          variantId={selected.id}
+          title={selected.title}
+          sku={selected.sku}
+          unitPrice={selected.price}
+          slug={currentSlug}
+        />
+      ) : null}
     </div>
   );
 }

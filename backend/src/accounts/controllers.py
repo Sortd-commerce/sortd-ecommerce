@@ -10,6 +10,7 @@ from accounts.factory import (
 )
 from accounts.schemas import (
     AuthOut,
+    ForgotPasswordIn,
     LoggedOutOut,
     LoginIn,
     PasswordChangedOut,
@@ -18,6 +19,7 @@ from accounts.schemas import (
     RefreshIn,
     ResendVerificationIn,
     ResentOut,
+    ResetPasswordIn,
     SignupIn,
     TokenPairOut,
     UserOut,
@@ -29,7 +31,7 @@ from dataclasses import asdict
 
 from accounts.types import LoginCommand, ProfileUpdateCommand, SignupCommand
 from core.responses import ErrorResponse, SuccessResponse, success
-from core.throttling import AuthThrottle, ResendThrottle, SignupThrottle, VerifyThrottle
+from core.throttling import AuthThrottle, PasswordResetThrottle, ResendThrottle, SignupThrottle, VerifyThrottle
 
 _ERROR_RESPONSES = {
     400: ErrorResponse,
@@ -87,6 +89,26 @@ class AuthController(ControllerBase):
     def resend_verification(self, payload: ResendVerificationIn):
         build_signup_service().resend(email=payload.email)
         return success("If an account needs verification, a new link was sent.", {"sent": True})
+
+    @route.post(
+        "/forgot-password",
+        response={200: SuccessResponse[ResentOut], **_ERROR_RESPONSES},
+        summary="Request a password reset email",
+        throttle=[PasswordResetThrottle()],
+    )
+    def forgot_password(self, payload: ForgotPasswordIn):
+        build_signup_service().request_password_reset(email=payload.email)
+        return success("If that account exists, a reset link was sent.", {"sent": True})
+
+    @route.post(
+        "/reset-password",
+        response={200: SuccessResponse[PasswordChangedOut], **_ERROR_RESPONSES},
+        summary="Reset a password with a token",
+        throttle=[PasswordResetThrottle()],
+    )
+    def reset_password(self, payload: ResetPasswordIn):
+        build_signup_service().reset_password(raw_token=payload.token, new_password=payload.password)
+        return success("Password updated.", {"password_changed": True})
 
     @route.post(
         "/login",

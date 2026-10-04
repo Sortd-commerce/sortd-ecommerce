@@ -1,15 +1,26 @@
 from ninja import Query
 from ninja_extra import ControllerBase, api_controller, route, status
+from ninja_extra.exceptions import ValidationError
 from ninja_extra.permissions import AllowAny, IsAuthenticated
 from ninja_jwt.authentication import JWTAuth
 
 from commerce.cart import CartLineCommand
 from commerce.factory import build_cart_service, build_delivery_service, build_order_service
-from commerce.models import Address, PaymentMethod
+from commerce.models import Address, PaymentMethod, normalize_postal_code
 from commerce.orders import PlaceOrderCommand, request_hash_for, serialize_order
-from commerce.schemas import AddressIn, CartItemIn, CartMergeIn, DeliveryCheckIn, PlaceOrderIn
+from commerce.schemas import (
+    AddressIn,
+    AutocompleteIn,
+    CartItemIn,
+    CartMergeIn,
+    CartSyncIn,
+    DeliveryCheckIn,
+    PlaceOrderIn,
+)
+from core.messages import ErrorMessage
 from core.pagination import PageQuery, paginate_queryset
 from core.responses import ErrorResponse, SuccessResponse, success
+from core.throttling import PlacesThrottle
 
 _ERROR_RESPONSES = {
     400: ErrorResponse,
@@ -20,11 +31,37 @@ _ERROR_RESPONSES = {
 }
 
 
+def _component_value(components: list[dict], type_name: str) -> str:
+    for component in components:
+        if type_name in (component.get("types") or []):
+            value = component.get("long_name") or component.get("short_name") or ""
+            if value:
+                return str(value)
+    return ""
+
+
 @api_controller("/delivery", tags=["Delivery"], auth=None, permissions=[AllowAny], use_unique_op_id=False)
 class DeliveryController(ControllerBase):
+    @route.post(
+        "/autocomplete",
+        response={200: SuccessResponse, **_ERROR_RESPONSES},
+        summary="Autocomplete address suggestions",
+        throttle=[PlacesThrottle()],
+    )
+    def autocomplete(self, payload: AutocompleteIn):
+        data = build_delivery_service().autocomplete(
+            query=payload.q, country=payload.country, limit=payload.limit
+        )
+        return success("Address suggestions retrieved.", data)
+
     @route.post("/check", response={200: SuccessResponse, **_ERROR_RESPONSES}, summary="Check if an address is serviceable")
     def check(self, payload: DeliveryCheckIn):
-        data = build_delivery_service().check_address(address=payload.address, place_id=payload.place_id)
+        data = build_delivery_service().check_address(
+            address=payload.address,
+            place_id=payload.place_id,
+            latitude=payload.latitude,
+            longitude=payload.longitude,
+        )
         return success("Delivery check completed.", data)
 
     @route.get("/windows", response={200: SuccessResponse, **_ERROR_RESPONSES}, summary="List upcoming delivery windows")
@@ -68,9 +105,39 @@ class AddressController(ControllerBase):
     @route.post("", response={201: SuccessResponse, **_ERROR_RESPONSES}, summary="Save an address")
     def create(self, payload: AddressIn):
         user = self.context.request.user
+        delivery = build_delivery_service()
+        geo = delivery.resolve_address(
+            address=payload.formatted_address or payload.line1 or None,
+            place_id=payload.place_id or None,
+            latitude=payload.latitude,
+            longitude=payload.longitude,
+        )
+        delivery.require_serviceable(geo)
+
+        components = geo.address_components or []
+        line1 = payload.line1.strip() or _component_value(components, "route") or geo.formatted_address
+        city = payload.city.strip() or _component_value(components, "locality") or "Dubai"
+        region = payload.region.strip() or _component_value(components, "administrative_area_level_1")
+        postal = normalize_postal_code(geo.postal_code or payload.postal_code or "")
+        if not line1:
+            raise ValidationError({"address": ErrorMessage.VALIDATION})
+
         if payload.is_default:
             Address.objects.filter(user=user).update(is_default=False)
-        address = Address.objects.create(user=user, **payload.dict())
+        address = Address.objects.create(
+            user=user,
+            line1=line1[:200],
+            line2=payload.line2.strip()[:200],
+            city=city[:120],
+            region=region[:120],
+            postal_code=postal[:20],
+            country=(payload.country or "AE").upper()[:2],
+            latitude=geo.latitude,
+            longitude=geo.longitude,
+            place_id=(geo.place_id or payload.place_id or "")[:256],
+            formatted_address=(geo.formatted_address or payload.formatted_address or line1)[:400],
+            is_default=payload.is_default,
+        )
         return status.HTTP_201_CREATED, success("Address saved.", _address_payload(address))
 
 
@@ -85,6 +152,12 @@ class CartController(ControllerBase):
         lines = [CartLineCommand(variant_id=item.variant_id, quantity=item.quantity) for item in payload.items if item.quantity]
         data = build_cart_service().merge(self.context.request.user, lines)
         return success("Cart updated.", data)
+
+    @route.put("/sync", response={200: SuccessResponse, **_ERROR_RESPONSES}, summary="Replace the cart with client lines")
+    def sync(self, payload: CartSyncIn):
+        lines = [CartLineCommand(variant_id=item.variant_id, quantity=item.quantity) for item in payload.items]
+        data = build_cart_service().replace(self.context.request.user, lines)
+        return success("Cart synced.", data)
 
     @route.put("/items/{item_id}", response={200: SuccessResponse, **_ERROR_RESPONSES}, summary="Set a cart line quantity")
     def set_quantity(self, item_id: int, payload: CartItemIn):
@@ -161,5 +234,7 @@ def _address_payload(address: Address) -> dict:
         "country": address.country,
         "place_id": address.place_id,
         "formatted_address": address.formatted_address,
+        "latitude": str(address.latitude) if address.latitude is not None else None,
+        "longitude": str(address.longitude) if address.longitude is not None else None,
         "is_default": address.is_default,
     }

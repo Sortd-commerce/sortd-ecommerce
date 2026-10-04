@@ -1,5 +1,5 @@
-import { placeOrderAction, saveAddressAction } from "@/lib/actions";
-import { ActionForm, SubmitButton } from "@/components/ActionForm";
+import { AddressPicker } from "@/components/AddressPicker";
+import { CheckoutForm } from "@/components/CheckoutForm";
 import { apiFetch } from "@/lib/api";
 import Link from "next/link";
 
@@ -19,16 +19,13 @@ type Slot = {
   source: string;
 };
 
-type Cart = { subtotal: string; items: Array<{ id: number }> };
-
 export default async function CheckoutPage() {
-  const [addresses, windows, cart] = await Promise.all([
+  const [addresses, windows] = await Promise.all([
     apiFetch<Address[]>("/addresses"),
     apiFetch<Slot[]>("/delivery/windows", { auth: false }),
-    apiFetch<Cart>("/cart"),
   ]);
 
-  if (addresses.status === 401 || cart.status === 401) {
+  if (addresses.status === 401) {
     return (
       <div className="pt-8">
         <h1 className="font-[family-name:var(--font-display)] text-4xl text-forest">Checkout</h1>
@@ -36,7 +33,7 @@ export default async function CheckoutPage() {
           <Link href="/login" className="text-citrus">
             Log in
           </Link>{" "}
-          to checkout.
+          to checkout. Your cart is saved in this browser.
         </p>
       </div>
     );
@@ -63,25 +60,12 @@ export default async function CheckoutPage() {
               ))}
             </ul>
           ) : (
-            <ActionForm action={saveAddressAction} className="mt-4 grid gap-3">
-              <label className="field">
-                <span>Address line</span>
-                <input name="line1" required />
-              </label>
-              <label className="field">
-                <span>City</span>
-                <input name="city" defaultValue="Dubai" required />
-              </label>
-              <label className="field">
-                <span>Formatted address for geocode</span>
-                <input name="formatted_address" placeholder="dubai marina" required />
-              </label>
-              <label className="field">
-                <span>Place ID (optional)</span>
-                <input name="place_id" placeholder="fixture-dubai-marina" />
-              </label>
-              <SubmitButton className="btn btn-secondary">Save address</SubmitButton>
-            </ActionForm>
+            <>
+              <p className="mt-2 text-sm text-ink/65">
+                Search for your address or use your current location. We only save places we can deliver to.
+              </p>
+              <AddressPicker />
+            </>
           )}
         </div>
 
@@ -100,33 +84,14 @@ export default async function CheckoutPage() {
 
       <section className="card-quiet h-fit rounded-[1.8rem] p-6">
         <h2 className="font-semibold text-forest">Place order</h2>
-        <p className="mt-2 text-sm text-ink/65">Cash on delivery. Total is rechecked on the server.</p>
-        <ActionForm action={placeOrderAction} className="mt-5 grid gap-3">
-          <label className="field">
-            <span>Address ID</span>
-            <input name="address_id" defaultValue={firstAddress?.id || ""} required />
-          </label>
-          <label className="field">
-            <span>Delivery date</span>
-            <input name="delivery_date" defaultValue={firstSlot?.date || ""} required />
-          </label>
-          <label className="field">
-            <span>Window ID</span>
-            <input name="window_id" defaultValue={firstSlot?.window_id || ""} required />
-          </label>
-          <input type="hidden" name="window_source" value={firstSlot?.source || "weekly"} />
-          <label className="field">
-            <span>Expected total</span>
-            <input name="expected_total" defaultValue={cart.data?.subtotal || ""} required />
-          </label>
-          <label className="field">
-            <span>Delivery note</span>
-            <textarea name="note" rows={3} />
-          </label>
-          <SubmitButton className="btn btn-primary" pendingLabel="Placing order…" disabled={!firstAddress || !firstSlot}>
-            Place COD order
-          </SubmitButton>
-        </ActionForm>
+        <p className="mt-2 text-sm text-ink/65">Cash on delivery. Your browser cart is synced right before we place it.</p>
+        <CheckoutForm
+          addressId={firstAddress?.id || ""}
+          date={firstSlot?.date || ""}
+          windowId={firstSlot?.window_id || ""}
+          windowSource={firstSlot?.source || "weekly"}
+          disabled={!firstAddress || !firstSlot}
+        />
       </section>
     </div>
   );

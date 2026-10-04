@@ -13,6 +13,8 @@ class ApiDocumentationTests(ApiTestCase):
         self.assertIn("/api/v1/auth/verify", paths)
         self.assertIn("/api/v1/auth/verify-email", paths)
         self.assertIn("/api/v1/auth/resend-verification", paths)
+        self.assertIn("/api/v1/auth/forgot-password", paths)
+        self.assertIn("/api/v1/auth/reset-password", paths)
         self.assertIn("/api/v1/products", paths)
         self.assertIn("/api/v1/profile", paths)
         self.assertIn("/api/v1/profile/password", paths)

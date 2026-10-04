@@ -89,12 +89,14 @@ class SignupService:
                     user.phone = command.phone
                     user.save(update_fields=["password", "first_name", "last_name", "phone"])
 
-                raw_token = self._issue_verification(user)
+                raw_token = self._issue_token(user, kind=EmailVerification.Kind.VERIFY)
         except (exceptions.ValidationError, ServiceUnavailable):
             raise
 
         try:
-            self._email_sender.send_verification(to=user.email, link=self._verification_link(raw_token))
+            self._email_sender.send_verification(
+                to=user.email, link=self._link("/verify-email", raw_token), first_name=user.first_name
+            )
         except EmailSendError as exc:
             raise ServiceUnavailable(str(exc)) from exc
         return snapshot(user)
@@ -103,9 +105,11 @@ class SignupService:
         user = User.objects.filter(email=email, email_verified_at__isnull=True, is_active=True).first()
         if user is None:
             return
-        raw_token = self._issue_verification(user)
+        raw_token = self._issue_token(user, kind=EmailVerification.Kind.VERIFY)
         try:
-            self._email_sender.send_verification(to=user.email, link=self._verification_link(raw_token))
+            self._email_sender.send_verification(
+                to=user.email, link=self._link("/verify-email", raw_token), first_name=user.first_name
+            )
         except EmailSendError as exc:
             raise ServiceUnavailable(str(exc)) from exc
 
@@ -115,6 +119,7 @@ class SignupService:
         with transaction.atomic():
             updated = EmailVerification.objects.filter(
                 token_hash=digest,
+                kind=EmailVerification.Kind.VERIFY,
                 used_at__isnull=True,
                 revoked_at__isnull=True,
                 expires_at__gt=now,
@@ -133,22 +138,70 @@ class SignupService:
         update_last_login(None, user)
         return AuthResult(user=snapshot(user), tokens=self._tokens.issue(user))
 
-    def _issue_verification(self, user) -> str:
+    def request_password_reset(self, *, email: str) -> None:
+        user = User.objects.filter(email=email, is_active=True, email_verified_at__isnull=False).first()
+        if user is None:
+            return
+        raw_token = self._issue_token(user, kind=EmailVerification.Kind.RESET)
+        try:
+            self._email_sender.send_password_reset(
+                to=user.email, link=self._link("/reset-password", raw_token), first_name=user.first_name
+            )
+        except EmailSendError as exc:
+            raise ServiceUnavailable(str(exc)) from exc
+
+    def reset_password(self, *, raw_token: str, new_password: str) -> None:
+        digest = hash_token(unwrap_verification_token(raw_token))
         now = self._clock.now()
+        with transaction.atomic():
+            row = (
+                EmailVerification.objects.select_related("user")
+                .filter(
+                    token_hash=digest,
+                    kind=EmailVerification.Kind.RESET,
+                    used_at__isnull=True,
+                    revoked_at__isnull=True,
+                    expires_at__gt=now,
+                )
+                .first()
+            )
+            if row is None:
+                raise exceptions.ValidationError({"token": ErrorMessage.INVALID_VERIFICATION})
+            user = row.user
+            try:
+                validate_password(new_password, user=user)
+            except DjangoValidationError as exc:
+                raise exceptions.ValidationError({"password": exc.messages}) from exc
+            user.set_password(new_password)
+            user.save(update_fields=["password"])
+            row.used_at = now
+            row.save(update_fields=["used_at"])
+            EmailVerification.objects.filter(
+                user=user, kind=EmailVerification.Kind.RESET, used_at__isnull=True
+            ).exclude(pk=row.pk).update(revoked_at=now)
+
+    def _issue_token(self, user, *, kind: str) -> str:
+        now = self._clock.now()
+        minutes = (
+            settings.PASSWORD_RESET_MINUTES
+            if kind == EmailVerification.Kind.RESET
+            else settings.EMAIL_VERIFICATION_MINUTES
+        )
         EmailVerification.objects.filter(
-            user=user, used_at__isnull=True, revoked_at__isnull=True
+            user=user, kind=kind, used_at__isnull=True, revoked_at__isnull=True
         ).update(revoked_at=now)
         raw = secrets.token_urlsafe(32)
         EmailVerification.objects.create(
             user=user,
+            kind=kind,
             token_hash=hash_token(raw),
-            expires_at=now + timedelta(minutes=settings.EMAIL_VERIFICATION_MINUTES),
+            expires_at=now + timedelta(minutes=minutes),
         )
         return raw
 
-    def _verification_link(self, raw_token: str) -> str:
+    def _link(self, path: str, raw_token: str) -> str:
         query = urlencode({"token": raw_token})
-        return f"{settings.FRONTEND_URL}/verify-email?{query}"
+        return f"{settings.FRONTEND_URL}{path}?{query}"
 
 
 class LoginService:

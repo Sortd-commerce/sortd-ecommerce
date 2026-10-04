@@ -1,12 +1,13 @@
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
+from decimal import Decimal
 from zoneinfo import ZoneInfo
 
 from django.conf import settings
-from django.db.models import Count, Q
+from django.db.models import Count
 from ninja_extra.exceptions import ValidationError
 
-from commerce.geocoding import GeocodeResult, Geocoder
+from commerce.geocoding import GeocodeResult, PlacesProvider
 from commerce.models import (
     DeliveryDateOverride,
     DeliveryPostalCode,
@@ -30,13 +31,32 @@ class SlotView:
 
 
 class DeliveryService:
-    def __init__(self, *, clock, geocoder: Geocoder) -> None:
+    def __init__(self, *, clock, geocoder: PlacesProvider) -> None:
         self._clock = clock
         self._geocoder = geocoder
         self._zone = ZoneInfo(settings.DELIVERY_TIMEZONE)
 
-    def check_address(self, *, address: str | None = None, place_id: str | None = None) -> dict:
-        result = self._geocoder.geocode(address=address, place_id=place_id)
+    def autocomplete(self, *, query: str, country: str = "ae", limit: int = 8) -> list[dict]:
+        suggestions = self._geocoder.autocomplete(query=query, country=country, limit=limit)
+        return [
+            {
+                "place_id": item.place_id,
+                "label": item.label,
+                "latitude": str(item.latitude) if item.latitude is not None else None,
+                "longitude": str(item.longitude) if item.longitude is not None else None,
+            }
+            for item in suggestions
+        ]
+
+    def check_address(
+        self,
+        *,
+        address: str | None = None,
+        place_id: str | None = None,
+        latitude: Decimal | None = None,
+        longitude: Decimal | None = None,
+    ) -> dict:
+        result = self._resolve(address=address, place_id=place_id, latitude=latitude, longitude=longitude)
         serviceable = self.is_serviceable(result)
         return {
             "status": result.status,
@@ -48,6 +68,37 @@ class DeliveryService:
             "address_components": result.address_components,
             "serviceable": serviceable,
         }
+
+    def resolve_address(
+        self,
+        *,
+        address: str | None = None,
+        place_id: str | None = None,
+        latitude: Decimal | None = None,
+        longitude: Decimal | None = None,
+    ) -> GeocodeResult:
+        return self._resolve(address=address, place_id=place_id, latitude=latitude, longitude=longitude)
+
+    def _resolve(
+        self,
+        *,
+        address: str | None = None,
+        place_id: str | None = None,
+        latitude: Decimal | None = None,
+        longitude: Decimal | None = None,
+    ) -> GeocodeResult:
+        # Preference: place_id → lat/lng → address text.
+        if place_id:
+            result = self._geocoder.geocode(place_id=place_id)
+            if result.status == "OK":
+                return result
+        if latitude is not None and longitude is not None:
+            result = self._geocoder.geocode(latitude=latitude, longitude=longitude)
+            if result.status == "OK":
+                return result
+        if address:
+            return self._geocoder.geocode(address=address)
+        return GeocodeResult(status="ZERO_RESULTS")
 
     def is_serviceable(self, result: GeocodeResult) -> bool:
         if result.status != "OK" or not result.postal_code:
@@ -72,7 +123,11 @@ class DeliveryService:
 
     def require_open_slot(self, *, delivery_date: date, window_id: int, source: str) -> SlotView:
         now = self._clock.now().astimezone(self._zone)
-        matching = [slot for slot in self._slots_for(delivery_date, now=now) if slot.window_id == window_id and slot.source == source]
+        matching = [
+            slot
+            for slot in self._slots_for(delivery_date, now=now)
+            if slot.window_id == window_id and slot.source == source
+        ]
         if not matching or matching[0].remaining < 1:
             raise ValidationError({"window": ErrorMessage.SLOT_UNAVAILABLE})
         return matching[0]

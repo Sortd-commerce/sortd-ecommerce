@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { signupAction } from "@/lib/actions";
 import { ActionForm, SubmitButton } from "@/components/ActionForm";
+import { PasswordField } from "@/components/PasswordField";
 
 export default function SignupPage() {
   return (
@@ -26,10 +27,7 @@ export default function SignupPage() {
           <span>Phone</span>
           <input name="phone" type="tel" inputMode="tel" autoComplete="tel" placeholder="+971501234567…" required />
         </label>
-        <label className="field">
-          <span>Password</span>
-          <input name="password" type="password" autoComplete="new-password" minLength={8} required />
-        </label>
+        <PasswordField autoComplete="new-password" minLength={8} />
         <SubmitButton pendingLabel="Creating account…">Sign up</SubmitButton>
       </ActionForm>
       <p className="mt-4 text-sm text-ink/60">

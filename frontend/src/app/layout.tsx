@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Outfit } from "next/font/google";
+import { CartProvider } from "@/components/CartProvider";
 import { SiteHeader } from "@/components/SiteHeader";
 import "./globals.css";
 
@@ -27,10 +28,12 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <a href="#main" className="skip-link">
           Skip to content
         </a>
-        <SiteHeader />
-        <main id="main" className="shell pb-20">
-          {children}
-        </main>
+        <CartProvider>
+          <SiteHeader />
+          <main id="main" className="shell pb-20">
+            {children}
+          </main>
+        </CartProvider>
       </body>
     </html>
   );

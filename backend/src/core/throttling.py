@@ -29,3 +29,13 @@ class VerifyThrottle(DynamicRateThrottle):
 class ResendThrottle(DynamicRateThrottle):
     def __init__(self) -> None:
         super().__init__(scope="resend")
+
+
+class PlacesThrottle(DynamicRateThrottle):
+    def __init__(self) -> None:
+        super().__init__(scope="places")
+
+
+class PasswordResetThrottle(DynamicRateThrottle):
+    def __init__(self) -> None:
+        super().__init__(scope="password_reset")

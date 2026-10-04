@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getAccessToken } from "@/lib/auth";
 import { logoutAction } from "@/lib/actions";
+import { CartLink } from "@/components/CartLink";
 
 export async function SiteHeader() {
   const signedIn = Boolean(await getAccessToken());
@@ -15,9 +16,7 @@ export async function SiteHeader() {
           <Link href="/" className="hover:text-forest focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest">
             Shop
           </Link>
-          <Link href="/cart" className="hover:text-forest focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest">
-            Cart
-          </Link>
+          <CartLink />
           {signedIn ? (
             <>
               <Link href="/orders" className="hover:text-forest">
