@@ -8,6 +8,16 @@ export type ApiResult<T> = {
   data?: T;
 };
 
+function envelope<T>(response: Response, path: string, payload: { status?: string; message?: string; errors?: Array<{ message?: string }>; data?: T }): ApiResult<T> {
+  const parsed = apiMessage(payload);
+  return {
+    ok: response.ok && payload.status === "success",
+    status: response.status,
+    message: parsed === "Request failed" && !response.ok ? `API ${response.status} ${path}` : parsed,
+    data: payload.data as T | undefined,
+  };
+}
+
 export async function apiFetch<T>(
   path: string,
   options: { method?: string; body?: unknown; auth?: boolean; headers?: Record<string, string> } = {},
@@ -31,12 +41,7 @@ export async function apiFetch<T>(
     cache: "no-store",
   });
   const payload = await response.json().catch(() => ({}));
-  return {
-    ok: response.ok && payload.status === "success",
-    status: response.status,
-    message: apiMessage(payload),
-    data: payload.data as T | undefined,
-  };
+  return envelope(response, path, payload);
 }
 
 export async function apiForm<T>(path: string, formData: FormData): Promise<ApiResult<T>> {
@@ -54,12 +59,7 @@ export async function apiForm<T>(path: string, formData: FormData): Promise<ApiR
     cache: "no-store",
   });
   const payload = await response.json().catch(() => ({}));
-  return {
-    ok: response.ok && payload.status === "success",
-    status: response.status,
-    message: apiMessage(payload),
-    data: payload.data as T | undefined,
-  };
+  return envelope(response, path, payload);
 }
 
 function apiMessage(payload: { message?: string; errors?: Array<{ message?: string }> }) {

@@ -156,6 +156,41 @@ class AuthController(ControllerBase):
 
 
 @api_controller(
+    "/staff",
+    tags=["Staff"],
+    auth=None,
+    permissions=[AllowAny],
+    use_unique_op_id=False,
+)
+class StaffMeController(ControllerBase):
+    @route.get(
+        "/me",
+        response={200: SuccessResponse, **_ERROR_RESPONSES},
+        summary="Current staff profile",
+        auth=None,
+    )
+    def me(self):
+        from accounts.auth import SessionJWTAuth
+        from accounts.staff import is_staff_user, serialize_staff
+        from core.messages import ErrorMessage
+        from ninja.errors import HttpError
+        from ninja_jwt.exceptions import AuthenticationFailed, InvalidToken
+
+        try:
+            header = self.context.request.headers.get("Authorization") or ""
+            if not header.lower().startswith("bearer "):
+                raise HttpError(401, ErrorMessage.UNAUTHORIZED)
+            user = SessionJWTAuth().jwt_authenticate(self.context.request, header.split(" ", 1)[1].strip())
+        except (InvalidToken, AuthenticationFailed, HttpError):
+            raise HttpError(401, ErrorMessage.UNAUTHORIZED)
+        if user is None:
+            raise HttpError(401, ErrorMessage.UNAUTHORIZED)
+        if not is_staff_user(user):
+            raise HttpError(403, "Staff credentials are required.")
+        return success("Staff profile retrieved.", serialize_staff(user))
+
+
+@api_controller(
     "/profile",
     tags=["Profile"],
     auth=SessionJWTAuth(),

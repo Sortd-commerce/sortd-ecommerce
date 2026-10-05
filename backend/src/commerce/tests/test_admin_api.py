@@ -34,6 +34,16 @@ class AdminApiTests(ApiTestCase):
         me = self.client.get("/api/v1/admin/me", **auth)
         self.assertEqual(me.status_code, 200, me.json())
         self.assertEqual(me.json()["data"]["role"], "admin")
+        staff = self.client.get("/api/v1/staff/me", **auth)
+        self.assertEqual(staff.status_code, 200, staff.json())
+        self.assertEqual(staff.json()["data"]["role"], "admin")
+
+    def test_healthz_is_public(self):
+        response = self.client.get("/healthz")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["status"], "ok")
+        root = self.client.get("/")
+        self.assertEqual(root.status_code, 200)
 
     def test_superuser_without_staff_flag_still_counts_as_admin(self):
         User = get_user_model()

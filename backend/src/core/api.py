@@ -3,7 +3,7 @@
 from ninja_extra import NinjaExtraAPI
 from accounts.auth import SessionJWTAuth
 
-from accounts.controllers import AuthController, ProfileController
+from accounts.controllers import AuthController, ProfileController, StaffMeController
 from catalog.controllers import CategoryController, ProductController
 from commerce.admin_api import AdminController
 from commerce.controllers import (
@@ -28,6 +28,7 @@ api = NinjaExtraAPI(
 )
 
 register_exception_handlers(api)
+api.register_controllers(StaffMeController)
 api.register_controllers(
     AuthController,
     ProfileController,

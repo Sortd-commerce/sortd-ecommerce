@@ -96,10 +96,11 @@ export async function loginAction(_prev: ActionState, formData: FormData): Promi
   );
   if (!result.ok || !result.data) return { ok: false, message: result.message };
   await setAuthCookies(result.data.tokens.access, result.data.tokens.refresh);
-  const me = await apiFetch<{ role: string }>("/admin/me", {
-    auth: false,
-    headers: { Authorization: `Bearer ${result.data.tokens.access}` },
-  });
+  const headers = { Authorization: `Bearer ${result.data.tokens.access}` };
+  let me = await apiFetch<{ role: string }>("/admin/me", { auth: false, headers });
+  if (!me.ok || !me.data) {
+    me = await apiFetch<{ role: string }>("/staff/me", { auth: false, headers });
+  }
   if (!me.ok || !me.data) {
     await clearAuthCookies();
     if (me.status === 403) {

@@ -12,8 +12,10 @@ export type StaffProfile = {
 
 export async function getStaffProfile(): Promise<StaffProfile | null> {
   const result = await apiFetch<StaffProfile>("/admin/me");
-  if (!result.ok || !result.data) return null;
-  return result.data;
+  if (result.ok && result.data) return result.data;
+  const fallback = await apiFetch<StaffProfile>("/staff/me");
+  if (!fallback.ok || !fallback.data) return null;
+  return fallback.data;
 }
 
 export async function requireStaff(): Promise<StaffProfile> {
