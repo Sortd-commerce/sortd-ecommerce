@@ -97,11 +97,15 @@ export async function loginAction(_prev: ActionState, formData: FormData): Promi
   if (!result.ok || !result.data) return { ok: false, message: result.message };
   await setAuthCookies(result.data.tokens.access, result.data.tokens.refresh);
   const me = await apiFetch<{ role: string }>("/admin/me", {
+    auth: false,
     headers: { Authorization: `Bearer ${result.data.tokens.access}` },
   });
   if (!me.ok || !me.data) {
     await clearAuthCookies();
-    return { ok: false, message: "Staff credentials are required." };
+    if (me.status === 403) {
+      return { ok: false, message: "This account can sign in, but it is not staff. Use a superuser or a member added in Operations." };
+    }
+    return { ok: false, message: me.message || "Could not open the staff console." };
   }
   redirect(me.data.role === "admin" ? "/" : "/orders");
 }
