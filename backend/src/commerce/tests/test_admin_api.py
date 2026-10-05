@@ -1,6 +1,6 @@
 from decimal import Decimal
 
-from accounts.tests.helpers import PASSWORD, PHONE, ApiTestCase, bearer, post_json, signup_and_verify
+from accounts.tests.helpers import PASSWORD, PHONE, ApiTestCase, bearer, login, post_json, signup_and_verify
 from catalog.models import Category, Product, ProductStatus, ProductVariant
 from catalog.tests.test_catalog import make_product
 from commerce.models import DeliveryPostalCode, DeliveryWindow, Order, OrderStatus, PaymentMethod
@@ -24,6 +24,28 @@ class AdminApiTests(ApiTestCase):
         self.user.save(update_fields=["is_staff", "staff_role"])
         self.auth = bearer(verified.json()["data"]["tokens"]["access"])
         self.category = Category.objects.create(name="Bars", slug="bars")
+
+    def test_superuser_can_open_staff_console(self):
+        User = get_user_model()
+        User.objects.create_superuser(email="root@example.com", password=PASSWORD)
+        signed_in = login(self.client, email="root@example.com", password=PASSWORD)
+        self.assertEqual(signed_in.status_code, 200, signed_in.json())
+        auth = bearer(signed_in.json()["data"]["tokens"]["access"])
+        me = self.client.get("/api/v1/admin/me", **auth)
+        self.assertEqual(me.status_code, 200, me.json())
+        self.assertEqual(me.json()["data"]["role"], "admin")
+
+    def test_superuser_without_staff_flag_still_counts_as_admin(self):
+        User = get_user_model()
+        root = User.objects.create_superuser(email="owner@example.com", password=PASSWORD)
+        root.is_staff = False
+        root.staff_role = ""
+        root.save(update_fields=["is_staff", "staff_role"])
+        signed_in = login(self.client, email="owner@example.com", password=PASSWORD)
+        auth = bearer(signed_in.json()["data"]["tokens"]["access"])
+        me = self.client.get("/api/v1/admin/me", **auth)
+        self.assertEqual(me.status_code, 200, me.json())
+        self.assertEqual(me.json()["data"]["role"], "admin")
 
     def test_non_staff_is_forbidden(self):
         other = signup_and_verify(self.client, email="customer@example.com")

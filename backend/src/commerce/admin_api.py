@@ -34,7 +34,7 @@ from commerce.models import (
 from commerce.orders import serialize_order
 from core.money import money, money_str
 from core.pagination import PageQuery, paginate_queryset
-from core.permissions import IsAdminStaff, IsStaff
+from core.permissions import IsAdminStaff, IsStaff, authenticated_user
 from core.responses import ErrorResponse, SuccessResponse, success
 
 _ERROR_RESPONSES = {
@@ -301,7 +301,7 @@ def _offer_rows(payload: ProductCreateIn) -> list[dict]:
 class AdminController(ControllerBase):
     @route.get("/me", response={200: SuccessResponse, **_ERROR_RESPONSES}, summary="Current staff profile", permissions=[IsStaff()])
     def me(self):
-        return success("Staff profile retrieved.", serialize_staff(self.context.request.user))
+        return success("Staff profile retrieved.", serialize_staff(authenticated_user(self.context.request)))
 
     @route.get("/members", response={200: SuccessResponse, **_ERROR_RESPONSES}, summary="List staff members")
     def list_members(self):

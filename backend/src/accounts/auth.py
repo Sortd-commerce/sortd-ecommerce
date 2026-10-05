@@ -10,8 +10,8 @@ class SessionJWTAuth(JWTAuth):
         user = super().jwt_authenticate(request, token)
         validated = self.get_validated_token(token)
         session_id = validated.get("session_id")
-        if session_id is None:
-            return user
-        if not DeviceSession.objects.filter(pk=session_id, user=user, revoked_at__isnull=True).exists():
-            raise InvalidToken(ErrorMessage.UNAUTHORIZED)
+        if session_id is not None:
+            if not DeviceSession.objects.filter(pk=session_id, user=user, revoked_at__isnull=True).exists():
+                raise InvalidToken(ErrorMessage.UNAUTHORIZED)
+        request.user = user
         return user

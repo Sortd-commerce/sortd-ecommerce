@@ -1,8 +1,19 @@
+from django.contrib.auth.models import AnonymousUser
 from django.http import HttpRequest
 
 from ninja_extra.permissions import BasePermission
 
-from accounts.staff import is_admin
+from accounts.staff import is_admin, is_staff_user
+
+
+def authenticated_user(request: HttpRequest):
+    """Prefer the JWT principal. Django's AnonymousUser is truthy, so `user or auth` is wrong."""
+    for candidate in (getattr(request, "auth", None), getattr(request, "user", None)):
+        if candidate is None or isinstance(candidate, AnonymousUser):
+            continue
+        if getattr(candidate, "is_authenticated", False):
+            return candidate
+    return None
 
 
 class IsStaff(BasePermission):
@@ -11,8 +22,7 @@ class IsStaff(BasePermission):
     message = "Staff credentials are required."
 
     def has_permission(self, request: HttpRequest, controller) -> bool:
-        user = request.user or request.auth
-        return bool(user and user.is_authenticated and user.is_staff)
+        return is_staff_user(authenticated_user(request))
 
 
 class IsAdminStaff(IsStaff):
@@ -23,6 +33,4 @@ class IsAdminStaff(IsStaff):
     def has_permission(self, request: HttpRequest, controller) -> bool:
         if not super().has_permission(request, controller):
             return False
-        user = request.user or request.auth
-        return is_admin(user)
-
+        return is_admin(authenticated_user(request))
