@@ -30,20 +30,17 @@ export function BuyBox({
   const [variantId, setVariantId] = useState(offers[0]?.id);
   const selected = useMemo(() => offers.find((row) => row.id === variantId) || offers[0], [offers, variantId]);
   const flavors = related.filter((row) => row.kind === "flavor");
+  const inStock = (selected?.on_hand || 0) > 0;
 
   return (
-    <div className="card-quiet rounded-xl p-6">
+    <div className="buy-box card-quiet rounded-2xl p-6 md:sticky md:top-24">
       {flavors.length ? (
         <div className="mb-5">
           <p className="text-sm font-medium text-forest">Flavours</p>
           <div className="mt-2 flex flex-wrap gap-2">
-            <span className="rounded-full bg-forest px-3 py-1 text-sm text-white">This one</span>
+            <span className="chip chip-active">This one</span>
             {flavors.map((flavor) => (
-              <Link
-                key={flavor.slug}
-                href={`/products/${flavor.slug}`}
-                className="rounded-full border border-line px-3 py-1 text-sm text-ink/80 hover:border-forest"
-              >
+              <Link key={flavor.slug} href={`/products/${flavor.slug}`} className="chip chip-link">
                 {flavor.title}
               </Link>
             ))}
@@ -57,9 +54,7 @@ export function BuyBox({
           {offers.map((offer) => (
             <label
               key={offer.id}
-              className={`flex cursor-pointer items-center justify-between rounded-2xl border px-4 py-3 ${
-                selected?.id === offer.id ? "border-forest bg-paper" : "border-line"
-              }`}
+              className={`offer-row ${selected?.id === offer.id ? "offer-row-active" : ""}`}
             >
               <span className="flex items-center gap-3">
                 <input
@@ -89,7 +84,10 @@ export function BuyBox({
         </>
       )}
 
-      <p className="mt-2 text-sm text-ink/60">{selected ? `${selected.on_hand} in stock` : "Unavailable"}</p>
+      <p className={`mt-3 text-sm font-medium ${inStock ? "text-leaf" : "text-citrus"}`}>
+        {selected ? (inStock ? `${selected.on_hand} in stock` : "Out of stock") : "Unavailable"}
+      </p>
+
       {selected ? (
         <AddToCartButton
           variantId={selected.id}
@@ -97,6 +95,7 @@ export function BuyBox({
           sku={selected.sku}
           unitPrice={selected.price}
           slug={currentSlug}
+          onHand={selected.on_hand}
         />
       ) : null}
     </div>

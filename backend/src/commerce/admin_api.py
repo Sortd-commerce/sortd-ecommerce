@@ -4,6 +4,8 @@ from pathlib import Path
 from datetime import time, timedelta
 from decimal import Decimal
 
+from django.contrib.auth import get_user_model
+from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
 from django.db.models import Count, Max, Sum
@@ -13,7 +15,8 @@ from django.utils.text import slugify
 from ninja import File, Form, Query, Schema, UploadedFile
 from ninja_extra import ControllerBase, api_controller, route, status
 from ninja_extra.exceptions import NotFound, ValidationError
-from ninja_jwt.authentication import JWTAuth
+from accounts.auth import SessionJWTAuth
+from accounts.staff import ROLE_ADMIN, ROLE_MEMBER, STAFF_ROLES, admin_queryset, is_admin, role_of, serialize_staff
 from pydantic import Field, field_validator, model_validator
 
 from catalog.images import apply_image_order, make_image_first, sync_image_order
@@ -31,7 +34,7 @@ from commerce.models import (
 from commerce.orders import serialize_order
 from core.money import money, money_str
 from core.pagination import PageQuery, paginate_queryset
-from core.permissions import IsStaff
+from core.permissions import IsAdminStaff, IsStaff
 from core.responses import ErrorResponse, SuccessResponse, success
 
 _ERROR_RESPONSES = {
@@ -191,6 +194,49 @@ class PostalCodeIn(Schema):
     is_active: bool = True
 
 
+class PostalCodePatchIn(Schema):
+    code: str | None = Field(default=None, max_length=16)
+    is_active: bool | None = None
+
+
+class MemberIn(Schema):
+    email: str = Field(min_length=3, max_length=254)
+    first_name: str = Field(default="", max_length=150)
+    last_name: str = Field(default="", max_length=150)
+    password: str = Field(default="", max_length=128)
+    role: str = Field(default=ROLE_MEMBER)
+
+    @field_validator("email")
+    @classmethod
+    def normalize_email(cls, value: str) -> str:
+        return value.strip().lower()
+
+    @field_validator("role")
+    @classmethod
+    def validate_role(cls, value: str) -> str:
+        role = value.strip().lower()
+        if role not in STAFF_ROLES:
+            raise ValueError("Role must be admin or member.")
+        return role
+
+
+class MemberPatchIn(Schema):
+    role: str | None = None
+    is_active: bool | None = None
+    first_name: str | None = Field(default=None, max_length=150)
+    last_name: str | None = Field(default=None, max_length=150)
+
+    @field_validator("role")
+    @classmethod
+    def validate_role(cls, value: str | None) -> str | None:
+        if value is None:
+            return value
+        role = value.strip().lower()
+        if role not in STAFF_ROLES:
+            raise ValueError("Role must be admin or member.")
+        return role
+
+
 class CategoryIn(Schema):
     name: str = Field(min_length=1, max_length=120)
     slug: str | None = None
@@ -248,11 +294,104 @@ def _offer_rows(payload: ProductCreateIn) -> list[dict]:
 @api_controller(
     "/admin",
     tags=["Admin"],
-    auth=JWTAuth(),
-    permissions=[IsStaff()],
+    auth=SessionJWTAuth(),
+    permissions=[IsAdminStaff()],
     use_unique_op_id=False,
 )
 class AdminController(ControllerBase):
+    @route.get("/me", response={200: SuccessResponse, **_ERROR_RESPONSES}, summary="Current staff profile", permissions=[IsStaff()])
+    def me(self):
+        return success("Staff profile retrieved.", serialize_staff(self.context.request.user))
+
+    @route.get("/members", response={200: SuccessResponse, **_ERROR_RESPONSES}, summary="List staff members")
+    def list_members(self):
+        User = get_user_model()
+        rows = [serialize_staff(user) for user in User.objects.filter(is_staff=True).order_by("email")]
+        return success("Members retrieved.", rows)
+
+    @route.post("/members", response={201: SuccessResponse, **_ERROR_RESPONSES}, summary="Add a staff member")
+    def create_member(self, payload: MemberIn):
+        User = get_user_model()
+        user = User.objects.filter(email=payload.email).first()
+        if user is None:
+            if not payload.password:
+                raise ValidationError({"password": "A password is required for a new member."})
+            try:
+                validate_password(payload.password)
+            except DjangoValidationError as exc:
+                raise ValidationError({"password": " ".join(exc.messages)}) from exc
+            user = User.objects.create_user(
+                email=payload.email,
+                password=payload.password,
+                first_name=payload.first_name.strip(),
+                last_name=payload.last_name.strip(),
+                is_staff=True,
+                staff_role=payload.role,
+                email_verified_at=timezone.now(),
+            )
+        else:
+            if payload.password:
+                try:
+                    validate_password(payload.password, user=user)
+                except DjangoValidationError as exc:
+                    raise ValidationError({"password": " ".join(exc.messages)}) from exc
+                user.set_password(payload.password)
+            if payload.first_name.strip():
+                user.first_name = payload.first_name.strip()
+            if payload.last_name.strip():
+                user.last_name = payload.last_name.strip()
+            user.is_staff = True
+            user.is_active = True
+            user.staff_role = payload.role
+            if user.email_verified_at is None:
+                user.email_verified_at = timezone.now()
+            user.save()
+        return status.HTTP_201_CREATED, success("Member saved.", serialize_staff(user))
+
+    @route.patch("/members/{user_id}", response={200: SuccessResponse, **_ERROR_RESPONSES}, summary="Update a staff member")
+    def update_member(self, user_id: int, payload: MemberPatchIn):
+        User = get_user_model()
+        user = User.objects.filter(pk=user_id, is_staff=True).first()
+        if user is None:
+            raise NotFound("Member not found.")
+        actor = self.context.request.user
+        next_role = payload.role if payload.role is not None else role_of(user)
+        next_active = user.is_active if payload.is_active is None else payload.is_active
+        losing_admin = is_admin(user) and (next_role != ROLE_ADMIN or not next_active)
+        if losing_admin and admin_queryset().exclude(pk=user.pk).count() < 1:
+            raise ValidationError({"role": "Keep at least one admin."})
+        if payload.role is not None:
+            user.staff_role = payload.role
+            if payload.role == ROLE_ADMIN:
+                pass
+            elif user.pk == actor.pk and is_admin(actor):
+                raise ValidationError({"role": "Ask another admin to change your role."})
+        if payload.is_active is not None:
+            if user.pk == actor.pk and payload.is_active is False:
+                raise ValidationError({"is_active": "You cannot deactivate your own account."})
+            user.is_active = payload.is_active
+        if payload.first_name is not None:
+            user.first_name = payload.first_name.strip()
+        if payload.last_name is not None:
+            user.last_name = payload.last_name.strip()
+        user.save()
+        return success("Member updated.", serialize_staff(user))
+
+    @route.delete("/members/{user_id}", response={200: SuccessResponse, **_ERROR_RESPONSES}, summary="Remove staff access")
+    def delete_member(self, user_id: int):
+        User = get_user_model()
+        user = User.objects.filter(pk=user_id, is_staff=True).first()
+        if user is None:
+            raise NotFound("Member not found.")
+        if user.pk == self.context.request.user.pk:
+            raise ValidationError({"member": "You cannot remove your own access."})
+        if is_admin(user) and admin_queryset().exclude(pk=user.pk).count() < 1:
+            raise ValidationError({"member": "Keep at least one admin."})
+        user.is_staff = False
+        user.staff_role = ""
+        user.save(update_fields=["is_staff", "staff_role"])
+        return success("Member removed.", {"deleted": True})
+
     @route.get("/analytics/overview", response={200: SuccessResponse, **_ERROR_RESPONSES}, summary="Dashboard analytics")
     def analytics(self):
         now = timezone.now()
@@ -306,7 +445,7 @@ class AdminController(ControllerBase):
             },
         )
 
-    @route.get("/orders", response={200: SuccessResponse, **_ERROR_RESPONSES}, summary="List all orders")
+    @route.get("/orders", response={200: SuccessResponse, **_ERROR_RESPONSES}, summary="List all orders", permissions=[IsStaff()])
     def list_orders(self, query: Query[PageQuery], status_filter: str | None = None):
         qs = Order.objects.select_related("user").prefetch_related("lines").order_by("-created_at")
         if status_filter:
@@ -317,7 +456,7 @@ class AdminController(ControllerBase):
         ]
         return success("Orders retrieved.", page)
 
-    @route.get("/orders/{number}", response={200: SuccessResponse, **_ERROR_RESPONSES}, summary="Get an order")
+    @route.get("/orders/{number}", response={200: SuccessResponse, **_ERROR_RESPONSES}, summary="Get an order", permissions=[IsStaff()])
     def get_order(self, number: str):
         order = Order.objects.select_related("user").prefetch_related("lines").filter(number=number).first()
         if order is None:
@@ -728,6 +867,28 @@ class AdminController(ControllerBase):
         return status.HTTP_201_CREATED, success(
             "Postal code saved.", {"id": row.id, "code": row.code, "is_active": row.is_active}
         )
+
+    @route.patch(
+        "/delivery/postal-codes/{code_id}",
+        response={200: SuccessResponse, **_ERROR_RESPONSES},
+        summary="Update postal code",
+    )
+    def update_postal_code(self, code_id: int, payload: PostalCodePatchIn):
+        row = DeliveryPostalCode.objects.filter(pk=code_id).first()
+        if row is None:
+            raise NotFound("Postal code not found.")
+        if payload.code is not None:
+            code = normalize_postal_code(payload.code)
+            if not code:
+                raise ValidationError({"code": "Postal code is required."})
+            clash = DeliveryPostalCode.objects.filter(code=code).exclude(pk=row.pk).exists()
+            if clash:
+                raise ValidationError({"code": "That postal code already exists."})
+            row.code = code
+        if payload.is_active is not None:
+            row.is_active = payload.is_active
+        row.save()
+        return success("Postal code updated.", {"id": row.id, "code": row.code, "is_active": row.is_active})
 
     @route.delete(
         "/delivery/postal-codes/{code_id}",

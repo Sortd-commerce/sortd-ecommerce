@@ -25,7 +25,7 @@ export async function autocompletePlaces(query: string): Promise<PlaceSuggestion
   const result = await apiFetch<PlaceSuggestion[]>("/delivery/autocomplete", {
     method: "POST",
     auth: false,
-    body: { q, country: "ae", limit: 8 },
+    body: { q, country: "", limit: 8 },
   });
   return result.ok && result.data ? result.data : [];
 }

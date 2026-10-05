@@ -1,5 +1,6 @@
 import hashlib
 import hmac
+import logging
 import secrets
 from datetime import timedelta
 from urllib.parse import urlencode
@@ -15,10 +16,11 @@ from ninja_jwt.exceptions import TokenError
 from ninja_jwt.tokens import UntypedToken
 
 from accounts.emailing import EmailSendError, unwrap_verification_token
-from accounts.models import EmailVerification
+from accounts.models import DeviceSession, EmailVerification
 from accounts.tokens import AppRefreshToken
 from accounts.types import (
     AuthResult,
+    DeviceSnapshot,
     EmailSender,
     LoginCommand,
     ProfileUpdateCommand,
@@ -27,17 +29,51 @@ from accounts.types import (
     TokenPair,
     UserSnapshot,
 )
+from accounts.sessions import open_session, require_active_session, revoke_session, touch_session
 from core.clock import Clock
 from core.exceptions import ServiceUnavailable
 from core.messages import ErrorMessage
 
 User = get_user_model()
+logger = logging.getLogger(__name__)
 
 
 class JwtTokenIssuer:
-    def issue(self, user) -> TokenPair:
-        refresh = AppRefreshToken.for_user(user)
+    def issue(self, user, session_id: int | None = None) -> TokenPair:
+        refresh = AppRefreshToken.for_user(user, session_id=session_id)
         return TokenPair(access=str(refresh.access_token), refresh=str(refresh))
+
+
+def issue_auth(
+    *,
+    user,
+    tokens: TokenIssuer,
+    request,
+    device_id: str = "",
+    email_sender: EmailSender | None = None,
+    notify_new: bool = False,
+) -> AuthResult:
+    session, is_new = open_session(user=user, request=request, device_id=device_id, refresh_jti="")
+    pair = tokens.issue(user, session_id=session.pk)
+    refresh = AppRefreshToken(pair.refresh)
+    session.refresh_jti = str(refresh["jti"])
+    session.save(update_fields=["refresh_jti"])
+    had_other = DeviceSession.objects.filter(user=user).exclude(pk=session.pk).exists()
+    if notify_new and is_new and had_other and email_sender is not None:
+        try:
+            email_sender.send_new_device_login(
+                to=user.email,
+                first_name=user.first_name,
+                label=session.label,
+                ip_address=session.ip_address,
+            )
+        except EmailSendError:
+            logger.exception("New-device email failed for user %s", user.pk)
+    return AuthResult(
+        user=snapshot(user),
+        tokens=pair,
+        device=DeviceSnapshot(id=session.device_id, label=session.label, is_new=is_new),
+    )
 
 
 class SignupService:
@@ -113,7 +149,7 @@ class SignupService:
         except EmailSendError as exc:
             raise ServiceUnavailable(str(exc)) from exc
 
-    def verify(self, *, raw_token: str) -> AuthResult:
+    def verify(self, *, raw_token: str, request=None, device_id: str = "") -> AuthResult:
         digest = hash_token(unwrap_verification_token(raw_token))
         now = self._clock.now()
         with transaction.atomic():
@@ -136,7 +172,16 @@ class SignupService:
                 user.email_verified_at = now
                 user.save(update_fields=["email_verified_at"])
         update_last_login(None, user)
-        return AuthResult(user=snapshot(user), tokens=self._tokens.issue(user))
+        if request is None:
+            return AuthResult(user=snapshot(user), tokens=self._tokens.issue(user))
+        return issue_auth(
+            user=user,
+            tokens=self._tokens,
+            request=request,
+            device_id=device_id,
+            email_sender=self._email_sender,
+            notify_new=False,
+        )
 
     def request_password_reset(self, *, email: str) -> None:
         user = User.objects.filter(email=email, is_active=True, email_verified_at__isnull=False).first()
@@ -205,8 +250,9 @@ class SignupService:
 
 
 class LoginService:
-    def __init__(self, *, tokens: TokenIssuer) -> None:
+    def __init__(self, *, tokens: TokenIssuer, email_sender: EmailSender) -> None:
         self._tokens = tokens
+        self._email_sender = email_sender
 
     def login(self, *, request, command: LoginCommand) -> AuthResult:
         user = authenticate(request, email=command.email, password=command.password)
@@ -215,14 +261,25 @@ class LoginService:
         if user.email_verified_at is None:
             raise exceptions.AuthenticationFailed(ErrorMessage.EMAIL_NOT_VERIFIED)
         update_last_login(None, user)
-        return AuthResult(user=snapshot(user), tokens=self._tokens.issue(user))
+        return issue_auth(
+            user=user,
+            tokens=self._tokens,
+            request=request,
+            device_id=command.device_id,
+            email_sender=self._email_sender,
+            notify_new=True,
+        )
 
 
 class TokenService:
-    def refresh(self, *, refresh: str) -> TokenPair:
+    def __init__(self, *, tokens: TokenIssuer | None = None) -> None:
+        self._tokens = tokens or JwtTokenIssuer()
+
+    def refresh(self, *, refresh: str, request=None) -> TokenPair:
         try:
             previous = AppRefreshToken(refresh)
             user_id = previous["user_id"]
+            session_id = previous.get("session_id")
             previous.blacklist()
         except TokenError as exc:
             raise exceptions.AuthenticationFailed("Token is invalid or expired.") from exc
@@ -230,8 +287,17 @@ class TokenService:
             user = User.objects.get(pk=user_id, is_active=True)
         except User.DoesNotExist as exc:
             raise exceptions.AuthenticationFailed("Token is invalid or expired.") from exc
-        issued = JwtTokenIssuer().issue(user)
-        return issued
+        if session_id is not None:
+            session = require_active_session(user=user, session_id=session_id)
+            issued = self._tokens.issue(user, session_id=session.pk)
+            rotated = AppRefreshToken(issued.refresh)
+            if request is not None:
+                touch_session(session, request=request, refresh_jti=str(rotated["jti"]))
+            else:
+                session.refresh_jti = str(rotated["jti"])
+                session.save(update_fields=["refresh_jti"])
+            return issued
+        return self._tokens.issue(user)
 
     def verify_access(self, *, token: str) -> dict:
         try:
@@ -242,9 +308,16 @@ class TokenService:
 
     def logout(self, *, refresh: str) -> None:
         try:
-            AppRefreshToken(refresh).blacklist()
+            token = AppRefreshToken(refresh)
+            session_id = token.get("session_id")
+            user_id = token["user_id"]
+            token.blacklist()
         except TokenError as exc:
             raise exceptions.AuthenticationFailed("Token is invalid or expired.") from exc
+        if session_id is not None:
+            session = DeviceSession.objects.filter(pk=session_id, user_id=user_id).first()
+            if session is not None:
+                revoke_session(session)
 
 
 class ProfileService:

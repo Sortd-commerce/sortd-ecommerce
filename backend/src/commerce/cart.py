@@ -94,11 +94,14 @@ class CartService:
         if variant is None:
             raise ValidationError({"variant_id": "That product is not available."})
         item = CartItem.objects.filter(cart=cart, variant=variant).first()
-        if item is None:
-            CartItem.objects.create(cart=cart, variant=variant, quantity=quantity)
+        next_qty = quantity if not add else (item.quantity if item else 0) + quantity
+        next_qty = min(next_qty, MAX_QUANTITY, max(0, variant.on_hand))
+        if next_qty < 1:
+            if item is not None:
+                item.delete()
             return
-        item.quantity = min(item.quantity + quantity, MAX_QUANTITY) if add else quantity
-        if item.quantity < 1:
-            item.delete()
-        else:
-            item.save(update_fields=["quantity"])
+        if item is None:
+            CartItem.objects.create(cart=cart, variant=variant, quantity=next_qty)
+            return
+        item.quantity = next_qty
+        item.save(update_fields=["quantity"])

@@ -1,8 +1,8 @@
 from ninja import Query
 from ninja_extra import ControllerBase, api_controller, route, status
-from ninja_extra.exceptions import ValidationError
+from ninja_extra.exceptions import NotFound, ValidationError
 from ninja_extra.permissions import AllowAny, IsAuthenticated
-from ninja_jwt.authentication import JWTAuth
+from accounts.auth import SessionJWTAuth
 
 from commerce.cart import CartLineCommand
 from commerce.factory import build_cart_service, build_delivery_service, build_order_service
@@ -87,13 +87,13 @@ class PaymentController(ControllerBase):
     @route.get("/methods", response={200: SuccessResponse, **_ERROR_RESPONSES}, summary="List payment methods")
     def methods(self):
         rows = [
-            {"code": method.code, "name": method.name}
-            for method in PaymentMethod.objects.filter(is_active=True).order_by("code")
+            {"code": method.code, "name": method.name, "is_active": method.is_active}
+            for method in PaymentMethod.objects.order_by("-is_active", "name")
         ]
         return success("Payment methods retrieved.", rows)
 
 
-@api_controller("/addresses", tags=["Addresses"], auth=JWTAuth(), permissions=[IsAuthenticated], use_unique_op_id=False)
+@api_controller("/addresses", tags=["Addresses"], auth=SessionJWTAuth(), permissions=[IsAuthenticated], use_unique_op_id=False)
 class AddressController(ControllerBase):
     @route.get("", response={200: SuccessResponse, **_ERROR_RESPONSES}, summary="List saved addresses")
     def list_addresses(self):
@@ -104,44 +104,19 @@ class AddressController(ControllerBase):
 
     @route.post("", response={201: SuccessResponse, **_ERROR_RESPONSES}, summary="Save an address")
     def create(self, payload: AddressIn):
-        user = self.context.request.user
-        delivery = build_delivery_service()
-        geo = delivery.resolve_address(
-            address=payload.formatted_address or payload.line1 or None,
-            place_id=payload.place_id or None,
-            latitude=payload.latitude,
-            longitude=payload.longitude,
-        )
-        delivery.require_serviceable(geo)
-
-        components = geo.address_components or []
-        line1 = payload.line1.strip() or _component_value(components, "route") or geo.formatted_address
-        city = payload.city.strip() or _component_value(components, "locality") or "Dubai"
-        region = payload.region.strip() or _component_value(components, "administrative_area_level_1")
-        postal = normalize_postal_code(geo.postal_code or payload.postal_code or "")
-        if not line1:
-            raise ValidationError({"address": ErrorMessage.VALIDATION})
-
-        if payload.is_default:
-            Address.objects.filter(user=user).update(is_default=False)
-        address = Address.objects.create(
-            user=user,
-            line1=line1[:200],
-            line2=payload.line2.strip()[:200],
-            city=city[:120],
-            region=region[:120],
-            postal_code=postal[:20],
-            country=(payload.country or "AE").upper()[:2],
-            latitude=geo.latitude,
-            longitude=geo.longitude,
-            place_id=(geo.place_id or payload.place_id or "")[:256],
-            formatted_address=(geo.formatted_address or payload.formatted_address or line1)[:400],
-            is_default=payload.is_default,
-        )
+        address = _save_address(user=self.context.request.user, payload=payload)
         return status.HTTP_201_CREATED, success("Address saved.", _address_payload(address))
 
+    @route.patch("/{address_id}", response={200: SuccessResponse, **_ERROR_RESPONSES}, summary="Update a saved address")
+    def update(self, address_id: int, payload: AddressIn):
+        instance = Address.objects.filter(user=self.context.request.user, pk=address_id).first()
+        if instance is None:
+            raise NotFound(ErrorMessage.NOT_FOUND)
+        address = _save_address(user=self.context.request.user, payload=payload, instance=instance)
+        return success("Address updated.", _address_payload(address))
 
-@api_controller("/cart", tags=["Cart"], auth=JWTAuth(), permissions=[IsAuthenticated], use_unique_op_id=False)
+
+@api_controller("/cart", tags=["Cart"], auth=SessionJWTAuth(), permissions=[IsAuthenticated], use_unique_op_id=False)
 class CartController(ControllerBase):
     @route.get("", response={200: SuccessResponse, **_ERROR_RESPONSES}, summary="Get the cart")
     def retrieve(self):
@@ -179,7 +154,7 @@ class CartController(ControllerBase):
         return success("Cart updated.", data)
 
 
-@api_controller("/orders", tags=["Orders"], auth=JWTAuth(), permissions=[IsAuthenticated], use_unique_op_id=False)
+@api_controller("/orders", tags=["Orders"], auth=SessionJWTAuth(), permissions=[IsAuthenticated], use_unique_op_id=False)
 class OrderController(ControllerBase):
     @route.get("", response={200: SuccessResponse, **_ERROR_RESPONSES}, summary="List orders")
     def list_orders(self, query: Query[PageQuery]):
@@ -221,6 +196,48 @@ class OrderController(ControllerBase):
     def cancel(self, number: str):
         order = build_order_service().cancel(self.context.request.user, number=number)
         return success("Order cancelled.", serialize_order(order))
+
+
+def _save_address(*, user, payload: AddressIn, instance: Address | None = None) -> Address:
+    delivery = build_delivery_service()
+    geo = delivery.resolve_address(
+        address=payload.formatted_address or payload.line1 or None,
+        place_id=payload.place_id or None,
+        latitude=payload.latitude,
+        longitude=payload.longitude,
+    )
+    delivery.require_serviceable(geo)
+
+    components = geo.address_components or []
+    line1 = payload.line1.strip() or _component_value(components, "route") or geo.formatted_address
+    city = payload.city.strip() or _component_value(components, "locality") or "Dubai"
+    region = payload.region.strip() or _component_value(components, "administrative_area_level_1")
+    postal = normalize_postal_code(geo.postal_code or payload.postal_code or "")
+    if not line1:
+        raise ValidationError({"address": ErrorMessage.VALIDATION})
+
+    make_default = True if instance is None else payload.is_default
+    if make_default:
+        others = Address.objects.filter(user=user)
+        if instance is not None:
+            others = others.exclude(pk=instance.pk)
+        others.update(is_default=False)
+
+    address = instance or Address(user=user)
+    address.line1 = line1[:200]
+    address.line2 = payload.line2.strip()[:200]
+    address.city = city[:120]
+    address.region = region[:120]
+    address.postal_code = postal[:20]
+    address.country = (payload.country or "AE").upper()[:2]
+    address.latitude = geo.latitude
+    address.longitude = geo.longitude
+    address.place_id = (geo.place_id or payload.place_id or "")[:256]
+    address.formatted_address = (geo.formatted_address or payload.formatted_address or line1)[:400]
+    if instance is None or payload.is_default:
+        address.is_default = make_default
+    address.save()
+    return address
 
 
 def _address_payload(address: Address) -> dict:

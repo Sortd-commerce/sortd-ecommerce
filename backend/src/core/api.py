@@ -1,7 +1,7 @@
 """Ninja Extra API, Swagger docs, auth, and rate limits."""
 
 from ninja_extra import NinjaExtraAPI
-from ninja_jwt.authentication import JWTAuth
+from accounts.auth import SessionJWTAuth
 
 from accounts.controllers import AuthController, ProfileController
 from catalog.controllers import CategoryController, ProductController
@@ -23,7 +23,7 @@ api = NinjaExtraAPI(
     urls_namespace="api",
     docs_url="/docs",
     openapi_url="/openapi.json",
-    auth=JWTAuth(),
+    auth=SessionJWTAuth(),
     throttle=[AnonThrottle(), UserThrottle()],
 )
 

@@ -63,7 +63,7 @@ class DeliveryCheckIn(Schema):
 
 class AutocompleteIn(Schema):
     q: str = Field(min_length=1, max_length=200)
-    country: str = Field(default="ae", max_length=8)
+    country: str = Field(default="", max_length=8)
     limit: int = Field(default=8, ge=1, le=10)
 
 
@@ -89,6 +89,14 @@ class PlaceOrderIn(Schema):
     expected_total: Decimal
     discount_code: str | None = None
     payment_method: str = "cod"
+
+    @field_validator("payment_method")
+    @classmethod
+    def normalize_payment_method(cls, value: str) -> str:
+        code = value.strip().lower()
+        if not code:
+            raise ValueError("Select a payment method.")
+        return code
 
     @field_validator("window_source")
     @classmethod

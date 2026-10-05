@@ -1,7 +1,10 @@
 "use client";
 
-import { useEffect, useId, useRef, useState, useTransition } from "react";
-import { ActionForm, SubmitButton } from "@/components/ActionForm";
+import { Crosshair, SpinnerGap } from "@phosphor-icons/react";
+import { useActionState, useEffect, useId, useRef, useState, useTransition } from "react";
+import { SubmitButton, emptyActionState } from "@/components/ActionForm";
+import { useToast } from "@/components/Toast";
+import type { ActionState } from "@/lib/action-state";
 import { saveAddressAction } from "@/lib/actions";
 import {
   autocompletePlaces,
@@ -32,19 +35,77 @@ function toSelected(check: DeliveryCheck, fallbackLabel = ""): SelectedPlace {
   };
 }
 
-export function AddressPicker() {
+export function AddressPicker({
+  addressId,
+  isDefault = true,
+  submitLabel = "Save address",
+  initialQuery = "",
+  initialPlace,
+  onSaved,
+}: {
+  addressId?: number;
+  isDefault?: boolean;
+  submitLabel?: string;
+  initialQuery?: string;
+  initialPlace?: {
+    place_id?: string;
+    latitude?: string | null;
+    longitude?: string | null;
+    postal_code?: string;
+    formatted_address?: string;
+  };
+  onSaved?: () => void;
+}) {
+  const toast = useToast();
   const listId = useId();
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(initialQuery || initialPlace?.formatted_address || "");
   const [suggestions, setSuggestions] = useState<PlaceSuggestion[]>([]);
   const [open, setOpen] = useState(false);
-  const [selected, setSelected] = useState<SelectedPlace | null>(null);
-  const [message, setMessage] = useState("");
+  const [selected, setSelected] = useState<SelectedPlace | null>(() => {
+    if (!initialPlace?.place_id && !initialPlace?.latitude) return null;
+    return {
+      place_id: initialPlace.place_id || "",
+      label: initialPlace.formatted_address || initialQuery || "",
+      latitude: initialPlace.latitude || "",
+      longitude: initialPlace.longitude || "",
+      postal_code: initialPlace.postal_code || "",
+      formatted_address: initialPlace.formatted_address || initialQuery || "",
+      serviceable: true,
+    };
+  });
   const [locating, setLocating] = useState(false);
   const [pending, startTransition] = useTransition();
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const skipSuggest = useRef(Boolean(initialPlace || initialQuery));
+
+  const [state, formAction] = useActionState(async (prev: ActionState, formData: FormData) => {
+    if (!selected) {
+      toast.error("Pick an address from the suggestions, or use your location.");
+      return prev;
+    }
+    if (!selected.serviceable) {
+      toast.error("We do not deliver to that address yet.");
+      return prev;
+    }
+    return saveAddressAction(prev, formData);
+  }, emptyActionState);
+
+  useEffect(() => {
+    if (!state.message) return;
+    if (state.ok) {
+      toast.success(state.message);
+      onSaved?.();
+    } else {
+      toast.error(state.message);
+    }
+  }, [state, toast, onSaved]);
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (skipSuggest.current) {
+      skipSuggest.current = false;
+      return;
+    }
     const value = query.trim();
     if (value.length < 2) {
       setSuggestions([]);
@@ -65,19 +126,20 @@ export function AddressPicker() {
   function applyCheck(result: { ok: boolean; message: string; data?: DeliveryCheck }, fallbackLabel = "") {
     if (!result.ok || !result.data) {
       setSelected(null);
-      setMessage(result.message || "Could not verify that address.");
+      toast.error(result.message || "Could not verify that address.");
       return;
     }
     const next = toSelected(result.data, fallbackLabel);
     setSelected(next);
+    skipSuggest.current = true;
     setQuery(next.formatted_address || fallbackLabel);
     setOpen(false);
     setSuggestions([]);
-    setMessage(
-      next.serviceable
-        ? "We deliver to this address."
-        : "We do not deliver to this address yet.",
-    );
+    if (next.serviceable) {
+      toast.success("We deliver to this address.");
+    } else {
+      toast.error("We do not deliver to this address yet.");
+    }
   }
 
   function onPick(suggestion: PlaceSuggestion) {
@@ -93,11 +155,11 @@ export function AddressPicker() {
 
   function useMyLocation() {
     if (!navigator.geolocation) {
-      setMessage("Location is not available in this browser.");
+      toast.error("Location is not available in this browser.");
       return;
     }
     setLocating(true);
-    setMessage("Getting your location…");
+    toast.info("Getting your location…");
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const latitude = String(position.coords.latitude);
@@ -110,33 +172,54 @@ export function AddressPicker() {
       },
       () => {
         setLocating(false);
-        setMessage("Could not access your location. Check browser permissions.");
+        toast.error("Could not access your location. Check browser permissions.");
       },
       { enableHighAccuracy: true, timeout: 12000 },
     );
   }
 
   const canSave = Boolean(selected?.serviceable);
+  const validity =
+    selected?.serviceable === true ? "valid" : selected && !selected.serviceable ? "invalid" : query.trim() && !selected ? "pending" : "";
 
   return (
     <div className="mt-4 grid gap-3">
       <label className="field">
         <span>Search address</span>
-        <input
-          value={query}
-          onChange={(event) => {
-            setQuery(event.target.value);
-            setSelected(null);
-            setMessage("");
-          }}
-          onFocus={() => suggestions.length && setOpen(true)}
-          placeholder="Start typing an address in the UAE"
-          autoComplete="off"
-          role="combobox"
-          aria-expanded={open}
-          aria-controls={listId}
-          aria-autocomplete="list"
-        />
+        <span className="relative block">
+          <input
+            value={query}
+            onChange={(event) => {
+              setQuery(event.target.value);
+              setSelected(null);
+            }}
+            onFocus={() => suggestions.length && setOpen(true)}
+            placeholder="Search any city to test pin codes"
+            autoComplete="off"
+            role="combobox"
+            aria-expanded={open}
+            aria-controls={listId}
+            aria-autocomplete="list"
+            aria-invalid={validity === "invalid" || undefined}
+            className={`pr-12 ${validity === "valid" ? "field-valid" : validity === "invalid" ? "field-invalid" : ""}`}
+          />
+          <button
+            type="button"
+            className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-forest transition hover:bg-sand disabled:opacity-50"
+            onClick={useMyLocation}
+            disabled={locating || pending}
+            aria-label={locating ? "Locating" : "Use my location"}
+            title="Use my location"
+          >
+            {locating || pending ? <SpinnerGap size={20} className="animate-spin" /> : <Crosshair size={20} weight="bold" />}
+          </button>
+        </span>
+        {validity === "valid" ? (
+          <p className="text-sm font-medium text-leaf">Deliverable address confirmed.</p>
+        ) : null}
+        {validity === "invalid" ? (
+          <p className="text-sm font-medium text-citrus">We do not deliver to this address yet.</p>
+        ) : null}
       </label>
 
       {open && suggestions.length ? (
@@ -160,24 +243,9 @@ export function AddressPicker() {
         </ul>
       ) : null}
 
-      <div className="flex flex-wrap gap-2">
-        <button type="button" className="btn btn-secondary" onClick={useMyLocation} disabled={locating || pending}>
-          {locating ? "Locating…" : "Use my location"}
-        </button>
-        {pending ? <span className="self-center text-sm text-ink/55">Checking…</span> : null}
-      </div>
-
-      {message ? (
-        <p
-          className={`text-sm ${selected?.serviceable ? "text-leaf" : "text-citrus"}`}
-          role="status"
-          aria-live="polite"
-        >
-          {message}
-        </p>
-      ) : null}
-
-      <ActionForm action={saveAddressAction} className="grid gap-3">
+      <form action={formAction} className="grid gap-3">
+        {addressId ? <input type="hidden" name="address_id" value={addressId} /> : null}
+        <input type="hidden" name="is_default" value={isDefault ? "true" : "false"} />
         <input type="hidden" name="place_id" value={selected?.place_id || ""} />
         <input type="hidden" name="formatted_address" value={selected?.formatted_address || ""} />
         <input type="hidden" name="latitude" value={selected?.latitude || ""} />
@@ -185,10 +253,13 @@ export function AddressPicker() {
         <input type="hidden" name="postal_code" value={selected?.postal_code || ""} />
         <input type="hidden" name="line1" value={selected?.formatted_address || query} />
         <input type="hidden" name="city" value="Dubai" />
-        <SubmitButton className="btn btn-secondary" disabled={!canSave}>
-          Save address
+        <SubmitButton className="btn btn-secondary" disabled={!canSave} pendingLabel="Saving…">
+          {submitLabel}
         </SubmitButton>
-      </ActionForm>
+        {!selected && query.trim() ? (
+          <p className="text-sm text-ink/55">Choose a suggestion from the list to confirm the place.</p>
+        ) : null}
+      </form>
     </div>
   );
 }

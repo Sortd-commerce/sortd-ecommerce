@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import {
   addOfferAction,
   updateOfferAction,
@@ -7,6 +7,7 @@ import {
   uploadProductImageAction,
 } from "@/lib/actions";
 import { apiFetch } from "@/lib/api";
+import { requireAdmin } from "@/lib/staff";
 import { ActionForm, SubmitButton } from "@/components/ActionForm";
 import { ProductImageGallery } from "@/components/ProductImageGallery";
 
@@ -81,20 +82,20 @@ export default async function AdminProductDetailPage({
 }) {
   const { id } = await params;
   const query = await searchParams;
+  await requireAdmin();
   const [productResult, categories, catalog] = await Promise.all([
     apiFetch<Product>(`/admin/products/${id}`),
     apiFetch<Category[]>("/admin/categories"),
     apiFetch<ProductList>("/admin/products?page_size=100"),
   ]);
-  if (productResult.status === 401 || productResult.status === 403) redirect("/login");
   if (!productResult.ok || !productResult.data) notFound();
   const product = productResult.data;
   const selectedRelated = new Set((product.related || []).map((row) => row.slug));
 
   return (
-    <div className="space-y-6 pt-2">
-      <Link href="/products" className="text-sm text-muted">
-        ← Products
+    <div className="space-y-6">
+      <Link href="/products" className="text-sm text-muted hover:text-text">
+        Back to catalog
       </Link>
       <h1 className="text-3xl font-semibold">{product.title}</h1>
       {query.error ? <p className="rounded-2xl bg-warn/10 px-4 py-3 text-sm text-warn">{query.error}</p> : null}

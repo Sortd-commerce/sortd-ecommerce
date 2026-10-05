@@ -266,3 +266,39 @@ class CheckoutTests(ApiTestCase):
             self.client, "/api/v1/orders", self._order_payload(), HTTP_IDEMPOTENCY_KEY="cap-2", **self.auth
         )
         self.assertEqual(second.status_code, 400)
+
+    def test_payment_methods_come_from_the_catalog(self):
+        PaymentMethod.objects.get_or_create(code="card", defaults={"name": "Card", "is_active": False})
+        response = self.client.get("/api/v1/payments/methods")
+        self.assertEqual(response.status_code, 200)
+        rows = {row["code"]: row for row in response.json()["data"]}
+        self.assertTrue(rows["cod"]["is_active"])
+        self.assertEqual(rows["cod"]["name"], "Cash on delivery")
+        self.assertIn("card", rows)
+        self.assertFalse(rows["card"]["is_active"])
+
+    def test_inactive_payment_method_is_rejected(self):
+        PaymentMethod.objects.update_or_create(code="card", defaults={"name": "Card", "is_active": False})
+        self._add_to_cart(1)
+        response = post_json(
+            self.client,
+            "/api/v1/orders",
+            self._order_payload(payment_method="card"),
+            HTTP_IDEMPOTENCY_KEY="pay-1",
+            **self.auth,
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(Order.objects.exists())
+
+    def test_address_can_be_updated(self):
+        response = self.client.patch(
+            f"/api/v1/addresses/{self.address.id}",
+            data=json.dumps({"place_id": "fixture-dubai-marina", "is_default": True}),
+            content_type="application/json",
+            **self.auth,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.address.refresh_from_db()
+        self.assertEqual(self.address.place_id, "fixture-dubai-marina")
+        self.assertEqual(self.address.postal_code, "00000")
+        self.assertTrue(self.address.is_default)

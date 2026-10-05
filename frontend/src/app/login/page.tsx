@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { loginAction } from "@/lib/actions";
 import { ActionForm, SubmitButton } from "@/components/ActionForm";
+import { DeviceIdField } from "@/components/DeviceIdField";
 import { PasswordField } from "@/components/PasswordField";
 
 export default function LoginPage() {
@@ -9,6 +10,7 @@ export default function LoginPage() {
       <h1 className="font-[family-name:var(--font-display)] text-4xl tracking-tight text-forest">Welcome back</h1>
       <p className="mt-2 max-w-[65ch] text-ink/70">Sign in after your email is verified.</p>
       <ActionForm action={loginAction} className="card-quiet mt-8 grid gap-4 rounded-xl p-6">
+        <DeviceIdField />
         <label className="field">
           <span>Email</span>
           <input name="email" type="email" autoComplete="email" spellCheck={false} required />

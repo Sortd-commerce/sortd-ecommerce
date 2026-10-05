@@ -190,6 +190,28 @@ class DjangoEmailSender:
         )
         self._send(to=to, subject=subject, body=body, html=html)
 
+    def send_new_device_login(
+        self, *, to: str, first_name: str = "", label: str = "", ip_address: str | None = None
+    ) -> None:
+        name = first_name.strip() or "there"
+        where = label or "a new device"
+        ip_bit = f" ({ip_address})" if ip_address else ""
+        subject = "New device signed in to Sortd"
+        body = (
+            f"Hi {name},\n\n"
+            f"Your Sortd account was just used on {where}{ip_bit}.\n"
+            "You can stay signed in on two devices at once. If this was not you, reset your password.\n"
+            f"{_shop_url()}/forgot-password"
+        )
+        html = _branded_html(
+            preview=f"New sign-in from {where}.",
+            heading="New device signed in",
+            intro=f"Hi {name}, someone just signed in to your Sortd account from {where}{ip_bit}. Two devices can stay signed in at the same time. If this was not you, reset your password.",
+            cta_label="Reset password",
+            cta_url=f"{_shop_url()}/forgot-password",
+        )
+        self._send(to=to, subject=subject, body=body, html=html)
+
     def _send(self, *, to: str, subject: str, body: str, html: str) -> None:
         try:
             message = UnquotedAlternatives(

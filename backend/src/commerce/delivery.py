@@ -36,8 +36,8 @@ class DeliveryService:
         self._geocoder = geocoder
         self._zone = ZoneInfo(settings.DELIVERY_TIMEZONE)
 
-    def autocomplete(self, *, query: str, country: str = "ae", limit: int = 8) -> list[dict]:
-        suggestions = self._geocoder.autocomplete(query=query, country=country, limit=limit)
+    def autocomplete(self, *, query: str, country: str = "", limit: int = 8) -> list[dict]:
+        suggestions = self._geocoder.autocomplete(query=query, country=country or "", limit=limit)
         return [
             {
                 "place_id": item.place_id,

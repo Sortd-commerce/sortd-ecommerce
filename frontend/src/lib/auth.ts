@@ -31,3 +31,8 @@ export async function getAccessToken(): Promise<string | undefined> {
   const jar = await cookies();
   return jar.get(ACCESS)?.value;
 }
+
+export async function getRefreshToken(): Promise<string | undefined> {
+  const jar = await cookies();
+  return jar.get(REFRESH)?.value;
+}

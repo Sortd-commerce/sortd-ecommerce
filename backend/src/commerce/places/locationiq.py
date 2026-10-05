@@ -101,10 +101,11 @@ class LocationIQProvider:
             "key": self._api_key,
             "q": needle,
             "limit": str(max(1, min(limit, 10))),
-            "countrycodes": country.lower(),
             "normalizecity": "1",
             "addressdetails": "1",
         }
+        if country.strip():
+            params["countrycodes"] = country.strip().lower()
         payload = get_json(f"{self._autocomplete_url}?{urlencode(params)}")
         if not isinstance(payload, list):
             return []

@@ -30,3 +30,7 @@ export async function clearAuthCookies() {
 export async function getAccessToken() {
   return (await cookies()).get(ACCESS)?.value;
 }
+
+export async function getRefreshToken() {
+  return (await cookies()).get(REFRESH)?.value;
+}

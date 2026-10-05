@@ -18,6 +18,7 @@ class UserManager(BaseUserManager):
     def create_superuser(self, email: str, password: str | None = None, **extra_fields):
         extra_fields.setdefault("is_staff", True)
         extra_fields.setdefault("is_superuser", True)
+        extra_fields.setdefault("staff_role", "admin")
         extra_fields.setdefault("email_verified_at", timezone.now())
         if extra_fields.get("is_staff") is not True:
             raise ValueError("A superuser must have is_staff=True.")
@@ -34,6 +35,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     email_verified_at = models.DateTimeField(blank=True, null=True)
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
+    staff_role = models.CharField(max_length=16, blank=True)
     date_joined = models.DateTimeField(default=timezone.now)
 
     objects = UserManager()
@@ -71,3 +73,27 @@ class EmailVerification(models.Model):
             models.Index(fields=["user", "created_at"]),
             models.Index(fields=["user", "kind"]),
         ]
+
+
+class DeviceSession(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="device_sessions")
+    device_id = models.CharField(max_length=64)
+    label = models.CharField(max_length=120, blank=True)
+    user_agent = models.CharField(max_length=400, blank=True)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    refresh_jti = models.CharField(max_length=64, blank=True)
+    last_seen_at = models.DateTimeField(default=timezone.now)
+    revoked_at = models.DateTimeField(blank=True, null=True)
+    created_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["user", "revoked_at"]),
+            models.Index(fields=["user", "device_id"]),
+        ]
+        constraints = [
+            models.UniqueConstraint(fields=["user", "device_id"], name="unique_user_device"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.user_id}:{self.device_id}"

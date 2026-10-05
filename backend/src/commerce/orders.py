@@ -84,7 +84,8 @@ class OrderService:
         )
         self._delivery.require_serviceable(result)
 
-        if command.payment_method != "cod" or not PaymentMethod.objects.filter(code="cod", is_active=True).exists():
+        payment = PaymentMethod.objects.filter(code=command.payment_method, is_active=True).first()
+        if payment is None:
             raise ValidationError({"payment_method": "That payment method is not available."})
 
         cart = self._cart.get_or_create(user)
@@ -135,7 +136,7 @@ class OrderService:
                     user=user,
                     number=self._next_number(),
                     status=OrderStatus.PLACED,
-                    payment_method="cod",
+                    payment_method=payment.code,
                     payment_status=PaymentStatus.UNPAID,
                     currency=settings.DEFAULT_CURRENCY,
                     subtotal=subtotal,

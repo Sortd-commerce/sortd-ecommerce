@@ -20,7 +20,8 @@ class AdminApiTests(ApiTestCase):
         User = get_user_model()
         self.user = User.objects.get(email="ada@example.com")
         self.user.is_staff = True
-        self.user.save(update_fields=["is_staff"])
+        self.user.staff_role = "admin"
+        self.user.save(update_fields=["is_staff", "staff_role"])
         self.auth = bearer(verified.json()["data"]["tokens"]["access"])
         self.category = Category.objects.create(name="Bars", slug="bars")
 
@@ -311,3 +312,67 @@ class AdminApiTests(ApiTestCase):
         )
         self.assertEqual(uploaded.status_code, 422)
         self.assertIn("cannot create assets", uploaded.json()["message"])
+
+    def test_member_can_view_orders_but_not_mutate(self):
+        User = get_user_model()
+        member = signup_and_verify(self.client, email="viewer@example.com")
+        viewer = User.objects.get(email="viewer@example.com")
+        viewer.is_staff = True
+        viewer.staff_role = "member"
+        viewer.save(update_fields=["is_staff", "staff_role"])
+        auth = bearer(member.json()["data"]["tokens"]["access"])
+
+        me = self.client.get("/api/v1/admin/me", **auth)
+        self.assertEqual(me.status_code, 200)
+        self.assertEqual(me.json()["data"]["role"], "member")
+
+        orders = self.client.get("/api/v1/admin/orders", **auth)
+        self.assertEqual(orders.status_code, 200)
+
+        blocked = self.client.get("/api/v1/admin/products", **auth)
+        self.assertEqual(blocked.status_code, 403)
+        analytics = self.client.get("/api/v1/admin/analytics/overview", **auth)
+        self.assertEqual(analytics.status_code, 403)
+
+    def test_admin_can_add_and_remove_members(self):
+        created = post_json(
+            self.client,
+            "/api/v1/admin/members",
+            {
+                "email": "picker@example.com",
+                "first_name": "Pat",
+                "last_name": "Lee",
+                "password": PASSWORD,
+                "role": "member",
+            },
+            **self.auth,
+        )
+        self.assertEqual(created.status_code, 201, created.json())
+        member_id = created.json()["data"]["id"]
+        listed = self.client.get("/api/v1/admin/members", **self.auth)
+        emails = [row["email"] for row in listed.json()["data"]]
+        self.assertIn("picker@example.com", emails)
+
+        removed = self.client.delete(f"/api/v1/admin/members/{member_id}", **self.auth)
+        self.assertEqual(removed.status_code, 200)
+
+    def test_postal_code_can_be_updated_and_deleted(self):
+        created = post_json(
+            self.client,
+            "/api/v1/admin/delivery/postal-codes",
+            {"code": "00001", "is_active": True},
+            **self.auth,
+        )
+        self.assertEqual(created.status_code, 201)
+        code_id = created.json()["data"]["id"]
+        updated = self.client.patch(
+            f"/api/v1/admin/delivery/postal-codes/{code_id}",
+            data={"is_active": False},
+            content_type="application/json",
+            **self.auth,
+        )
+        self.assertEqual(updated.status_code, 200)
+        self.assertFalse(updated.json()["data"]["is_active"])
+        deleted = self.client.delete(f"/api/v1/admin/delivery/postal-codes/{code_id}", **self.auth)
+        self.assertEqual(deleted.status_code, 200)
+        self.assertFalse(DeliveryPostalCode.objects.filter(pk=code_id).exists())

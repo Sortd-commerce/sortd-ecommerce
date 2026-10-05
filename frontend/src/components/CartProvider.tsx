@@ -11,10 +11,12 @@ import {
   fromRemote,
   loadCart,
   mergeCarts,
+  quantityInCart,
   saveCart,
   setLineQuantity,
   toSyncPayload,
   upsertLine,
+  type AddItemResult,
   type CartLine,
 } from "@/lib/cart-store";
 
@@ -22,8 +24,9 @@ type CartContextValue = {
   items: CartLine[];
   count: number;
   subtotal: string;
-  addItem: (line: Omit<CartLine, "quantity"> & { quantity?: number }) => void;
-  setQuantity: (variantId: number, quantity: number) => void;
+  quantityOf: (variantId: number) => number;
+  addItem: (line: Omit<CartLine, "quantity"> & { quantity?: number }) => AddItemResult;
+  setQuantity: (variantId: number, quantity: number, onHand?: number | null) => void;
   removeItem: (variantId: number) => void;
   flush: () => Promise<void>;
 };
@@ -92,15 +95,17 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const addItem = useCallback(
     (line: Omit<CartLine, "quantity"> & { quantity?: number }) => {
-      persist(upsertLine(itemsRef.current, line));
-      scheduleFlush();
+      const { lines, result } = upsertLine(itemsRef.current, { ...line, quantity: line.quantity ?? 1 });
+      persist(lines);
+      if (result.ok) scheduleFlush();
+      return result;
     },
     [persist, scheduleFlush],
   );
 
   const setQuantity = useCallback(
-    (variantId: number, quantity: number) => {
-      persist(setLineQuantity(itemsRef.current, variantId, quantity));
+    (variantId: number, quantity: number, onHand?: number | null) => {
+      persist(setLineQuantity(itemsRef.current, variantId, quantity, onHand));
       scheduleFlush();
     },
     [persist, scheduleFlush],
@@ -114,17 +119,20 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     [persist, scheduleFlush],
   );
 
+  const quantityOf = useCallback((variantId: number) => quantityInCart(items, variantId), [items]);
+
   const value = useMemo(
     () => ({
       items,
       count: cartCount(items),
       subtotal: cartSubtotal(items),
+      quantityOf,
       addItem,
       setQuantity,
       removeItem,
       flush,
     }),
-    [items, addItem, setQuantity, removeItem, flush],
+    [items, quantityOf, addItem, setQuantity, removeItem, flush],
   );
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;

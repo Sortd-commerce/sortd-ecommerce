@@ -105,8 +105,11 @@ def signup_and_verify(client, **kwargs):
     return verify_email(client)
 
 
-def login(client, email="ada@example.com", password=PASSWORD):
-    return post_json(client, "/api/v1/auth/login", {"email": email, "password": password})
+def login(client, email="ada@example.com", password=PASSWORD, device_id=""):
+    payload = {"email": email, "password": password}
+    if device_id:
+        payload["device_id"] = device_id
+    return post_json(client, "/api/v1/auth/login", payload)
 
 
 def bearer(access):

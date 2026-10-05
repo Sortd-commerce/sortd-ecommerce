@@ -1,8 +1,11 @@
 import Link from "next/link";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { updateOrderStatusAction } from "@/lib/actions";
 import { ActionForm, SubmitButton } from "@/components/ActionForm";
+import { PageHeader } from "@/components/PageHeader";
+import { StatusBadge } from "@/components/StatusBadge";
 import { apiFetch } from "@/lib/api";
+import { requireStaff } from "@/lib/staff";
 
 type Order = {
   number: string;
@@ -18,38 +21,39 @@ type Order = {
 };
 
 export default async function AdminOrderDetailPage({ params }: { params: Promise<{ number: string }> }) {
+  const me = await requireStaff();
   const { number } = await params;
   const result = await apiFetch<Order>(`/admin/orders/${number}`);
-  if (result.status === 401 || result.status === 403) redirect("/login");
   if (!result.ok || !result.data) notFound();
   const order = result.data;
+  const canEdit = me.role === "admin" && order.status !== "cancelled" && order.status !== "delivered";
 
   return (
-    <div className="space-y-6 pt-2">
-      <Link href="/orders" className="text-sm text-muted">
-        ← Orders
+    <div className="space-y-6">
+      <Link href="/orders" className="text-sm text-muted hover:text-text">
+        Back to orders
       </Link>
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-semibold">{order.number}</h1>
-          <p className="mt-1 text-muted">
-            {order.user_email} · {order.status}
-          </p>
-        </div>
-        <ActionForm action={updateOrderStatusAction} className="panel flex items-end gap-3 p-4" successLabel="Status updated.">
+      <PageHeader
+        title={order.number}
+        description={order.user_email}
+        actions={<StatusBadge value={order.status} />}
+      />
+
+      {canEdit ? (
+        <ActionForm action={updateOrderStatusAction} className="panel flex flex-wrap items-end gap-3 p-4" successLabel="Status updated.">
           <input type="hidden" name="number" value={order.number} />
           <label className="field">
             <span>Update status</span>
             <select name="status" defaultValue={order.status === "placed" ? "confirmed" : order.status}>
-              <option value="confirmed">confirmed</option>
-              <option value="out_for_delivery">out_for_delivery</option>
-              <option value="delivered">delivered</option>
-              <option value="cancelled">cancelled</option>
+              <option value="confirmed">Confirmed</option>
+              <option value="out_for_delivery">Out for delivery</option>
+              <option value="delivered">Delivered</option>
+              <option value="cancelled">Cancelled</option>
             </select>
           </label>
-          <SubmitButton>Save</SubmitButton>
+          <SubmitButton>Save status</SubmitButton>
         </ActionForm>
-      </div>
+      ) : null}
 
       <div className="grid gap-4 lg:grid-cols-2">
         <section className="panel p-5">
@@ -69,12 +73,12 @@ export default async function AdminOrderDetailPage({ params }: { params: Promise
                   {line.sku} × {line.quantity}
                 </p>
               </div>
-              <p>AED {line.line_total}</p>
+              <p className="tabular-nums">AED {line.line_total}</p>
             </div>
           ))}
           <div className="flex justify-between px-5 py-4 font-semibold">
             <p>Total</p>
-            <p>AED {order.total}</p>
+            <p className="tabular-nums">AED {order.total}</p>
           </div>
         </section>
       </div>

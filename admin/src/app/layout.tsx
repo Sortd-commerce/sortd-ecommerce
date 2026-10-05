@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { IBM_Plex_Sans } from "next/font/google";
-import { AdminNav } from "@/components/AdminNav";
+import { AdminShell } from "@/components/AdminShell";
+import { getStaffProfile } from "@/lib/staff";
 import "./globals.css";
 
 const body = IBM_Plex_Sans({
@@ -10,21 +11,26 @@ const body = IBM_Plex_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "Sortd Admin",
+  title: "Sortd Operations",
   description: "Staff console for Sortd orders, catalog, and delivery.",
 };
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  const me = await getStaffProfile();
+
   return (
     <html lang="en" style={{ colorScheme: "dark" }}>
       <body className={`${body.variable} antialiased`}>
         <a href="#main" className="skip-link">
           Skip to content
         </a>
-        <AdminNav />
-        <main id="main" className="shell pb-16">
-          {children}
-        </main>
+        {me ? (
+          <AdminShell me={me}>{children}</AdminShell>
+        ) : (
+          <main id="main" className="min-h-dvh">
+            {children}
+          </main>
+        )}
       </body>
     </html>
   );

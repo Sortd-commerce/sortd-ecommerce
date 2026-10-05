@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import { Outfit } from "next/font/google";
 import { CartProvider } from "@/components/CartProvider";
+import { PageTransition } from "@/components/PageTransition";
 import { SiteHeader } from "@/components/SiteHeader";
+import { ToastProvider } from "@/components/Toast";
 import "./globals.css";
 
 const body = Outfit({
@@ -29,10 +31,13 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           Skip to content
         </a>
         <CartProvider>
-          <SiteHeader />
-          <main id="main" className="shell pb-20">
-            {children}
-          </main>
+          <ToastProvider>
+            <div className="site-bg" aria-hidden />
+            <SiteHeader />
+            <main id="main" className="shell pb-24 pt-2">
+              <PageTransition>{children}</PageTransition>
+            </main>
+          </ToastProvider>
         </CartProvider>
       </body>
     </html>

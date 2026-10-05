@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { ActionState } from "@/lib/action-state";
 import { apiFetch } from "@/lib/api";
-import { clearAuthCookies, setAuthCookies } from "@/lib/auth";
+import { clearAuthCookies, getRefreshToken, setAuthCookies } from "@/lib/auth";
 import type { RemoteCart } from "@/lib/cart-store";
 import { unwrapVerificationToken } from "@/lib/verification";
 
@@ -37,6 +37,7 @@ export async function loginAction(_prev: ActionState, formData: FormData): Promi
     body: {
       email: String(formData.get("email") || ""),
       password: String(formData.get("password") || ""),
+      device_id: String(formData.get("device_id") || ""),
     },
   });
   if (!result.ok || !result.data) return { ok: false, message: result.message };
@@ -48,7 +49,7 @@ export async function verifyEmailAction(_prev: ActionState, formData: FormData):
   const result = await apiFetch<AuthPayload>("/auth/verify-email", {
     method: "POST",
     auth: false,
-    body: { token: unwrapVerificationToken(String(formData.get("token") || "")) },
+    body: { token: unwrapVerificationToken(String(formData.get("token") || "")), device_id: String(formData.get("device_id") || "") },
   });
   if (!result.ok || !result.data) return { ok: false, message: result.message };
   await setAuthCookies(result.data.tokens.access, result.data.tokens.refresh);
@@ -90,6 +91,14 @@ export async function resetPasswordAction(_prev: ActionState, formData: FormData
 }
 
 export async function logoutAction() {
+  const refresh = await getRefreshToken();
+  if (refresh) {
+    try {
+      await apiFetch("/auth/logout", { method: "POST", auth: false, body: { refresh } });
+    } catch {
+      // Cookie clear still signs the browser out.
+    }
+  }
   await clearAuthCookies();
   redirect("/login");
 }
@@ -128,7 +137,7 @@ export async function placeOrderAction(_prev: ActionState, formData: FormData): 
     window_source: String(formData.get("window_source") || "weekly"),
     note: String(formData.get("note") || ""),
     expected_total: String(formData.get("expected_total") || ""),
-    payment_method: "cod",
+    payment_method: String(formData.get("payment_method") || ""),
     discount_code: String(formData.get("discount_code") || "") || null,
   };
   const key = crypto.randomUUID();
@@ -145,23 +154,24 @@ export async function placeOrderAction(_prev: ActionState, formData: FormData): 
 export async function saveAddressAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const latitude = String(formData.get("latitude") || "").trim();
   const longitude = String(formData.get("longitude") || "").trim();
-  const result = await apiFetch("/addresses", {
-    method: "POST",
-    body: {
-      line1: String(formData.get("line1") || ""),
-      line2: String(formData.get("line2") || ""),
-      city: String(formData.get("city") || "Dubai"),
-      region: String(formData.get("region") || ""),
-      postal_code: String(formData.get("postal_code") || ""),
-      country: "AE",
-      formatted_address: String(formData.get("formatted_address") || formData.get("line1") || ""),
-      place_id: String(formData.get("place_id") || ""),
-      latitude: latitude || null,
-      longitude: longitude || null,
-      is_default: true,
-    },
-  });
+  const addressId = String(formData.get("address_id") || "").trim();
+  const payload = {
+    line1: String(formData.get("line1") || ""),
+    line2: String(formData.get("line2") || ""),
+    city: String(formData.get("city") || "Dubai"),
+    region: String(formData.get("region") || ""),
+    postal_code: String(formData.get("postal_code") || ""),
+    country: "AE",
+    formatted_address: String(formData.get("formatted_address") || formData.get("line1") || ""),
+    place_id: String(formData.get("place_id") || ""),
+    latitude: latitude || null,
+    longitude: longitude || null,
+    is_default: String(formData.get("is_default") || "") !== "false",
+  };
+  const result = addressId
+    ? await apiFetch(`/addresses/${addressId}`, { method: "PATCH", body: payload })
+    : await apiFetch("/addresses", { method: "POST", body: payload });
   if (!result.ok) return { ok: false, message: result.message };
   revalidatePath("/checkout");
-  return { ok: true, message: "Address saved." };
+  return { ok: true, message: addressId ? "Address updated." : "Address saved." };
 }

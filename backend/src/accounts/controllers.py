@@ -1,6 +1,6 @@
 from ninja_extra import ControllerBase, api_controller, route, status
 from ninja_extra.permissions import AllowAny, IsAuthenticated
-from ninja_jwt.authentication import JWTAuth
+from accounts.auth import SessionJWTAuth
 
 from accounts.factory import (
     build_login_service,
@@ -20,6 +20,7 @@ from accounts.schemas import (
     ResendVerificationIn,
     ResentOut,
     ResetPasswordIn,
+    SessionOut,
     SignupIn,
     TokenPairOut,
     UserOut,
@@ -77,7 +78,11 @@ class AuthController(ControllerBase):
         throttle=[VerifyThrottle()],
     )
     def verify_email(self, payload: VerifyEmailIn):
-        result = build_signup_service().verify(raw_token=payload.token)
+        result = build_signup_service().verify(
+            raw_token=payload.token,
+            request=self.context.request,
+            device_id=payload.device_id,
+        )
         return success("Email verified.", asdict(result))
 
     @route.post(
@@ -118,7 +123,7 @@ class AuthController(ControllerBase):
     def login(self, payload: LoginIn):
         result = build_login_service().login(
             request=self.context.request,
-            command=LoginCommand(email=payload.email, password=payload.password),
+            command=LoginCommand(email=payload.email, password=payload.password, device_id=payload.device_id),
         )
         return success("Logged in.", asdict(result))
 
@@ -128,7 +133,7 @@ class AuthController(ControllerBase):
         summary="Refresh an access token",
     )
     def refresh(self, payload: RefreshIn):
-        data = build_token_service().refresh(refresh=payload.refresh)
+        data = build_token_service().refresh(refresh=payload.refresh, request=self.context.request)
         return success("Token refreshed.", asdict(data))
 
     @route.post(
@@ -153,7 +158,7 @@ class AuthController(ControllerBase):
 @api_controller(
     "/profile",
     tags=["Profile"],
-    auth=JWTAuth(),
+    auth=SessionJWTAuth(),
     permissions=[IsAuthenticated],
     use_unique_op_id=False,
 )
@@ -167,6 +172,39 @@ class ProfileController(ControllerBase):
         from accounts.services import snapshot
 
         return success("Profile retrieved.", asdict(snapshot(self.context.request.user)))
+
+    @route.get(
+        "/sessions",
+        response={200: SuccessResponse[list[SessionOut]], **_ERROR_RESPONSES},
+        summary="List active device sessions",
+    )
+    def sessions(self):
+        from accounts.models import DeviceSession
+
+        rows = DeviceSession.objects.filter(
+            user=self.context.request.user, revoked_at__isnull=True
+        ).order_by("-last_seen_at")
+        current_id = None
+        auth = self.context.request.headers.get("Authorization") or ""
+        if auth.lower().startswith("bearer "):
+            try:
+                from accounts.tokens import AppAccessToken
+
+                current_id = AppAccessToken(auth.split(" ", 1)[1]).get("session_id")
+            except Exception:
+                current_id = None
+        data = [
+            {
+                "device_id": row.device_id,
+                "label": row.label,
+                "ip_address": row.ip_address,
+                "last_seen_at": row.last_seen_at.isoformat(),
+                "created_at": row.created_at.isoformat(),
+                "current": row.pk == current_id,
+            }
+            for row in rows
+        ]
+        return success("Sessions retrieved.", data)
 
     @route.patch(
         "",

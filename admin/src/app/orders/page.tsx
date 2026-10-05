@@ -1,6 +1,8 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
+import { PageHeader } from "@/components/PageHeader";
+import { StatusBadge } from "@/components/StatusBadge";
 import { apiFetch } from "@/lib/api";
+import { requireStaff } from "@/lib/staff";
 
 type Orders = {
   results: Array<{
@@ -13,40 +15,42 @@ type Orders = {
 };
 
 export default async function AdminOrdersPage() {
+  await requireStaff();
   const orders = await apiFetch<Orders>("/admin/orders");
-  if (orders.status === 401 || orders.status === 403) redirect("/login");
 
   return (
-    <div className="space-y-6 pt-2">
-      <h1 className="text-3xl font-semibold">Orders</h1>
+    <div className="space-y-6">
+      <PageHeader title="Orders" description="Every placed order. Open one to see the delivery window and lines." />
       <div className="panel overflow-hidden">
-        <table className="w-full text-left text-sm">
-          <thead className="bg-panel-2 text-muted">
+        <table className="data-table">
+          <thead>
             <tr>
-              <th className="px-4 py-3 font-medium">Number</th>
-              <th className="px-4 py-3 font-medium">Customer</th>
-              <th className="px-4 py-3 font-medium">Status</th>
-              <th className="px-4 py-3 font-medium">Delivery</th>
-              <th className="px-4 py-3 font-medium">Total</th>
+              <th>Number</th>
+              <th>Customer</th>
+              <th>Status</th>
+              <th>Delivery</th>
+              <th>Total</th>
             </tr>
           </thead>
           <tbody>
             {(orders.data?.results || []).map((order) => (
-              <tr key={order.number} className="border-t border-line">
-                <td className="px-4 py-3">
-                  <Link href={`/orders/${order.number}`} className="text-accent">
+              <tr key={order.number}>
+                <td>
+                  <Link href={`/orders/${order.number}`} className="font-medium text-accent hover:underline">
                     {order.number}
                   </Link>
                 </td>
-                <td className="px-4 py-3">{order.user_email}</td>
-                <td className="px-4 py-3">{order.status}</td>
-                <td className="px-4 py-3">{order.delivery_date}</td>
-                <td className="px-4 py-3">AED {order.total}</td>
+                <td>{order.user_email}</td>
+                <td>
+                  <StatusBadge value={order.status} />
+                </td>
+                <td>{order.delivery_date}</td>
+                <td className="tabular-nums">AED {order.total}</td>
               </tr>
             ))}
           </tbody>
         </table>
-        {!orders.data?.results?.length ? <p className="px-4 py-8 text-muted">No orders yet.</p> : null}
+        {!orders.data?.results?.length ? <p className="px-4 py-10 text-sm text-muted">No orders yet.</p> : null}
       </div>
     </div>
   );

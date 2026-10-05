@@ -63,9 +63,10 @@ class GoogleProvider:
         params = {
             "input": needle,
             "key": self._api_key,
-            "components": f"country:{country.lower()}",
             "language": "en",
         }
+        if country.strip():
+            params["components"] = f"country:{country.strip().lower()}"
         payload = get_json(f"{self._autocomplete_url}?{urlencode(params)}")
         if not isinstance(payload, dict) or payload.get("status") not in {"OK", "ZERO_RESULTS"}:
             return []

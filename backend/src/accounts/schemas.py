@@ -56,6 +56,7 @@ class SignupIn(Schema):
 class LoginIn(Schema):
     email: str = Field(max_length=254)
     password: str = Field(min_length=1, max_length=128)
+    device_id: str = Field(default="", max_length=64)
 
     @field_validator("email")
     @classmethod
@@ -73,6 +74,7 @@ class VerifyIn(Schema):
 
 class VerifyEmailIn(Schema):
     token: str = Field(min_length=1)
+    device_id: str = Field(default="", max_length=64)
 
 
 class ResendVerificationIn(Schema):
@@ -153,9 +155,25 @@ class TokenPairOut(Schema):
     refresh: str
 
 
+class DeviceOut(Schema):
+    id: str
+    label: str
+    is_new: bool
+
+
+class SessionOut(Schema):
+    device_id: str
+    label: str
+    ip_address: str | None = None
+    last_seen_at: datetime
+    created_at: datetime
+    current: bool = False
+
+
 class AuthOut(Schema):
     user: UserOut
     tokens: TokenPairOut
+    device: DeviceOut | None = None
 
 
 class SignupOut(Schema):

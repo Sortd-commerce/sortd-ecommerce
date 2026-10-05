@@ -1,7 +1,7 @@
-import { redirect } from "next/navigation";
 import { createCategoryAction, createProductAction } from "@/lib/actions";
 import { ActionForm, SubmitButton } from "@/components/ActionForm";
 import { apiFetch } from "@/lib/api";
+import { requireAdmin } from "@/lib/staff";
 
 type Category = { id: number; name: string };
 type ProductList = { results: Array<{ slug: string; title: string }> };
@@ -12,14 +12,14 @@ export default async function NewProductPage({
   searchParams: Promise<{ error?: string }>;
 }) {
   const query = await searchParams;
+  await requireAdmin();
   const [categories, products] = await Promise.all([
     apiFetch<Category[]>("/admin/categories"),
     apiFetch<ProductList>("/admin/products?page_size=100"),
   ]);
-  if (categories.status === 401 || categories.status === 403) redirect("/login");
 
   return (
-    <div className="grid gap-6 pt-2 lg:grid-cols-[1.35fr_0.65fr]">
+    <div className="grid gap-6 lg:grid-cols-[1.35fr_0.65fr]">
       <section>
         <h1 className="text-3xl font-semibold">New product</h1>
         <p className="mt-2 text-sm text-muted">

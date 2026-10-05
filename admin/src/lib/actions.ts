@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { ActionState } from "@/lib/action-state";
 import { apiFetch, apiForm } from "@/lib/api";
-import { clearAuthCookies, setAuthCookies } from "@/lib/auth";
+import { clearAuthCookies, getRefreshToken, setAuthCookies } from "@/lib/auth";
 
 function fail(path: string, message: string): never {
   redirect(`${path}?error=${encodeURIComponent(message)}`);
@@ -90,15 +90,31 @@ export async function loginAction(_prev: ActionState, formData: FormData): Promi
       body: {
         email: String(formData.get("email") || ""),
         password: String(formData.get("password") || ""),
+        device_id: String(formData.get("device_id") || ""),
       },
     },
   );
   if (!result.ok || !result.data) return { ok: false, message: result.message };
   await setAuthCookies(result.data.tokens.access, result.data.tokens.refresh);
-  redirect("/");
+  const me = await apiFetch<{ role: string }>("/admin/me", {
+    headers: { Authorization: `Bearer ${result.data.tokens.access}` },
+  });
+  if (!me.ok || !me.data) {
+    await clearAuthCookies();
+    return { ok: false, message: "Staff credentials are required." };
+  }
+  redirect(me.data.role === "admin" ? "/" : "/orders");
 }
 
 export async function logoutAction() {
+  const refresh = await getRefreshToken();
+  if (refresh) {
+    try {
+      await apiFetch("/auth/logout", { method: "POST", auth: false, body: { refresh } });
+    } catch {
+      // Cookie clear still signs the browser out.
+    }
+  }
   await clearAuthCookies();
   redirect("/login");
 }
@@ -148,13 +164,19 @@ export async function updateOrderStatusAction(_prev: ActionState, formData: Form
   return replied(true, "Order status updated.", `/orders/${number}`);
 }
 
+function clock(value: string) {
+  const raw = String(value || "").trim();
+  if (/^\d{2}:\d{2}$/.test(raw)) return `${raw}:00`;
+  return raw;
+}
+
 export async function createWindowAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const result = await apiFetch("/admin/delivery/windows", {
     method: "POST",
     body: {
       weekday: Number(formData.get("weekday")),
-      start_time: String(formData.get("start_time") || ""),
-      end_time: String(formData.get("end_time") || ""),
+      start_time: clock(String(formData.get("start_time") || "")),
+      end_time: clock(String(formData.get("end_time") || "")),
       capacity: Number(formData.get("capacity") || 1),
       cutoff_minutes: Number(formData.get("cutoff_minutes") || 60),
       is_active: formData.get("is_active") === "on",
@@ -164,16 +186,92 @@ export async function createWindowAction(_prev: ActionState, formData: FormData)
   return replied(true, "Delivery window added.", "/delivery");
 }
 
+export async function updateWindowAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const windowId = String(formData.get("window_id") || "");
+  const result = await apiFetch(`/admin/delivery/windows/${windowId}`, {
+    method: "PATCH",
+    body: {
+      weekday: Number(formData.get("weekday")),
+      start_time: clock(String(formData.get("start_time") || "")),
+      end_time: clock(String(formData.get("end_time") || "")),
+      capacity: Number(formData.get("capacity") || 1),
+      cutoff_minutes: Number(formData.get("cutoff_minutes") || 60),
+      is_active: formData.get("is_active") === "on",
+    },
+  });
+  if (!result.ok) return replied(false, result.message);
+  return replied(true, "Delivery window updated.", "/delivery");
+}
+
+export async function deleteWindowAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const windowId = String(formData.get("window_id") || "");
+  const result = await apiFetch(`/admin/delivery/windows/${windowId}`, { method: "DELETE" });
+  if (!result.ok) return replied(false, result.message);
+  return replied(true, "Delivery window removed.", "/delivery");
+}
+
 export async function createPostalCodeAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const result = await apiFetch("/admin/delivery/postal-codes", {
     method: "POST",
     body: {
       code: String(formData.get("code") || ""),
-      is_active: true,
+      is_active: formData.get("is_active") === "on",
     },
   });
   if (!result.ok) return replied(false, result.message);
   return replied(true, "Postal code added.", "/delivery");
+}
+
+export async function updatePostalCodeAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const codeId = String(formData.get("code_id") || "");
+  const result = await apiFetch(`/admin/delivery/postal-codes/${codeId}`, {
+    method: "PATCH",
+    body: {
+      code: String(formData.get("code") || ""),
+      is_active: formData.get("is_active") === "on",
+    },
+  });
+  if (!result.ok) return replied(false, result.message);
+  return replied(true, "Postal code updated.", "/delivery");
+}
+
+export async function deletePostalCodeAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const codeId = String(formData.get("code_id") || "");
+  const result = await apiFetch(`/admin/delivery/postal-codes/${codeId}`, { method: "DELETE" });
+  if (!result.ok) return replied(false, result.message);
+  return replied(true, "Postal code removed.", "/delivery");
+}
+
+export async function createMemberAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const result = await apiFetch("/admin/members", {
+    method: "POST",
+    body: {
+      email: String(formData.get("email") || ""),
+      first_name: String(formData.get("first_name") || ""),
+      last_name: String(formData.get("last_name") || ""),
+      password: String(formData.get("password") || ""),
+      role: String(formData.get("role") || "member"),
+    },
+  });
+  if (!result.ok) return replied(false, result.message);
+  return replied(true, "Member added.", "/members");
+}
+
+export async function updateMemberAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const userId = String(formData.get("user_id") || "");
+  const result = await apiFetch(`/admin/members/${userId}`, {
+    method: "PATCH",
+    body: { role: String(formData.get("role") || "") },
+  });
+  if (!result.ok) return replied(false, result.message);
+  return replied(true, "Member updated.", "/members");
+}
+
+export async function removeMemberAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const userId = String(formData.get("user_id") || "");
+  const result = await apiFetch(`/admin/members/${userId}`, { method: "DELETE" });
+  if (!result.ok) return replied(false, result.message);
+  return replied(true, "Member removed.", "/members");
 }
 
 export async function createCategoryAction(_prev: ActionState, formData: FormData): Promise<ActionState> {

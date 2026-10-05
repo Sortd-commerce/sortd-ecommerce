@@ -1,7 +1,9 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { EditProductLink } from "@/components/EditProductLink";
+import { PageHeader } from "@/components/PageHeader";
+import { StatusBadge } from "@/components/StatusBadge";
 import { apiFetch } from "@/lib/api";
+import { requireAdmin } from "@/lib/staff";
 
 type Products = {
   results: Array<{
@@ -15,50 +17,56 @@ type Products = {
 };
 
 export default async function AdminProductsPage() {
+  await requireAdmin();
   const products = await apiFetch<Products>("/admin/products?page_size=100");
-  if (products.status === 401 || products.status === 403) redirect("/login");
 
   return (
-    <div className="space-y-6 pt-2">
-      <div className="flex items-center justify-between gap-4">
-        <h1 className="text-pretty text-3xl font-semibold">Products</h1>
-        <Link href="/products/new" className="btn">
-          New product
-        </Link>
-      </div>
+    <div className="space-y-6">
+      <PageHeader
+        title="Catalog"
+        description="Products, pack offers, and stock."
+        actions={
+          <Link href="/products/new" className="btn">
+            New product
+          </Link>
+        }
+      />
       <div className="panel overflow-hidden">
-        <table className="w-full text-left text-sm">
-          <thead className="bg-panel-2 text-muted">
+        <table className="data-table">
+          <thead>
             <tr>
-              <th className="px-4 py-3 font-medium">Title</th>
-              <th className="px-4 py-3 font-medium">Category</th>
-              <th className="px-4 py-3 font-medium">Status</th>
-              <th className="px-4 py-3 font-medium">Stock</th>
-              <th className="px-4 py-3 font-medium">Price</th>
-              <th className="px-4 py-3 font-medium">
+              <th>Title</th>
+              <th>Category</th>
+              <th>Status</th>
+              <th>Stock</th>
+              <th>Price</th>
+              <th>
                 <span className="sr-only">Edit</span>
               </th>
             </tr>
           </thead>
           <tbody>
             {(products.data?.results || []).map((product) => (
-              <tr key={product.id} className="border-t border-line">
-                <td className="px-4 py-3">
-                  <Link href={`/products/${product.id}`} className="text-accent hover:underline">
+              <tr key={product.id}>
+                <td>
+                  <Link href={`/products/${product.id}`} className="font-medium text-accent hover:underline">
                     {product.title}
                   </Link>
                 </td>
-                <td className="px-4 py-3">{product.category.name}</td>
-                <td className="px-4 py-3">{product.status}</td>
-                <td className="px-4 py-3 tabular-nums">{product.variants[0]?.on_hand ?? 0}</td>
-                <td className="px-4 py-3 tabular-nums">AED {product.variants[0]?.price ?? "—"}</td>
-                <td className="px-4 py-3 text-right">
+                <td>{product.category.name}</td>
+                <td>
+                  <StatusBadge value={product.status} />
+                </td>
+                <td className="tabular-nums">{product.variants[0]?.on_hand ?? 0}</td>
+                <td className="tabular-nums">AED {product.variants[0]?.price ?? "—"}</td>
+                <td className="text-right">
                   <EditProductLink href={`/products/${product.id}`} title={product.title} />
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
+        {!products.data?.results?.length ? <p className="px-4 py-10 text-sm text-muted">No products yet.</p> : null}
       </div>
     </div>
   );

@@ -63,16 +63,26 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
 
   return (
     <div className="space-y-10 pt-4">
-      <div className="grid gap-8 lg:grid-cols-[1.1fr_0.9fr]">
-        <section className="card-quiet overflow-hidden rounded-xl">
+      <nav className="text-sm text-ink/55">
+        <Link href="/" className="link-quiet">
+          Shop
+        </Link>
+        <span className="mx-2">/</span>
+        <span className="text-ink/80">{product.title}</span>
+      </nav>
+
+      <div className="grid gap-8 lg:grid-cols-[1.15fr_0.85fr] lg:items-start">
+        <section className="card-quiet overflow-hidden rounded-2xl">
           <ProductGallery title={product.title} images={product.images || []} />
-          <div className="p-8">
+          <div className="p-7 md:p-8">
             <h1 className="font-[family-name:var(--font-display)] text-4xl font-semibold tracking-tight text-forest md:text-5xl">
               {product.title}
             </h1>
-            <p className="mt-5 max-w-xl text-ink/75">{product.description || "Checked label. Honest stock."}</p>
+            <p className="mt-5 max-w-xl text-base leading-relaxed text-ink/75">
+              {product.description || "Checked label. Honest stock."}
+            </p>
             {product.has_passed_report ? (
-              <Link href={`/products/${product.slug}/report`} className="mt-6 inline-flex text-sm font-semibold text-citrus">
+              <Link href={`/products/${product.slug}/report`} className="mt-6 inline-flex text-sm font-semibold text-citrus transition hover:underline">
                 View lab report →
               </Link>
             ) : null}

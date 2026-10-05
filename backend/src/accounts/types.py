@@ -16,6 +16,14 @@ class SignupCommand:
 class LoginCommand:
     email: str
     password: str
+    device_id: str = ""
+
+
+@dataclass(frozen=True)
+class DeviceSnapshot:
+    id: str
+    label: str
+    is_new: bool
 
 
 @dataclass(frozen=True)
@@ -46,6 +54,7 @@ class TokenPair:
 class AuthResult:
     user: UserSnapshot
     tokens: TokenPair
+    device: DeviceSnapshot | None = None
 
 
 class EmailSender(Protocol):
@@ -55,6 +64,10 @@ class EmailSender(Protocol):
 
     def send_order_confirmation(self, *, to: str, order: dict, first_name: str = "") -> None: ...
 
+    def send_new_device_login(
+        self, *, to: str, first_name: str = "", label: str = "", ip_address: str | None = None
+    ) -> None: ...
+
 
 class TokenIssuer(Protocol):
-    def issue(self, user) -> TokenPair: ...
+    def issue(self, user, session_id: int | None = None) -> TokenPair: ...
