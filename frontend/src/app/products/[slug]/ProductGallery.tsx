@@ -11,37 +11,31 @@ export function ProductGallery({ title, images }: { title: string; images: Galle
 
   if (!current) {
     return (
-      <div className="flex min-h-[280px] items-end bg-sand p-8 md:min-h-[360px]">
-        <p className="text-sm text-ink/50">No photos yet</p>
+      <div className="gallery-stage gallery-empty">
+        <p>No photos yet</p>
       </div>
     );
   }
 
   return (
-    <div>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={current.url}
-        alt={current.alt || title}
-        width={800}
-        height={360}
-        className="h-[280px] w-full bg-sand object-contain md:h-[360px]"
-      />
+    <div className="gallery">
+      <div className="gallery-stage">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={current.url} alt={current.alt || title} />
+      </div>
       {usable.length > 1 ? (
-        <div className="flex gap-2 overflow-x-auto border-t border-line p-3">
+        <div className="gallery-thumbs">
           {usable.map((image, index) => (
             <button
               key={`${image.url}-${index}`}
               type="button"
-              className={`h-16 w-16 shrink-0 overflow-hidden rounded-lg border focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest ${
-                index === active ? "border-forest" : "border-line"
-              }`}
+              className={index === active ? "thumb-on" : ""}
               aria-label={`Show photo ${index + 1}`}
               aria-pressed={index === active}
               onClick={() => setActive(index)}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={image.url} alt="" width={64} height={64} className="h-16 w-full object-cover" />
+              <img src={image.url} alt="" />
             </button>
           ))}
         </div>

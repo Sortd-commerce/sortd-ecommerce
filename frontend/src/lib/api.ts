@@ -41,12 +41,21 @@ export async function apiFetch<T>(path: string, options: ApiOptions = {}): Promi
     }
   }
 
-  const response = await fetch(`${apiBase()}${path}`, {
-    method: options.method || "GET",
-    headers,
-    body: options.body === undefined ? undefined : JSON.stringify(options.body),
-    cache: options.cache || "no-store",
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${apiBase()}${path}`, {
+      method: options.method || "GET",
+      headers,
+      body: options.body === undefined ? undefined : JSON.stringify(options.body),
+      cache: options.cache || "no-store",
+    });
+  } catch {
+    return {
+      ok: false,
+      status: 0,
+      message: "The store is unreachable right now.",
+    };
+  }
 
   let payload: Record<string, unknown> = {};
   try {

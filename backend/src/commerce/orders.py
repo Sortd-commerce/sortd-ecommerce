@@ -14,7 +14,7 @@ from catalog.models import ProductStatus, ProductVariant
 from catalog.stock import StockService
 from commerce.cart import CartService, MAX_QUANTITY
 from commerce.delivery import DeliveryService
-from commerce.discounts import amount_for, select_discount
+from commerce.pricing import quote_lines
 from commerce.geocoding import GeocodeResult
 from commerce.models import (
     Address,
@@ -28,7 +28,7 @@ from commerce.models import (
 )
 from core.exceptions import Conflict
 from core.messages import ErrorMessage
-from core.money import ZERO, money, money_str
+from core.money import money, money_str
 
 logger = logging.getLogger(__name__)
 
@@ -111,7 +111,6 @@ class OrderService:
                 if len(variants) != len(quantities):
                     raise ValidationError({"stock": ErrorMessage.OUT_OF_STOCK})
                 priced = []
-                subtotal = ZERO
                 for variant in variants:
                     qty = quantities[variant.id]
                     if (
@@ -121,15 +120,10 @@ class OrderService:
                     ):
                         raise ValidationError({"stock": ErrorMessage.OUT_OF_STOCK})
                     line_total = money(variant.price) * qty
-                    subtotal += line_total
                     priced.append((variant, qty, line_total))
 
-                discount = select_discount(code=command.discount_code, now=self._clock.now())
-                discount_amount = amount_for(discount=discount, lines=priced)
-                total = money(subtotal - discount_amount)
-                if total < ZERO:
-                    total = ZERO
-                if money(command.expected_total) != total:
+                priced_quote = quote_lines(priced, code=command.discount_code, now=self._clock.now())
+                if money(command.expected_total) != priced_quote.total:
                     raise Conflict(ErrorMessage.TOTAL_MISMATCH)
 
                 order = Order.objects.create(
@@ -139,10 +133,11 @@ class OrderService:
                     payment_method=payment.code,
                     payment_status=PaymentStatus.UNPAID,
                     currency=settings.DEFAULT_CURRENCY,
-                    subtotal=subtotal,
-                    discount_amount=discount_amount,
-                    discount_code=(discount.code or "") if discount else "",
-                    total=total,
+                    subtotal=priced_quote.subtotal,
+                    discount_amount=priced_quote.discount_amount,
+                    discount_code=priced_quote.discount_code,
+                    delivery_fee=priced_quote.delivery_fee,
+                    total=priced_quote.total,
                     note=command.note.strip(),
                     delivery_date=command.delivery_date,
                     delivery_start=slot.start_time,
@@ -266,6 +261,7 @@ def serialize_order(order: Order) -> dict:
         "subtotal": money_str(order.subtotal),
         "discount_amount": money_str(order.discount_amount),
         "discount_code": order.discount_code,
+        "delivery_fee": money_str(order.delivery_fee),
         "total": money_str(order.total),
         "note": order.note,
         "delivery_date": order.delivery_date.isoformat(),

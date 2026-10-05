@@ -38,13 +38,10 @@ export default async function CheckoutPage() {
 
   if (addresses.status === 401) {
     return (
-      <div className="pt-8">
-        <h1 className="font-[family-name:var(--font-display)] text-4xl text-forest">Checkout</h1>
-        <p className="mt-3">
-          <Link href="/login" className="text-citrus">
-            Log in
-          </Link>{" "}
-          to checkout. Your cart is saved in this browser.
+      <div className="checkout-page">
+        <h1>Checkout</h1>
+        <p className="fine-print">
+          <Link href="/login">Log in</Link> to checkout. Your basket stays in this browser.
         </p>
       </div>
     );
@@ -55,11 +52,11 @@ export default async function CheckoutPage() {
   const methods = payments.data || [];
 
   return (
-    <div className="space-y-6 pt-6">
-      <div>
-        <h1 className="font-[family-name:var(--font-display)] text-4xl text-forest md:text-5xl">Checkout</h1>
-        <p className="mt-2 text-ink/65">Confirm address, delivery window, and payment.</p>
-      </div>
+    <div className="checkout-page">
+      <Link href="/cart" className="back-link">
+        Back to basket
+      </Link>
+      <h1>Checkout</h1>
       <CheckoutForm addresses={addressList} slots={slots} paymentMethods={methods} />
     </div>
   );

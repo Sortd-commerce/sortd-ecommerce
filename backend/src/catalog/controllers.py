@@ -53,6 +53,14 @@ def _serialize_detail(product: Product) -> dict:
     }
 
 
+def _default_variant(product: Product) -> dict | None:
+    active = [variant for variant in product.variants.all() if variant.is_active]
+    if not active:
+        return None
+    variant = min(active, key=lambda row: (row.price, row.id))
+    return serialize_variant(variant)
+
+
 def _serialize_list_item(product: Product) -> dict:
     images = list(product.images.all())
     primary = images[0] if images else None
@@ -66,6 +74,7 @@ def _serialize_list_item(product: Product) -> dict:
         "primary_image": serialize_image(primary, position=0) if primary else None,
         "from_price": f"{min(prices):.2f}" if prices else None,
         "has_passed_report": report_has_passed(report),
+        "default_variant": _default_variant(product),
     }
 
 

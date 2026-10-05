@@ -12,6 +12,7 @@ from commerce.controllers import (
     DeliveryController,
     OrderController,
     PaymentController,
+    PricingController,
 )
 from core.exceptions import register_exception_handlers
 from core.throttling import AnonThrottle, UserThrottle
@@ -35,6 +36,7 @@ api.register_controllers(
     CategoryController,
     ProductController,
     DeliveryController,
+    PricingController,
     PaymentController,
     AddressController,
     CartController,

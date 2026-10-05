@@ -10,6 +10,7 @@ export function QuantityStepper({
   onChange,
   size = "md",
   disabled,
+  tone = "default",
 }: {
   value: number;
   max?: number | null;
@@ -17,6 +18,7 @@ export function QuantityStepper({
   onChange: (next: number) => void;
   size?: "sm" | "md";
   disabled?: boolean;
+  tone?: "default" | "inverse";
 }) {
   const floor = Math.max(0, Math.floor(min));
   const cap = max == null || !Number.isFinite(Number(max)) ? MAX_QTY : Math.max(0, Math.min(MAX_QTY, Math.floor(Number(max))));
@@ -26,7 +28,7 @@ export function QuantityStepper({
   const text = size === "sm" ? "min-w-8 text-sm" : "min-w-10 text-base";
 
   return (
-    <div className={`qty-stepper ${disabled ? "opacity-55" : ""}`} role="group" aria-label="Quantity">
+    <div className={`qty-stepper ${tone === "inverse" ? "qty-on-dark" : ""} ${disabled ? "opacity-55" : ""}`} role="group" aria-label="Quantity">
       <button
         type="button"
         className={`qty-btn ${pad}`}

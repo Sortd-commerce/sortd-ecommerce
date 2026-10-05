@@ -3,6 +3,10 @@ import { notFound } from "next/navigation";
 import { BuyBox } from "@/app/products/[slug]/BuyBox";
 import { LabelChecked } from "@/app/products/[slug]/LabelChecked";
 import { ProductGallery } from "@/app/products/[slug]/ProductGallery";
+import { Manifesto } from "@/components/Manifesto";
+import { ProductCard } from "@/components/ProductCard";
+import { ProductRail } from "@/components/ProductRail";
+import type { CardProduct } from "@/components/catalog";
 import { apiFetch } from "@/lib/api";
 
 type ProductDetail = {
@@ -10,6 +14,7 @@ type ProductDetail = {
   slug: string;
   description: string;
   has_passed_report: boolean;
+  category: { name: string; slug: string };
   images: Array<{ url: string; alt: string; role: string }>;
   variants: Array<{
     id: number;
@@ -53,46 +58,80 @@ type ProductDetail = {
   } | null;
 };
 
+type ProductList = { results: CardProduct[] };
+
 export default async function ProductPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const result = await apiFetch<ProductDetail>(`/products/${slug}`, { auth: false });
-  if (!result.ok || !result.data) {
-    notFound();
-  }
+  const [result, catalog] = await Promise.all([
+    apiFetch<ProductDetail>(`/products/${slug}`, { auth: false }),
+    apiFetch<ProductList>("/products?page_size=100", { auth: false }),
+  ]);
+  if (!result.ok || !result.data) notFound();
   const product = result.data;
+  const results = catalog.data?.results || [];
+  const bySlug = new Map(results.map((row) => [row.slug, row]));
+  const linked = product.related.map((row) => bySlug.get(row.slug)).filter((row): row is CardProduct => Boolean(row));
+  const others = results.filter((row) => row.slug !== product.slug);
+  const passed = others.filter((row) => row.has_passed_report);
+  const rail = linked.length ? linked : (passed.length ? passed : others).slice(0, 8);
+  const flavors = product.related
+    .filter((row) => row.kind === "flavor")
+    .map((row) => ({
+      title: row.title,
+      slug: row.slug,
+      image: bySlug.get(row.slug)?.primary_image?.url || "",
+    }));
+  const facts = product.label?.facts.filter((fact) => fact.is_highlight) || [];
+  const highlights = [
+    ...facts.slice(0, 2).map((fact) => ({
+      value: `${fact.amount}${fact.unit ? ` ${fact.unit}` : ""}`,
+      label: fact.name,
+    })),
+    product.label?.ingredients.length
+      ? { value: String(product.label.ingredients.length), label: "Ingredients" }
+      : null,
+  ]
+    .filter((row): row is { value: string; label: string } => Boolean(row))
+    .slice(0, 3);
 
   return (
-    <div className="space-y-10 pt-4">
-      <nav className="text-sm text-ink/55">
-        <Link href="/" className="link-quiet">
-          Shop
-        </Link>
-        <span className="mx-2">/</span>
-        <span className="text-ink/80">{product.title}</span>
+    <div className="product-page">
+      <nav className="crumbs" aria-label="Breadcrumb">
+        <Link href="/">Shop</Link>
+        <span>/</span>
+        <Link href={`/?aisle=${product.category.slug}`}>{product.category.name}</Link>
+        <span>/</span>
+        <span>{product.title}</span>
       </nav>
 
-      <div className="grid gap-8 lg:grid-cols-[1.15fr_0.85fr] lg:items-start">
-        <section className="card-quiet overflow-hidden rounded-2xl">
-          <ProductGallery title={product.title} images={product.images || []} />
-          <div className="p-7 md:p-8">
-            <h1 className="font-[family-name:var(--font-display)] text-4xl font-semibold tracking-tight text-forest md:text-5xl">
-              {product.title}
-            </h1>
-            <p className="mt-5 max-w-xl text-base leading-relaxed text-ink/75">
-              {product.description || "Checked label. Honest stock."}
-            </p>
-            {product.has_passed_report ? (
-              <Link href={`/products/${product.slug}/report`} className="mt-6 inline-flex text-sm font-semibold text-citrus transition hover:underline">
-                View lab report →
-              </Link>
-            ) : null}
-          </div>
-        </section>
-        <BuyBox currentSlug={product.slug} variants={product.variants || []} related={product.related || []} />
+      <div className="product-layout">
+        <ProductGallery title={product.title} images={product.images || []} />
+        <BuyBox
+          title={product.title}
+          category={product.category.name}
+          description={product.description}
+          currentSlug={product.slug}
+          imageUrl={product.images?.find((image) => image.url)?.url}
+          variants={product.variants || []}
+          flavors={flavors}
+          highlights={highlights}
+          hasPassedReport={product.has_passed_report}
+        />
       </div>
+
       {product.label ? (
         <LabelChecked slug={product.slug} label={product.label} hasPassedReport={product.has_passed_report} />
       ) : null}
+
+      {rail.length ? (
+        <ProductRail id="also-passed" title="Also passed our checks" count={rail.length}>
+          {rail.map((item) => (
+            <ProductCard key={item.id} product={item} />
+          ))}
+        </ProductRail>
+      ) : null}
+
+      <Manifesto />
     </div>
   );
 }

@@ -9,6 +9,7 @@ from accounts.tests.helpers import ApiTestCase, bearer, post_json, signup_and_ve
 from catalog.tests.test_catalog import make_product
 from commerce.models import (
     Address,
+    CommerceSettings,
     DeliveryPostalCode,
     DeliveryWindow,
     Discount,
@@ -48,6 +49,10 @@ class CheckoutTests(ApiTestCase):
             place_id="fixture-dubai-marina",
             postal_code="ignored",
         )
+        settings = CommerceSettings.load()
+        settings.delivery_fee = Decimal("0.00")
+        settings.free_delivery_minimum = Decimal("0.00")
+        settings.save()
 
     def _add_to_cart(self, quantity=1):
         return post_json(
@@ -289,6 +294,97 @@ class CheckoutTests(ApiTestCase):
         )
         self.assertEqual(response.status_code, 400)
         self.assertFalse(Order.objects.exists())
+
+    def test_quote_adds_delivery_fee_until_free_minimum(self):
+        settings = CommerceSettings.load()
+        settings.delivery_fee = Decimal("9.00")
+        settings.free_delivery_minimum = Decimal("99.00")
+        settings.save()
+        response = post_json(
+            self.client,
+            "/api/v1/pricing/quote",
+            {"items": [{"variant_id": self.variant.id, "quantity": 1}]},
+        )
+        self.assertEqual(response.status_code, 200)
+        data = response.json()["data"]
+        self.assertEqual(data["subtotal"], "16.90")
+        self.assertEqual(data["delivery_fee"], "9.00")
+        self.assertEqual(data["amount_until_free_delivery"], "82.10")
+        self.assertEqual(data["total"], "25.90")
+
+    def test_quote_waives_delivery_at_minimum(self):
+        settings = CommerceSettings.load()
+        settings.delivery_fee = Decimal("9.00")
+        settings.free_delivery_minimum = Decimal("16.90")
+        settings.save()
+        response = post_json(
+            self.client,
+            "/api/v1/pricing/quote",
+            {"items": [{"variant_id": self.variant.id, "quantity": 1}]},
+        )
+        data = response.json()["data"]
+        self.assertEqual(data["delivery_fee"], "0.00")
+        self.assertEqual(data["total"], "16.90")
+
+    def test_automatic_global_discount_is_applied(self):
+        Discount.objects.create(
+            name="Launch",
+            kind=Discount.Kind.PERCENT,
+            value=Decimal("10"),
+            scope=Discount.Scope.ALL,
+            is_active=True,
+        )
+        response = post_json(
+            self.client,
+            "/api/v1/pricing/quote",
+            {"items": [{"variant_id": self.variant.id, "quantity": 1}]},
+        )
+        data = response.json()["data"]
+        self.assertEqual(data["discount_amount"], "1.69")
+        self.assertEqual(data["total"], "15.21")
+
+    def test_product_discount_only_applies_to_that_product(self):
+        other, other_variant = make_product(slug="other-bar", title="Other Bar", on_hand=5)
+        Discount.objects.create(
+            name="Bar deal",
+            kind=Discount.Kind.FIXED,
+            value=Decimal("5.00"),
+            scope=Discount.Scope.PRODUCT,
+            product=self.product,
+            is_active=True,
+        )
+        response = post_json(
+            self.client,
+            "/api/v1/pricing/quote",
+            {
+                "items": [
+                    {"variant_id": self.variant.id, "quantity": 1},
+                    {"variant_id": other_variant.id, "quantity": 1},
+                ]
+            },
+        )
+        data = response.json()["data"]
+        self.assertEqual(data["subtotal"], "33.80")
+        self.assertEqual(data["discount_amount"], "5.00")
+        self.assertEqual(data["total"], "28.80")
+
+    def test_order_includes_delivery_fee(self):
+        settings = CommerceSettings.load()
+        settings.delivery_fee = Decimal("9.00")
+        settings.free_delivery_minimum = Decimal("99.00")
+        settings.save()
+        self._add_to_cart(1)
+        response = post_json(
+            self.client,
+            "/api/v1/orders",
+            self._order_payload(total="25.90"),
+            HTTP_IDEMPOTENCY_KEY="delivery-fee",
+            **self.auth,
+        )
+        self.assertEqual(response.status_code, 201)
+        order = response.json()["data"]
+        self.assertEqual(order["delivery_fee"], "9.00")
+        self.assertEqual(order["total"], "25.90")
 
     def test_address_can_be_updated(self):
         response = self.client.patch(

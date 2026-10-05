@@ -9,6 +9,7 @@ import {
   cartSubtotal,
   consumeClearCartFlag,
   fromRemote,
+  keepLineDetails,
   loadCart,
   mergeCarts,
   quantityInCart,
@@ -59,7 +60,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     const result = await syncCartAction(payload);
     if (result.status === 401) return;
     if (result.ok && result.data) {
-      persist(fromRemote(result.data));
+      persist(keepLineDetails(itemsRef.current, fromRemote(result.data)));
     }
   }, [persist]);
 

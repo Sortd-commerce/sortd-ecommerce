@@ -1,7 +1,7 @@
 """Staff-facing admin API controllers."""
 
 from pathlib import Path
-from datetime import time, timedelta
+from datetime import datetime, time, timedelta
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model
@@ -25,8 +25,10 @@ from catalog.schemas import serialize_image
 from catalog.stock import StockService
 from catalog.writer import CatalogWriteError, ProductWriter, serialize_label, serialize_related, serialize_variant
 from commerce.models import (
+    CommerceSettings,
     DeliveryPostalCode,
     DeliveryWindow,
+    Discount,
     Order,
     OrderStatus,
     normalize_postal_code,
@@ -237,6 +239,81 @@ class MemberPatchIn(Schema):
         return role
 
 
+class PricingSettingsIn(Schema):
+    delivery_fee: Decimal = Field(ge=0)
+    free_delivery_minimum: Decimal = Field(ge=0)
+
+
+class DiscountIn(Schema):
+    name: str
+    kind: str
+    value: Decimal = Field(gt=0)
+    code: str | None = None
+    scope: str = "all"
+    product_id: int | None = None
+    variant_id: int | None = None
+    category_id: int | None = None
+    starts_at: str | None = None
+    ends_at: str | None = None
+    is_active: bool = True
+
+    @field_validator("kind")
+    @classmethod
+    def validate_kind(cls, value: str) -> str:
+        if value not in {Discount.Kind.PERCENT, Discount.Kind.FIXED}:
+            raise ValueError("Invalid discount kind.")
+        return value
+
+    @field_validator("scope")
+    @classmethod
+    def validate_scope(cls, value: str) -> str:
+        if value not in {
+            Discount.Scope.ALL,
+            Discount.Scope.PRODUCT,
+            Discount.Scope.VARIANT,
+            Discount.Scope.CATEGORY,
+        }:
+            raise ValueError("Invalid discount scope.")
+        return value
+
+
+class DiscountPatchIn(Schema):
+    name: str | None = None
+    kind: str | None = None
+    value: Decimal | None = Field(default=None, gt=0)
+    code: str | None = None
+    scope: str | None = None
+    product_id: int | None = None
+    variant_id: int | None = None
+    category_id: int | None = None
+    starts_at: str | None = None
+    ends_at: str | None = None
+    is_active: bool | None = None
+
+    @field_validator("kind")
+    @classmethod
+    def validate_kind(cls, value: str | None) -> str | None:
+        if value is None:
+            return value
+        if value not in {Discount.Kind.PERCENT, Discount.Kind.FIXED}:
+            raise ValueError("Invalid discount kind.")
+        return value
+
+    @field_validator("scope")
+    @classmethod
+    def validate_scope(cls, value: str | None) -> str | None:
+        if value is None:
+            return value
+        if value not in {
+            Discount.Scope.ALL,
+            Discount.Scope.PRODUCT,
+            Discount.Scope.VARIANT,
+            Discount.Scope.CATEGORY,
+        }:
+            raise ValueError("Invalid discount scope.")
+        return value
+
+
 class CategoryIn(Schema):
     name: str = Field(min_length=1, max_length=120)
     slug: str | None = None
@@ -274,6 +351,77 @@ def _product_admin_row(product: Product) -> dict:
 
 def _writer(request) -> ProductWriter:
     return ProductWriter(actor=getattr(request, "user", None))
+
+
+def _parse_optional_datetime(value: str | None):
+    if value is None:
+        return None
+    raw = value.strip()
+    if not raw:
+        return None
+    parsed = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+    if timezone.is_naive(parsed):
+        return timezone.make_aware(parsed, timezone.get_current_timezone())
+    return parsed
+
+
+def _serialize_pricing_settings(row: CommerceSettings) -> dict:
+    return {
+        "delivery_fee": money_str(row.delivery_fee),
+        "free_delivery_minimum": money_str(row.free_delivery_minimum),
+    }
+
+
+def _serialize_discount(row: Discount) -> dict:
+    return {
+        "id": row.id,
+        "name": row.name,
+        "kind": row.kind,
+        "value": money_str(row.value),
+        "code": row.code or "",
+        "scope": row.scope,
+        "product_id": row.product_id,
+        "product_title": row.product.title if row.product_id else "",
+        "variant_id": row.variant_id,
+        "variant_title": row.variant.title if row.variant_id else "",
+        "category_id": row.category_id,
+        "category_name": row.category.name if row.category_id else "",
+        "starts_at": row.starts_at.isoformat() if row.starts_at else "",
+        "ends_at": row.ends_at.isoformat() if row.ends_at else "",
+        "is_active": row.is_active,
+    }
+
+
+def _apply_discount_scope(row: Discount, payload) -> None:
+    scope = payload.scope if payload.scope is not None else row.scope
+    if scope == Discount.Scope.ALL:
+        row.product_id = None
+        row.variant_id = None
+        row.category_id = None
+        return
+    if scope == Discount.Scope.PRODUCT:
+        product_id = payload.product_id if payload.product_id is not None else row.product_id
+        if not product_id or not Product.objects.filter(pk=product_id).exists():
+            raise ValidationError({"product_id": "Product is required for product discounts."})
+        row.product_id = product_id
+        row.variant_id = None
+        row.category_id = None
+        return
+    if scope == Discount.Scope.VARIANT:
+        variant_id = payload.variant_id if payload.variant_id is not None else row.variant_id
+        variant = ProductVariant.objects.filter(pk=variant_id).select_related("product").first()
+        if variant is None:
+            raise ValidationError({"variant_id": "Variant is required for variant discounts."})
+        row.variant_id = variant.id
+        row.product_id = variant.product_id
+        row.category_id = None
+        return
+    category_id = payload.category_id if payload.category_id is not None else row.category_id
+    if not category_id or not Category.objects.filter(pk=category_id).exists():
+        raise ValidationError({"category_id": "Category is required for category discounts."})
+    row.category_id = category_id
+    row.product_id = None
+    row.variant_id = None
 
 
 def _offer_rows(payload: ProductCreateIn) -> list[dict]:
@@ -900,3 +1048,78 @@ class AdminController(ControllerBase):
         if not deleted:
             raise NotFound("Postal code not found.")
         return success("Postal code deleted.", {"deleted": True})
+
+    @route.get("/pricing", response={200: SuccessResponse, **_ERROR_RESPONSES}, summary="Get pricing settings")
+    def get_pricing(self):
+        return success("Pricing settings retrieved.", _serialize_pricing_settings(CommerceSettings.load()))
+
+    @route.patch("/pricing", response={200: SuccessResponse, **_ERROR_RESPONSES}, summary="Update pricing settings")
+    def update_pricing(self, payload: PricingSettingsIn):
+        row = CommerceSettings.load()
+        row.delivery_fee = money(payload.delivery_fee)
+        row.free_delivery_minimum = money(payload.free_delivery_minimum)
+        row.save(update_fields=["delivery_fee", "free_delivery_minimum"])
+        return success("Pricing settings updated.", _serialize_pricing_settings(row))
+
+    @route.get("/discounts", response={200: SuccessResponse, **_ERROR_RESPONSES}, summary="List discounts")
+    def list_discounts(self):
+        rows = [
+            _serialize_discount(row)
+            for row in Discount.objects.select_related("product", "variant", "category").order_by("-id")
+        ]
+        return success("Discounts retrieved.", rows)
+
+    @route.post("/discounts", response={201: SuccessResponse, **_ERROR_RESPONSES}, summary="Create discount")
+    def create_discount(self, payload: DiscountIn):
+        code = (payload.code or "").strip() or None
+        if code and Discount.objects.filter(code__iexact=code).exists():
+            raise ValidationError({"code": "That discount code already exists."})
+        row = Discount(
+            name=payload.name.strip(),
+            kind=payload.kind,
+            value=money(payload.value),
+            code=code,
+            scope=payload.scope,
+            starts_at=_parse_optional_datetime(payload.starts_at),
+            ends_at=_parse_optional_datetime(payload.ends_at),
+            is_active=payload.is_active,
+        )
+        _apply_discount_scope(row, payload)
+        row.save()
+        row.refresh_from_db()
+        return status.HTTP_201_CREATED, success("Discount created.", _serialize_discount(row))
+
+    @route.patch("/discounts/{discount_id}", response={200: SuccessResponse, **_ERROR_RESPONSES}, summary="Update discount")
+    def update_discount(self, discount_id: int, payload: DiscountPatchIn):
+        row = Discount.objects.filter(pk=discount_id).select_related("product", "variant", "category").first()
+        if row is None:
+            raise NotFound("Discount not found.")
+        if payload.name is not None:
+            row.name = payload.name.strip()
+        if payload.kind is not None:
+            row.kind = payload.kind
+        if payload.value is not None:
+            row.value = money(payload.value)
+        if payload.code is not None:
+            code = payload.code.strip() or None
+            if code and Discount.objects.filter(code__iexact=code).exclude(pk=row.pk).exists():
+                raise ValidationError({"code": "That discount code already exists."})
+            row.code = code
+        if payload.scope is not None:
+            row.scope = payload.scope
+        if payload.starts_at is not None:
+            row.starts_at = _parse_optional_datetime(payload.starts_at)
+        if payload.ends_at is not None:
+            row.ends_at = _parse_optional_datetime(payload.ends_at)
+        if payload.is_active is not None:
+            row.is_active = payload.is_active
+        _apply_discount_scope(row, payload)
+        row.save()
+        return success("Discount updated.", _serialize_discount(row))
+
+    @route.delete("/discounts/{discount_id}", response={200: SuccessResponse, **_ERROR_RESPONSES}, summary="Delete discount")
+    def delete_discount(self, discount_id: int):
+        deleted, _ = Discount.objects.filter(pk=discount_id).delete()
+        if not deleted:
+            raise NotFound("Discount not found.")
+        return success("Discount deleted.", {"deleted": True})

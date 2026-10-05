@@ -15,32 +15,71 @@ type Offer = {
   is_active: boolean;
 };
 
-type Flavor = { title: string; slug: string; kind: string };
+type Flavor = { title: string; slug: string; image?: string };
 
 export function BuyBox({
+  title,
+  category,
+  description,
   currentSlug,
+  imageUrl,
   variants,
-  related,
+  flavors,
+  highlights,
+  hasPassedReport,
 }: {
+  title: string;
+  category: string;
+  description: string;
   currentSlug: string;
+  imageUrl?: string;
   variants: Offer[];
-  related: Flavor[];
+  flavors: Flavor[];
+  highlights: Array<{ value: string; label: string }>;
+  hasPassedReport: boolean;
 }) {
   const offers = variants.filter((row) => row.is_active);
   const [variantId, setVariantId] = useState(offers[0]?.id);
   const selected = useMemo(() => offers.find((row) => row.id === variantId) || offers[0], [offers, variantId]);
-  const flavors = related.filter((row) => row.kind === "flavor");
   const inStock = (selected?.on_hand || 0) > 0;
 
   return (
-    <div className="buy-box card-quiet rounded-2xl p-6 md:sticky md:top-24">
+    <div className="buy-box">
+      <p className="buy-brand">{category}</p>
+      <h1>{title}</h1>
+      <p className="buy-price">
+        AED {selected?.price || "—"}
+        {selected?.compare_at_price ? <s>AED {selected.compare_at_price}</s> : null}
+      </p>
+      <p className="buy-meta">
+        {selected?.title || "One pack"}
+        {selected ? ` · ${inStock ? `${selected.on_hand} in stock` : "Out of stock"}` : ""}
+        {hasPassedReport ? " · Lab report on file" : ""}
+      </p>
+      {description ? <p className="buy-copy">{description}</p> : null}
+
+      {highlights.length ? (
+        <div className="stat-row">
+          {highlights.map((item) => (
+            <div key={item.label} className="stat-box">
+              <strong>{item.value}</strong>
+              <span>{item.label}</span>
+            </div>
+          ))}
+        </div>
+      ) : null}
+
       {flavors.length ? (
-        <div className="mb-5">
-          <p className="text-sm font-medium text-forest">Flavours</p>
-          <div className="mt-2 flex flex-wrap gap-2">
-            <span className="chip chip-active">This one</span>
+        <div className="flavor-row">
+          <p>Flavour</p>
+          <div>
+            <span className="flavor-current">{title}</span>
             {flavors.map((flavor) => (
-              <Link key={flavor.slug} href={`/products/${flavor.slug}`} className="chip chip-link">
+              <Link key={flavor.slug} href={`/products/${flavor.slug}`} className="flavor-link">
+                {flavor.image ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={flavor.image} alt="" />
+                ) : null}
                 {flavor.title}
               </Link>
             ))}
@@ -49,55 +88,44 @@ export function BuyBox({
       ) : null}
 
       {offers.length > 1 ? (
-        <div className="mb-5 grid gap-2">
-          <p className="text-sm font-medium text-forest">Pack offer</p>
+        <div className="pack-row">
+          <p>Pack</p>
           {offers.map((offer) => (
-            <label
-              key={offer.id}
-              className={`offer-row ${selected?.id === offer.id ? "offer-row-active" : ""}`}
-            >
-              <span className="flex items-center gap-3">
-                <input
-                  type="radio"
-                  name={`offer-${currentSlug}`}
-                  checked={selected?.id === offer.id}
-                  onChange={() => setVariantId(offer.id)}
-                />
-                <span>
-                  {offer.title}
-                  {offer.unit_count > 1 ? <span className="block text-xs text-ink/55">{offer.unit_count} units</span> : null}
-                </span>
+            <label key={offer.id} className={`pick-card ${selected?.id === offer.id ? "pick-card-on" : ""}`}>
+              <input
+                type="radio"
+                name={`offer-${currentSlug}`}
+                checked={selected?.id === offer.id}
+                onChange={() => setVariantId(offer.id)}
+              />
+              <span>
+                <strong>{offer.title}</strong>
+                {offer.unit_count > 1 ? <small>{offer.unit_count} units</small> : null}
               </span>
-              <span className="text-right">
-                <span className="font-semibold text-forest">AED {offer.price}</span>
-                {offer.compare_at_price ? (
-                  <span className="ml-2 text-xs text-ink/45 line-through">{offer.compare_at_price}</span>
-                ) : null}
-              </span>
+              <b>AED {offer.price}</b>
             </label>
           ))}
         </div>
-      ) : (
-        <>
-          <p className="text-sm text-ink/60">{selected?.title || "Variant"}</p>
-          <p className="mt-2 font-[family-name:var(--font-display)] text-4xl text-forest">AED {selected?.price || "—"}</p>
-        </>
-      )}
-
-      <p className={`mt-3 text-sm font-medium ${inStock ? "text-leaf" : "text-citrus"}`}>
-        {selected ? (inStock ? `${selected.on_hand} in stock` : "Out of stock") : "Unavailable"}
-      </p>
-
-      {selected ? (
-        <AddToCartButton
-          variantId={selected.id}
-          title={selected.title}
-          sku={selected.sku}
-          unitPrice={selected.price}
-          slug={currentSlug}
-          onHand={selected.on_hand}
-        />
       ) : null}
+
+      <div className="buy-actions">
+        {selected ? (
+          <AddToCartButton
+            variantId={selected.id}
+            title={title}
+            sku={selected.sku}
+            unitPrice={selected.price}
+            slug={currentSlug}
+            onHand={selected.on_hand}
+            imageUrl={imageUrl}
+            detail={selected.title}
+          />
+        ) : (
+          <button type="button" className="btn btn-primary mt-6 w-full" disabled>
+            Unavailable
+          </button>
+        )}
+      </div>
     </div>
   );
 }

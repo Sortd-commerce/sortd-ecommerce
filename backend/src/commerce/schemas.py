@@ -80,6 +80,11 @@ class CartSyncIn(Schema):
     items: list[CartItemIn]
 
 
+class PriceQuoteIn(Schema):
+    items: list[CartItemIn] = []
+    discount_code: str | None = None
+
+
 class PlaceOrderIn(Schema):
     address_id: int
     delivery_date: date

@@ -75,6 +75,20 @@ class DeliveryOverrideWindow(models.Model):
         ordering = ["start_time"]
 
 
+class CommerceSettings(models.Model):
+    delivery_fee = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal("0.00"))
+    free_delivery_minimum = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal("0.00"))
+
+    def save(self, *args, **kwargs):
+        self.pk = 1
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def load(cls) -> "CommerceSettings":
+        row, _ = cls.objects.get_or_create(pk=1)
+        return row
+
+
 class PaymentMethod(models.Model):
     code = models.CharField(max_length=32, unique=True)
     name = models.CharField(max_length=80)
@@ -150,6 +164,7 @@ class Order(models.Model):
     subtotal = models.DecimalField(max_digits=10, decimal_places=2)
     discount_amount = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal("0.00"))
     discount_code = models.CharField(max_length=40, blank=True)
+    delivery_fee = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal("0.00"))
     total = models.DecimalField(max_digits=10, decimal_places=2)
     note = models.TextField(blank=True)
     delivery_date = models.DateField()

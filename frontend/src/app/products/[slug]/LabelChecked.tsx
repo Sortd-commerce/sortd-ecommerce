@@ -46,10 +46,19 @@ export function LabelChecked({ slug, label, hasPassedReport }: { slug: string; l
   const checks = label.checks;
 
   return (
-    <section className="space-y-4">
-      <h2 className="font-[family-name:var(--font-display)] text-3xl text-forest">The label, checked.</h2>
-      <div className="grid gap-4 xl:grid-cols-3">
-        <div className="card-quiet rounded-[1.6rem] p-5">
+    <section className="label-section">
+      <div className="label-intro">
+        <h2>The label, checked.</h2>
+        <p>More on this product</p>
+      </div>
+      {label.headline ? <p className="label-headline">{label.headline}</p> : null}
+      <nav className="label-tabs" aria-label="Label sections">
+        <a href="#nutrition">Nutrition</a>
+        <a href="#ingredients">Ingredients</a>
+        <a href="#checks">Checks</a>
+      </nav>
+      <div className="label-grid">
+        <div id="nutrition" className="label-card">
           <div className="flex items-start justify-between gap-3">
             <h3 className="font-semibold text-forest">Nutrition</h3>
             <p className="text-xs uppercase tracking-[0.12em] text-ink/45">
@@ -92,7 +101,7 @@ export function LabelChecked({ slug, label, hasPassedReport }: { slug: string; l
           {label.note ? <p className="mt-4 text-xs text-ink/55">{label.note}</p> : null}
         </div>
 
-        <div className="card-quiet rounded-[1.6rem] p-5">
+        <div id="ingredients" className="label-card">
           <div className="flex items-start justify-between gap-3">
             <h3 className="font-semibold text-forest">Ingredients</h3>
             <p className="text-xs uppercase tracking-[0.12em] text-ink/45">{label.ingredients.length} in total</p>
@@ -125,7 +134,7 @@ export function LabelChecked({ slug, label, hasPassedReport }: { slug: string; l
           ) : null}
         </div>
 
-        <div className="card-quiet rounded-[1.6rem] p-5">
+        <div id="checks" className="label-card">
           <div className="flex items-start justify-between gap-3">
             <h3 className="font-semibold text-forest">Sortd checks</h3>
             <p className="text-xs uppercase tracking-[0.12em] text-leaf">

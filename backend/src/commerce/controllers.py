@@ -8,6 +8,7 @@ from commerce.cart import CartLineCommand
 from commerce.factory import build_cart_service, build_delivery_service, build_order_service
 from commerce.models import Address, PaymentMethod, normalize_postal_code
 from commerce.orders import PlaceOrderCommand, request_hash_for, serialize_order
+from commerce.pricing import quote_variants, serialize_offer_rules
 from commerce.schemas import (
     AddressIn,
     AutocompleteIn,
@@ -16,6 +17,7 @@ from commerce.schemas import (
     CartSyncIn,
     DeliveryCheckIn,
     PlaceOrderIn,
+    PriceQuoteIn,
 )
 from core.messages import ErrorMessage
 from core.pagination import PageQuery, paginate_queryset
@@ -80,6 +82,21 @@ class DeliveryController(ControllerBase):
             for slot in slots
         ]
         return success("Delivery windows retrieved.", data)
+
+
+@api_controller("/pricing", tags=["Pricing"], auth=None, permissions=[AllowAny], use_unique_op_id=False)
+class PricingController(ControllerBase):
+    @route.get("", response={200: SuccessResponse, **_ERROR_RESPONSES}, summary="Delivery and discount rules")
+    def rules(self):
+        return success("Pricing retrieved.", serialize_offer_rules())
+
+    @route.post("/quote", response={200: SuccessResponse, **_ERROR_RESPONSES}, summary="Quote a basket")
+    def quote(self, payload: PriceQuoteIn):
+        quoted = quote_variants(
+            [(item.variant_id, item.quantity) for item in payload.items],
+            code=payload.discount_code,
+        )
+        return success("Quote ready.", quoted.as_dict())
 
 
 @api_controller("/payments", tags=["Payments"], auth=None, permissions=[AllowAny], use_unique_op_id=False)

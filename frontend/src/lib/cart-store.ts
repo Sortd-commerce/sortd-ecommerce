@@ -6,6 +6,8 @@ export type CartLine = {
   unit_price: string;
   slug?: string;
   on_hand?: number;
+  image_url?: string;
+  detail?: string;
 };
 
 export type RemoteCart = {
@@ -91,7 +93,23 @@ function normalizeLine(row: unknown): CartLine | null {
     unit_price: String(item.unit_price || "0.00"),
     slug: item.slug ? String(item.slug) : undefined,
     on_hand: on_hand == null || !Number.isFinite(on_hand) ? undefined : on_hand,
+    image_url: item.image_url ? String(item.image_url) : undefined,
+    detail: item.detail ? String(item.detail) : undefined,
   };
+}
+
+export function keepLineDetails(previous: CartLine[], next: CartLine[]): CartLine[] {
+  const prior = new Map(previous.map((line) => [line.variant_id, line]));
+  return next.map((line) => {
+    const old = prior.get(line.variant_id);
+    if (!old) return line;
+    return {
+      ...line,
+      slug: line.slug || old.slug,
+      image_url: line.image_url || old.image_url,
+      detail: line.detail || old.detail,
+    };
+  });
 }
 
 export function upsertLine(

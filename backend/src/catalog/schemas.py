@@ -116,6 +116,7 @@ class ProductListOut(Schema):
     primary_image: ImageOut | None
     from_price: str | None
     has_passed_report: bool
+    default_variant: VariantOut | None = None
 
 
 class ProductDetailOut(Schema):

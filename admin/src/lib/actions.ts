@@ -247,6 +247,62 @@ export async function deletePostalCodeAction(_prev: ActionState, formData: FormD
   return replied(true, "Postal code removed.", "/delivery");
 }
 
+export async function updatePricingAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const result = await apiFetch("/admin/pricing", {
+    method: "PATCH",
+    body: {
+      delivery_fee: String(formData.get("delivery_fee") || "0"),
+      free_delivery_minimum: String(formData.get("free_delivery_minimum") || "0"),
+    },
+  });
+  if (!result.ok) return replied(false, result.message);
+  return replied(true, "Pricing updated.", "/delivery");
+}
+
+export async function createDiscountAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const productId = String(formData.get("product_id") || "").trim();
+  const result = await apiFetch("/admin/discounts", {
+    method: "POST",
+    body: {
+      name: String(formData.get("name") || ""),
+      kind: String(formData.get("kind") || "percent"),
+      value: String(formData.get("value") || "0"),
+      scope: String(formData.get("scope") || "all"),
+      product_id: productId ? Number(productId) : null,
+      code: String(formData.get("code") || "") || null,
+      is_active: formData.get("is_active") === "on",
+    },
+  });
+  if (!result.ok) return replied(false, result.message);
+  return replied(true, "Discount added.", "/delivery");
+}
+
+export async function updateDiscountAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const discountId = String(formData.get("discount_id") || "");
+  const productId = String(formData.get("product_id") || "").trim();
+  const result = await apiFetch(`/admin/discounts/${discountId}`, {
+    method: "PATCH",
+    body: {
+      name: String(formData.get("name") || ""),
+      kind: String(formData.get("kind") || "percent"),
+      value: String(formData.get("value") || "0"),
+      scope: String(formData.get("scope") || "all"),
+      product_id: productId ? Number(productId) : null,
+      code: String(formData.get("code") || "") || null,
+      is_active: formData.get("is_active") === "on",
+    },
+  });
+  if (!result.ok) return replied(false, result.message);
+  return replied(true, "Discount saved.", "/delivery");
+}
+
+export async function deleteDiscountAction(formData: FormData) {
+  const discountId = String(formData.get("discount_id") || "");
+  const result = await apiFetch(`/admin/discounts/${discountId}`, { method: "DELETE" });
+  if (!result.ok) fail("/delivery", result.message);
+  redirect("/delivery");
+}
+
 export async function createMemberAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const result = await apiFetch("/admin/members", {
     method: "POST",

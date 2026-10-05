@@ -6,8 +6,10 @@ import { placeOrderAction } from "@/lib/actions";
 import { emptyActionState, SubmitButton } from "@/components/ActionForm";
 import { AddressPicker } from "@/components/AddressPicker";
 import { useToast } from "@/components/Toast";
+import { OrderSummary } from "@/components/OrderSummary";
+import { usePricing } from "@/components/PricingProvider";
 import { useCart } from "@/components/CartProvider";
-import { cartSubtotal, markCartForClear, toSyncPayload } from "@/lib/cart-store";
+import { markCartForClear, toSyncPayload } from "@/lib/cart-store";
 
 export type CheckoutAddress = {
   id: number;
@@ -50,6 +52,16 @@ function formatDay(value: string) {
   return parsed.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "short" });
 }
 
+function isToday(value: string) {
+  const parsed = new Date(`${value}T12:00:00`);
+  const now = new Date();
+  return (
+    parsed.getFullYear() === now.getFullYear() &&
+    parsed.getMonth() === now.getMonth() &&
+    parsed.getDate() === now.getDate()
+  );
+}
+
 function lineTotal(unitPrice: string, quantity: number) {
   return (Number(unitPrice) * quantity).toFixed(2);
 }
@@ -72,15 +84,11 @@ function ChoiceCard({
   onChange: () => void;
 }) {
   return (
-    <label
-      className={`flex cursor-pointer items-start gap-3 rounded-xl border px-4 py-3 transition hover:-translate-y-px hover:border-forest/40 ${
-        disabled ? "cursor-not-allowed opacity-50" : ""
-      } ${checked ? "border-forest bg-white/80" : "border-line"}`}
-    >
-      <input type="radio" name={name} value={value} checked={checked} disabled={disabled} onChange={onChange} className="mt-1" />
+    <label className={`pick-card ${checked ? "pick-card-on" : ""} ${disabled ? "is-disabled" : ""}`}>
+      <input type="radio" name={name} value={value} checked={checked} disabled={disabled} onChange={onChange} />
       <span>
-        <span className="block font-medium text-forest">{title}</span>
-        {detail ? <span className="mt-0.5 block text-sm text-ink/65">{detail}</span> : null}
+        <strong>{title}</strong>
+        {detail ? <small>{detail}</small> : null}
       </span>
     </label>
   );
@@ -96,28 +104,31 @@ export function CheckoutForm({
   paymentMethods: CheckoutPaymentMethod[];
 }) {
   const toast = useToast();
-  const { items, subtotal, flush } = useCart();
+  const { items, count, flush } = useCart();
+  const { quote, discountCode, refreshQuote } = usePricing();
   const defaultAddress = addresses.find((row) => row.is_default) || addresses[0];
   const activePayments = paymentMethods.filter((row) => row.is_active);
   const [addressId, setAddressId] = useState<number | "">(defaultAddress?.id || "");
   const [slotId, setSlotId] = useState(slots[0] ? slotKey(slots[0]) : "");
+  const [whenMode, setWhenMode] = useState<"now" | "schedule">("now");
   const [paymentMethod, setPaymentMethod] = useState(activePayments[0]?.code || "");
   const [panel, setPanel] = useState<"pick" | "add" | "edit">(addresses.length ? "pick" : "add");
+  const [addressOpen, setAddressOpen] = useState(false);
 
   const selectedAddress = useMemo(
     () => addresses.find((row) => row.id === addressId) || defaultAddress,
     [addressId, addresses, defaultAddress],
   );
-  const selectedSlot = useMemo(
-    () => slots.find((row) => slotKey(row) === slotId) || slots[0],
-    [slotId, slots],
-  );
+  const selectedSlot = useMemo(() => slots.find((row) => slotKey(row) === slotId) || slots[0], [slotId, slots]);
+  const activeSlot = whenMode === "now" ? slots[0] : selectedSlot;
 
   const [state, formAction] = useActionState(async (prev: ActionState, formData: FormData) => {
     await flush();
+    await refreshQuote();
     markCartForClear();
     formData.set("cart_json", JSON.stringify(toSyncPayload(items)));
-    formData.set("expected_total", subtotal || cartSubtotal(items));
+    formData.set("expected_total", quote.total);
+    formData.set("discount_code", discountCode.trim());
     return placeOrderAction(prev, formData);
   }, emptyActionState);
 
@@ -140,123 +151,146 @@ export function CheckoutForm({
     }
   }, [addresses, addressId, defaultAddress]);
 
-  const canPlace = Boolean(selectedAddress && selectedSlot && paymentMethod && items.length);
+  const canPlace = Boolean(selectedAddress && activeSlot && paymentMethod && items.length);
+  const nowDetail = slots[0]
+    ? isToday(slots[0].date)
+      ? "Arrives in about 30 minutes"
+      : `Arrives ${formatDay(slots[0].date)}`
+    : "No open windows right now";
 
   return (
-    <div className="grid gap-8 lg:grid-cols-[1fr_0.9fr]">
-      <section className="space-y-6">
-        <div className="card-quiet rounded-2xl p-6">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="font-semibold text-forest">Delivery address</h2>
-            {panel === "pick" && addresses.length ? (
-              <div className="flex gap-2">
-                <button type="button" className="btn btn-secondary px-3 py-2 text-sm" onClick={() => setPanel("add")}>
-                  Add address
-                </button>
-                {selectedAddress ? (
-                  <button type="button" className="btn btn-secondary px-3 py-2 text-sm" onClick={() => setPanel("edit")}>
-                    Edit
-                  </button>
-                ) : null}
-              </div>
-            ) : null}
-            {panel === "edit" ? (
-              <button
-                type="button"
-                className="text-sm font-semibold text-citrus hover:underline"
-                onClick={() => setPanel("pick")}
-              >
-                Cancel
-              </button>
-            ) : null}
-            {panel === "add" && addresses.length ? (
-              <button
-                type="button"
-                className="text-sm font-semibold text-citrus hover:underline"
-                onClick={() => setPanel("pick")}
-              >
-                Cancel
-              </button>
-            ) : null}
+    <div className="checkout-layout">
+      <div className="checkout-steps-col">
+        <section className="checkout-block">
+          <p className="step-index">01</p>
+          <div className="block-head">
+            <h2>Deliver to</h2>
           </div>
-
-          <p className="mt-2 text-sm text-ink/65">Delivery is available in Dubai only. Outside areas can still be searched for testing; postal-code checks decide if we can save them.</p>
-
-          {panel === "pick" && addresses.length ? (
-            <div className="mt-3 grid gap-2" role="radiogroup" aria-label="Saved addresses">
+          {panel === "pick" && selectedAddress ? (
+            <div className={`pick-card pick-card-on address-card`}>
+              <input type="radio" checked readOnly aria-label="Selected address" />
+              <span>
+                <strong>{selectedAddress.is_default ? "Home" : "Saved address"}</strong>
+                <small>{selectedAddress.formatted_address || `${selectedAddress.line1}, ${selectedAddress.city}`}</small>
+              </span>
+              <button type="button" className="text-action" onClick={() => setAddressOpen((open) => !open)}>
+                Change
+              </button>
+            </div>
+          ) : null}
+          {panel === "pick" && addressOpen ? (
+            <div className="choice-stack" role="radiogroup" aria-label="Saved addresses">
               {addresses.map((address) => (
                 <ChoiceCard
                   key={address.id}
                   name="saved_address"
                   value={String(address.id)}
                   checked={address.id === selectedAddress?.id}
-                  title={address.formatted_address || `${address.line1}, ${address.city}`}
-                  detail={address.is_default ? "Default" : address.city}
+                  title={address.is_default ? "Home" : address.city || "Address"}
+                  detail={address.formatted_address || address.line1}
                   onChange={() => {
                     setAddressId(address.id);
-                    setPanel("pick");
+                    setAddressOpen(false);
                   }}
                 />
               ))}
             </div>
           ) : null}
-
-          {panel === "add" ? (
-            <>
-              <p className="mt-3 text-sm text-ink/65">
-                Search worldwide, then we check the pin code. Tap the location icon to use your current place.
-              </p>
-              <AddressPicker onSaved={() => setPanel("pick")} />
-            </>
+          {panel === "pick" ? (
+            <button type="button" className="text-action add-address" onClick={() => setPanel("add")}>
+              + Add a new address
+            </button>
           ) : null}
-
+          {panel !== "pick" && addresses.length ? (
+            <button type="button" className="text-action" onClick={() => setPanel("pick")}>
+              Cancel
+            </button>
+          ) : null}
+          <p className="fine-print">Delivery is available in Dubai. We check the pin code before an address can be saved.</p>
+          {panel === "add" ? <AddressPicker onSaved={() => setPanel("pick")} /> : null}
           {panel === "edit" && selectedAddress ? (
-            <>
-              <p className="mt-3 text-sm text-ink/65">Search for a new place, or keep this one and save.</p>
-              <AddressPicker
-                key={selectedAddress.id}
-                addressId={selectedAddress.id}
-                isDefault={Boolean(selectedAddress.is_default)}
-                submitLabel="Update address"
-                initialQuery={selectedAddress.formatted_address || selectedAddress.line1}
-                initialPlace={{
-                  place_id: selectedAddress.place_id,
-                  latitude: selectedAddress.latitude,
-                  longitude: selectedAddress.longitude,
-                  postal_code: selectedAddress.postal_code,
-                  formatted_address: selectedAddress.formatted_address || selectedAddress.line1,
-                }}
-                onSaved={() => setPanel("pick")}
-              />
-            </>
+            <AddressPicker
+              key={selectedAddress.id}
+              addressId={selectedAddress.id}
+              isDefault={Boolean(selectedAddress.is_default)}
+              submitLabel="Update address"
+              initialQuery={selectedAddress.formatted_address || selectedAddress.line1}
+              initialPlace={{
+                place_id: selectedAddress.place_id,
+                latitude: selectedAddress.latitude,
+                longitude: selectedAddress.longitude,
+                postal_code: selectedAddress.postal_code,
+                formatted_address: selectedAddress.formatted_address || selectedAddress.line1,
+              }}
+              onSaved={() => setPanel("pick")}
+            />
           ) : null}
-        </div>
+        </section>
 
-        <div className="card-quiet rounded-2xl p-6">
-          <h2 className="font-semibold text-forest">Delivery window</h2>
-          {slots.length ? (
-            <div className="mt-3 grid gap-2" role="radiogroup" aria-label="Delivery windows">
+        <section className="checkout-block">
+          <p className="step-index">02</p>
+          <h2>When</h2>
+          <div className="when-grid" role="radiogroup" aria-label="When to deliver">
+            <div
+              role="radio"
+              aria-checked={whenMode === "now"}
+              tabIndex={0}
+              className={`pick-card ${whenMode === "now" ? "pick-card-on" : ""} ${slots.length ? "" : "is-disabled"}`}
+              onClick={() => slots.length && setWhenMode("now")}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  if (slots.length) setWhenMode("now");
+                }
+              }}
+            >
+              <input type="radio" checked={whenMode === "now"} readOnly tabIndex={-1} aria-hidden="true" />
+              <span>
+                <strong>Now</strong>
+                <small>{nowDetail}</small>
+              </span>
+            </div>
+            <div
+              role="radio"
+              aria-checked={whenMode === "schedule"}
+              tabIndex={0}
+              className={`pick-card ${whenMode === "schedule" ? "pick-card-on" : ""} ${slots.length ? "" : "is-disabled"}`}
+              onClick={() => slots.length && setWhenMode("schedule")}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  if (slots.length) setWhenMode("schedule");
+                }
+              }}
+            >
+              <input type="radio" checked={whenMode === "schedule"} readOnly tabIndex={-1} aria-hidden="true" />
+              <span>
+                <strong>Schedule</strong>
+                <small>Choose a delivery slot</small>
+              </span>
+            </div>
+          </div>
+          {whenMode === "schedule" && slots.length ? (
+            <div className="choice-stack" role="radiogroup" aria-label="Delivery windows">
               {slots.map((slot) => (
                 <ChoiceCard
                   key={slotKey(slot)}
                   name="saved_slot"
                   value={slotKey(slot)}
-                  checked={selectedSlot ? slotKey(slot) === slotKey(selectedSlot) : false}
+                  checked={activeSlot ? slotKey(slot) === slotKey(activeSlot) : false}
                   title={`${formatDay(slot.date)} · ${formatClock(slot.start_time)}–${formatClock(slot.end_time)}`}
                   detail={`${slot.remaining} left`}
                   onChange={() => setSlotId(slotKey(slot))}
                 />
               ))}
             </div>
-          ) : (
-            <p className="mt-3 text-sm text-ink/65">No open windows right now.</p>
-          )}
-        </div>
+          ) : null}
+        </section>
 
-        <div className="card-quiet rounded-2xl p-6">
-          <h2 className="font-semibold text-forest">Payment</h2>
-          <p className="mt-2 text-sm text-ink/65">Choose how you will pay. Only available methods can be selected.</p>
-          <div className="mt-3 grid gap-2" role="radiogroup" aria-label="Payment methods">
+        <section className="checkout-block" id="pay">
+          <p className="step-index">03</p>
+          <h2>Pay with</h2>
+          <div className="choice-stack" role="radiogroup" aria-label="Payment methods">
             {paymentMethods.map((method) => (
               <ChoiceCard
                 key={method.code}
@@ -265,57 +299,67 @@ export function CheckoutForm({
                 checked={paymentMethod === method.code}
                 disabled={!method.is_active}
                 title={method.name}
-                detail={method.is_active ? "Available" : "Coming soon"}
+                detail={method.is_active ? undefined : "Coming soon"}
                 onChange={() => {
                   if (method.is_active) setPaymentMethod(method.code);
                 }}
               />
             ))}
-            {!paymentMethods.length ? <p className="text-sm text-ink/65">No payment methods are available.</p> : null}
+            {!paymentMethods.length ? <p className="fine-print">No payment methods are available.</p> : null}
           </div>
+        </section>
+
+        <section className="checkout-block">
+          <p className="step-index">04</p>
+          <h2>Delivery note</h2>
+          <label className="field">
+            <span className="sr-only">Delivery note</span>
+            <textarea name="note" form="place-order" rows={3} placeholder="Leave at the door, call on arrival..." />
+          </label>
+        </section>
+      </div>
+
+      <form id="place-order" action={formAction} className="order-card">
+        <input type="hidden" name="address_id" value={selectedAddress?.id || ""} />
+        <input type="hidden" name="delivery_date" value={activeSlot?.date || ""} />
+        <input type="hidden" name="window_id" value={activeSlot?.window_id || ""} />
+        <input type="hidden" name="window_source" value={activeSlot?.source || "weekly"} />
+        <input type="hidden" name="payment_method" value={paymentMethod} />
+        <div className="order-card-head">
+          <h2>Your order</h2>
+          <span>
+            {count} {count === 1 ? "item" : "items"}
+          </span>
         </div>
-      </section>
-
-      <section className="cart-summary !top-24">
-        <h2 className="font-semibold text-forest">Place order</h2>
-        <p className="mt-2 text-sm text-ink/65">Your browser cart is synced right before we place it.</p>
-
-        <ul className="mt-5 divide-y divide-line border-y border-line">
+        <ul className="order-lines">
           {items.map((item) => (
-            <li key={item.variant_id} className="flex items-start justify-between gap-3 py-3 text-sm">
-              <div className="min-w-0">
-                <p className="font-medium text-forest">{item.title}</p>
-                <p className="mt-0.5 text-ink/60">
+            <li key={item.variant_id}>
+              <span className="order-thumb">
+                {item.image_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={item.image_url} alt="" />
+                ) : (
+                  <span>{item.title.slice(0, 1)}</span>
+                )}
+              </span>
+              <span>
+                <strong>{item.title}</strong>
+                <small>
                   {item.quantity} × AED {item.unit_price}
-                </p>
-              </div>
-              <p className="shrink-0 tabular-nums">AED {lineTotal(item.unit_price, item.quantity)}</p>
+                </small>
+              </span>
+              <b>AED {lineTotal(item.unit_price, item.quantity)}</b>
             </li>
           ))}
-          {!items.length ? <li className="py-4 text-sm text-ink/60">Your cart is empty.</li> : null}
+          {!items.length ? <li className="order-empty">Your basket is empty.</li> : null}
         </ul>
-
-        <div className="mt-3 flex items-center justify-between text-sm font-semibold text-forest">
-          <span>Total</span>
-          <span className="tabular-nums">AED {subtotal}</span>
-        </div>
-        <p className="mt-1 text-xs text-ink/55">Rechecked on the server before payment.</p>
-
-        <form action={formAction} className="mt-5 grid gap-3">
-          <input type="hidden" name="address_id" value={selectedAddress?.id || ""} />
-          <input type="hidden" name="delivery_date" value={selectedSlot?.date || ""} />
-          <input type="hidden" name="window_id" value={selectedSlot?.window_id || ""} />
-          <input type="hidden" name="window_source" value={selectedSlot?.source || "weekly"} />
-          <input type="hidden" name="payment_method" value={paymentMethod} />
-          <label className="field">
-            <span>Delivery note</span>
-            <textarea name="note" rows={3} />
-          </label>
-          <SubmitButton className="btn btn-primary" pendingLabel="Placing order…" disabled={!canPlace}>
-            Place order
-          </SubmitButton>
-        </form>
-      </section>
+        <OrderSummary showPromo className="checkout-summary" />
+        <SubmitButton className="btn btn-primary checkout-submit" pendingLabel="Placing order…" disabled={!canPlace}>
+          <span>Place order</span>
+          <span>AED {quote.total} →</span>
+        </SubmitButton>
+        <p className="fine-print center">Every item in this order passed all four gates. Lab reports are on each product page.</p>
+      </form>
     </div>
   );
 }

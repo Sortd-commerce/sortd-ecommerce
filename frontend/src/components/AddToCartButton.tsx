@@ -14,6 +14,9 @@ export function AddToCartButton({
   unitPrice,
   slug,
   onHand,
+  imageUrl,
+  detail,
+  className = "",
 }: {
   variantId: number;
   title: string;
@@ -21,6 +24,9 @@ export function AddToCartButton({
   unitPrice: string;
   slug?: string;
   onHand?: number;
+  imageUrl?: string;
+  detail?: string;
+  className?: string;
 }) {
   const { items, addItem, setQuantity, removeItem } = useCart();
   const toast = useToast();
@@ -37,7 +43,7 @@ export function AddToCartButton({
 
   if (outOfStock && inCart < 1) {
     return (
-      <button type="button" className="btn btn-primary mt-6 w-full" disabled>
+      <button type="button" className={`btn btn-primary mt-6 w-full ${className}`} disabled>
         Out of stock
       </button>
     );
@@ -45,7 +51,7 @@ export function AddToCartButton({
 
   if (inCart > 0) {
     return (
-      <div className="mt-6 grid gap-3">
+      <div className={`mt-6 grid gap-3 ${className}`}>
         <div className="flex items-center justify-between gap-3 rounded-xl border border-line bg-white px-3 py-2">
           <span className="text-sm font-medium text-ink/70">In cart</span>
           <QuantityStepper
@@ -67,7 +73,7 @@ export function AddToCartButton({
           />
         </div>
         <Link href="/cart" className="btn btn-secondary w-full">
-          Go to cart
+          View basket
         </Link>
       </div>
     );
@@ -76,7 +82,7 @@ export function AddToCartButton({
   return (
     <button
       type="button"
-      className="btn btn-primary mt-6 w-full"
+      className={`btn btn-primary mt-6 w-full ${className}`}
       onClick={() => {
         const result = addItem({
           variant_id: variantId,
@@ -85,6 +91,8 @@ export function AddToCartButton({
           unit_price: unitPrice,
           slug,
           on_hand: stock,
+          image_url: imageUrl,
+          detail,
           quantity: 1,
         });
         if (!result.ok) {
@@ -99,7 +107,7 @@ export function AddToCartButton({
       }}
     >
       <ShoppingCart size={18} weight="bold" />
-      Add to cart
+      Add to basket
     </button>
   );
 }
