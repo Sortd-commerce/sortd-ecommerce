@@ -333,6 +333,27 @@ def _product_qs():
     )
 
 
+def _product_list_qs():
+    return Product.objects.select_related("category").prefetch_related("variants")
+
+
+def _product_list_row(product: Product) -> dict:
+    variants = list(product.variants.all())
+    primary = min(variants, key=lambda row: row.pk) if variants else None
+    return {
+        "id": product.id,
+        "title": product.title,
+        "slug": product.slug,
+        "status": product.status,
+        "category": {"name": product.category.name},
+        "variants": (
+            [{"on_hand": primary.on_hand, "price": money_str(primary.price)}]
+            if primary is not None
+            else []
+        ),
+    }
+
+
 def _product_admin_row(product: Product) -> dict:
     return {
         "id": product.id,
@@ -639,11 +660,11 @@ class AdminController(ControllerBase):
 
     @route.get("/products", response={200: SuccessResponse, **_ERROR_RESPONSES}, summary="List products for admin")
     def list_products(self, query: Query[PageQuery], status_filter: str | None = None):
-        qs = _product_qs().order_by("-updated_at")
+        qs = _product_list_qs().order_by("-updated_at")
         if status_filter:
             qs = qs.filter(status=status_filter)
         page = paginate_queryset(qs, page=query.page, page_size=query.page_size)
-        page["results"] = [_product_admin_row(product) for product in page["results"]]
+        page["results"] = [_product_list_row(product) for product in page["results"]]
         return success("Products retrieved.", page)
 
     @route.post("/products", response={201: SuccessResponse, **_ERROR_RESPONSES}, summary="Create a product")

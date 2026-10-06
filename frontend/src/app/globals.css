@@ -24,6 +24,8 @@
   --shadow: 0 16px 40px rgb(20 53 3 / 0.08);
   --page-gutter: 5vw;
   --page-max: none;
+  --btn-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --btn-hover-shadow: 0 6px 18px rgb(20 53 3 / 0.14);
 }
 
 @theme inline {
@@ -72,6 +74,11 @@ button,
 input,
 textarea {
   font: inherit;
+}
+
+button {
+  background: transparent;
+  border: 0;
 }
 
 .sr-only {
@@ -316,12 +323,26 @@ textarea {
   align-items: center;
   gap: 0.625rem;
   min-width: 10rem;
-  border: 0;
+  border: 1px solid color-mix(in srgb, var(--ink) 88%, black);
   border-radius: 999px;
   background: var(--ink);
   color: var(--paper);
   padding: 0.75rem 1.25rem 0.75rem 1.125rem;
   cursor: pointer;
+  box-shadow: 0 2px 0 rgb(20 53 3 / 0.18);
+  transition: transform 220ms var(--btn-ease), box-shadow 220ms var(--btn-ease), background 220ms var(--btn-ease), border-color 220ms var(--btn-ease);
+}
+
+.cart-pill:hover {
+  transform: translateY(-2px);
+  background: color-mix(in srgb, var(--ink) 92%, var(--forest));
+  border-color: color-mix(in srgb, var(--forest) 35%, var(--ink));
+  box-shadow: var(--btn-hover-shadow);
+}
+
+.cart-pill:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 0 rgb(20 53 3 / 0.14);
 }
 
 .cart-pill-copy {
@@ -380,42 +401,64 @@ textarea {
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  border: 0;
+  border: 1.5px solid transparent;
   border-radius: 999px;
   padding: 0.8rem 1.15rem;
   font-weight: 700;
   cursor: pointer;
-  transition: transform 160ms ease, background 160ms ease, opacity 160ms ease;
+  text-decoration: none;
+  box-shadow: 0 2px 0 rgb(20 53 3 / 0.08);
+  transition: transform 220ms var(--btn-ease), background 220ms var(--btn-ease), border-color 220ms var(--btn-ease), box-shadow 220ms var(--btn-ease), opacity 160ms ease;
 }
 
-.btn:hover {
-  transform: translateY(-1px);
+.btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: var(--btn-hover-shadow);
+}
+
+.btn:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 0 rgb(20 53 3 / 0.05);
 }
 
 .btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
   transform: none;
+  box-shadow: none;
 }
 
 .btn-primary {
   background: var(--forest);
+  border-color: color-mix(in srgb, var(--forest-deep) 82%, black);
   color: #f6f1e6;
 }
 
 .btn-primary:hover {
   background: var(--forest-deep);
+  border-color: var(--forest-deep);
 }
 
 .btn-secondary {
-  background: transparent;
-  border: 1px solid var(--forest);
+  background: color-mix(in srgb, var(--paper) 90%, white);
+  border-color: color-mix(in srgb, var(--forest) 42%, var(--line));
   color: var(--forest);
+}
+
+.btn-secondary:hover {
+  background: white;
+  border-color: var(--forest);
 }
 
 .btn-light {
   background: #f6f1e6;
+  border-color: color-mix(in srgb, var(--forest) 22%, var(--line));
   color: var(--forest);
+}
+
+.btn-light:hover {
+  background: white;
+  border-color: color-mix(in srgb, var(--forest) 40%, var(--line));
 }
 
 .field {
@@ -478,8 +521,7 @@ textarea {
 }
 
 .link-quiet,
-.back-link,
-.text-action {
+.back-link {
   color: var(--forest);
   font-size: 0.82rem;
   font-weight: 800;
@@ -488,6 +530,35 @@ textarea {
   background: transparent;
   border: 0;
   cursor: pointer;
+}
+
+.text-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--forest);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 0.45rem 0.8rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--forest) 28%, var(--line));
+  background: color-mix(in srgb, var(--paper) 92%, white);
+  cursor: pointer;
+  box-shadow: 0 1px 0 rgb(20 53 3 / 0.05);
+  transition: transform 220ms var(--btn-ease), background 220ms var(--btn-ease), border-color 220ms var(--btn-ease), box-shadow 220ms var(--btn-ease);
+}
+
+.text-action:hover {
+  transform: translateY(-1px);
+  background: white;
+  border-color: color-mix(in srgb, var(--forest) 55%, var(--line));
+  box-shadow: 0 4px 14px rgb(20 53 3 / 0.1);
+}
+
+.text-action:active {
+  transform: translateY(0);
 }
 
 .card-quiet {
@@ -837,14 +908,27 @@ textarea {
 }
 
 .product-add-btn {
-  border: 0;
+  border: 1px solid color-mix(in srgb, var(--forest) 24%, var(--line));
   border-radius: 999px;
-  background: var(--paper);
+  background: color-mix(in srgb, var(--paper) 94%, white);
   color: var(--ink);
   font-size: 0.8125rem;
   font-weight: 600;
   padding: 0.4375rem 1rem;
   cursor: pointer;
+  box-shadow: 0 1px 0 rgb(20 53 3 / 0.05);
+  transition: transform 220ms var(--btn-ease), background 220ms var(--btn-ease), border-color 220ms var(--btn-ease), box-shadow 220ms var(--btn-ease);
+}
+
+.product-add-btn:hover {
+  background: white;
+  border-color: color-mix(in srgb, var(--forest) 45%, var(--line));
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 4px 14px rgb(20 53 3 / 0.12);
+}
+
+.product-add-btn:active {
+  transform: translateY(0) scale(1);
 }
 
 .sold-out {
@@ -868,11 +952,22 @@ textarea {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: 0;
+  border: 1px solid transparent;
   border-radius: 999px;
   background: transparent;
   color: var(--forest);
   cursor: pointer;
+  transition: transform 180ms var(--btn-ease), background 180ms var(--btn-ease), border-color 180ms var(--btn-ease);
+}
+
+.qty-btn:hover:not(:disabled) {
+  transform: scale(1.08);
+  background: color-mix(in srgb, var(--mint) 35%, white);
+  border-color: color-mix(in srgb, var(--forest) 18%, var(--line));
+}
+
+.qty-btn:active:not(:disabled) {
+  transform: scale(0.96);
 }
 
 .qty-btn:disabled {
@@ -1470,10 +1565,23 @@ textarea {
   height: 2rem;
   align-items: center;
   justify-content: center;
-  border: 0;
+  border: 1px solid var(--line);
   border-radius: 999px;
-  background: transparent;
+  background: white;
+  color: var(--forest);
   cursor: pointer;
+  transition: transform 220ms var(--btn-ease), background 220ms var(--btn-ease), border-color 220ms var(--btn-ease), box-shadow 220ms var(--btn-ease);
+}
+
+.basket-close:hover {
+  transform: scale(1.06);
+  background: var(--paper);
+  border-color: color-mix(in srgb, var(--forest) 30%, var(--line));
+  box-shadow: 0 4px 12px rgb(20 53 3 / 0.12);
+}
+
+.basket-close:active {
+  transform: scale(0.98);
 }
 
 .basket-deliver {
@@ -2080,21 +2188,50 @@ textarea {
 .checkout-done {
   flex-shrink: 0;
   margin-top: 0.15rem;
+  padding: 0.45rem 0.75rem;
+  border-radius: 999px;
   font-size: 0.6875rem;
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  background: transparent;
-  border: 0;
+  border: 1px solid transparent;
   cursor: pointer;
+  box-shadow: 0 1px 0 rgb(20 53 3 / 0.04);
+  transition: transform 220ms var(--btn-ease), background 220ms var(--btn-ease), border-color 220ms var(--btn-ease), box-shadow 220ms var(--btn-ease);
 }
 
 .checkout-cancel {
   color: var(--stop);
+  background: color-mix(in srgb, var(--stop) 10%, white);
+  border-color: color-mix(in srgb, var(--stop) 34%, var(--line));
+}
+
+.checkout-cancel:hover {
+  transform: translateY(-1px);
+  background: color-mix(in srgb, var(--stop) 14%, white);
+  border-color: color-mix(in srgb, var(--stop) 50%, var(--line));
+  box-shadow: 0 4px 12px rgb(226 59 50 / 0.14);
+}
+
+.checkout-cancel:active {
+  transform: translateY(0);
 }
 
 .checkout-done {
   color: var(--forest);
+  background: color-mix(in srgb, var(--mint) 42%, white);
+  border-color: color-mix(in srgb, var(--forest) 28%, var(--line));
+}
+
+.checkout-done:hover {
+  transform: translateY(-1px);
+  background: color-mix(in srgb, var(--mint) 58%, white);
+  border-color: color-mix(in srgb, var(--forest) 45%, var(--line));
+  box-shadow: 0 4px 12px rgb(20 53 3 / 0.12);
+}
+
+.checkout-done:active {
+  transform: translateY(0);
 }
 
 .address-summary .text-action,
@@ -2760,6 +2897,13 @@ textarea {
   }
 
   .btn,
+  .cart-pill,
+  .text-action,
+  .product-add-btn,
+  .qty-btn,
+  .basket-close,
+  .checkout-cancel,
+  .checkout-done,
   .page-enter,
   .page-loading {
     animation: none;
@@ -2771,7 +2915,15 @@ textarea {
     animation: none;
   }
 
-  .btn:hover {
+  .btn:hover,
+  .cart-pill:hover,
+  .text-action:hover,
+  .product-add-btn:hover,
+  .qty-btn:hover,
+  .basket-close:hover,
+  .checkout-cancel:hover,
+  .checkout-done:hover {
     transform: none;
+    box-shadow: none;
   }
 }

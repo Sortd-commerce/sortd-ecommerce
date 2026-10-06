@@ -84,6 +84,14 @@ class AdminApiTests(ApiTestCase):
         self.assertEqual(overview.status_code, 200)
         self.assertEqual(overview.json()["data"]["products_active"], 1)
 
+        listed = self.client.get("/api/v1/admin/products?page_size=10", **self.auth)
+        self.assertEqual(listed.status_code, 200)
+        row = listed.json()["data"]["results"][0]
+        self.assertEqual(row["title"], "Sea Salt Bar")
+        self.assertIn("variants", row)
+        self.assertNotIn("label", row)
+        self.assertNotIn("images", row)
+
     def test_delivery_window_crud(self):
         created = post_json(
             self.client,
