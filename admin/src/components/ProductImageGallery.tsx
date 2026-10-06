@@ -4,6 +4,7 @@ import { DotsSixVertical, Trash, X } from "@phosphor-icons/react";
 import { useEffect, useMemo, useState } from "react";
 import { deleteProductImageAction, reorderProductImagesAction } from "@/lib/actions";
 import { ActionForm } from "@/components/ActionForm";
+import { OptimizedImage } from "@/components/OptimizedImage";
 
 export type GalleryImage = {
   id: number;
@@ -118,12 +119,12 @@ export function ProductImageGallery({ productId, productTitle, images }: Props) 
                 className="flex min-w-0 flex-1 items-center gap-3 rounded-xl px-1 py-1 text-left hover:bg-panel focus-visible:ring-2 focus-visible:ring-accent"
                 onClick={() => setViewerId(image.id)}
               >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
+                <OptimizedImage
                   src={image.url}
                   alt={image.alt || image.original_name || productTitle}
                   width={56}
                   height={56}
+                  sizes="56px"
                   className="h-14 w-14 shrink-0 rounded-lg object-cover"
                 />
                 <span className="min-w-0 flex-1">
@@ -203,12 +204,12 @@ export function ProductImageGallery({ productId, productTitle, images }: Props) 
           >
             <X size={20} aria-hidden="true" />
           </button>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
+          <OptimizedImage
             src={viewer.url}
             alt={viewer.alt || viewer.original_name || productTitle}
             width={1200}
             height={800}
+            sizes="100vw"
             className="max-h-[90vh] max-w-full object-contain"
             onClick={(event) => event.stopPropagation()}
           />

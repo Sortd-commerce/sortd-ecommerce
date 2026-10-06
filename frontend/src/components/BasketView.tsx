@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Clock, X } from "@phosphor-icons/react";
+import { OptimizedImage } from "@/components/OptimizedImage";
 import { OrderSummary } from "@/components/OrderSummary";
 import { usePricing } from "@/components/PricingProvider";
 import { useCart } from "@/components/CartProvider";
@@ -72,8 +73,13 @@ export function BasketView({
             <article key={item.variant_id} className="basket-line">
               <div className="basket-thumb">
                 {item.image_url ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={item.image_url} alt="" />
+                  <OptimizedImage
+                    src={item.image_url}
+                    alt=""
+                    fill
+                    sizes="54px"
+                    className="object-contain"
+                  />
                 ) : (
                   <span>{item.title.slice(0, 1)}</span>
                 )}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { OptimizedImage } from "@/components/OptimizedImage";
 
 type GalleryImage = { url: string; alt: string; role: string };
 
@@ -20,8 +21,14 @@ export function ProductGallery({ title, images }: { title: string; images: Galle
   return (
     <div className="gallery">
       <div className="gallery-stage">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={current.url} alt={current.alt || title} />
+        <OptimizedImage
+          src={current.url}
+          alt={current.alt || title}
+          fill
+          priority
+          sizes="(max-width: 768px) 100vw, 50vw"
+          className="object-contain"
+        />
       </div>
       {usable.length > 1 ? (
         <div className="gallery-thumbs">
@@ -34,8 +41,13 @@ export function ProductGallery({ title, images }: { title: string; images: Galle
               aria-pressed={index === active}
               onClick={() => setActive(index)}
             >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={image.url} alt="" />
+              <OptimizedImage
+                src={image.url}
+                alt=""
+                fill
+                sizes="72px"
+                className="object-cover"
+              />
             </button>
           ))}
         </div>

@@ -9,6 +9,7 @@ import { AddressPicker } from "@/components/AddressPicker";
 import { useToast } from "@/components/Toast";
 import { OpenBasketLink } from "@/components/OpenBasketLink";
 import { OrderSummary } from "@/components/OrderSummary";
+import { OptimizedImage } from "@/components/OptimizedImage";
 import { usePricing } from "@/components/PricingProvider";
 import { useCart } from "@/components/CartProvider";
 import { toSyncPayload } from "@/lib/cart-store";
@@ -426,8 +427,13 @@ export function CheckoutForm({
             <li key={item.variant_id}>
               <span className="order-thumb">
                 {item.image_url ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={item.image_url} alt="" />
+                  <OptimizedImage
+                    src={item.image_url}
+                    alt=""
+                    fill
+                    sizes="54px"
+                    className="object-contain"
+                  />
                 ) : (
                   <span>{item.title.slice(0, 1)}</span>
                 )}

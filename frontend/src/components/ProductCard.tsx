@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { OptimizedImage } from "@/components/OptimizedImage";
 import { useCart } from "@/components/CartProvider";
 import { QuantityStepper } from "@/components/QuantityStepper";
 import { useToast } from "@/components/Toast";
@@ -22,8 +23,13 @@ export function ProductCard({ product }: { product: CardProduct }) {
     <article className="product-card">
       <Link href={`/products/${product.slug}`} className="product-card-media" style={{ background: tint }}>
         {product.primary_image?.url ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={product.primary_image.url} alt={product.primary_image.alt || product.title} />
+          <OptimizedImage
+            src={product.primary_image.url}
+            alt={product.primary_image.alt || product.title}
+            fill
+            sizes="(max-width: 768px) 44vw, 220px"
+            className="object-contain"
+          />
         ) : (
           <span className="product-card-fallback">{product.category.name}</span>
         )}

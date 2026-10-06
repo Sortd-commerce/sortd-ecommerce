@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { AddToCartButton } from "@/components/AddToCartButton";
+import { OptimizedImage } from "@/components/OptimizedImage";
 
 type Offer = {
   id: number;
@@ -78,8 +79,14 @@ export function BuyBox({
             {flavors.map((flavor) => (
               <Link key={flavor.slug} href={`/products/${flavor.slug}`} className="flavor-link">
                 {flavor.image ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={flavor.image} alt="" />
+                  <OptimizedImage
+                    src={flavor.image}
+                    alt=""
+                    width={120}
+                    height={48}
+                    sizes="120px"
+                    className="h-12 w-full object-contain"
+                  />
                 ) : null}
                 {flavor.title}
               </Link>

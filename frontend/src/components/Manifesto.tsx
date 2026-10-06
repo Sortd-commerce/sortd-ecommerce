@@ -1,17 +1,16 @@
-import Image from "next/image";
 import Link from "next/link";
+import { OptimizedImage } from "@/components/OptimizedImage";
 
 export function Manifesto() {
   return (
     <footer className="manifesto">
       <div className="manifesto-frame">
         <div className="manifesto-photo" aria-hidden>
-          <Image
+          <OptimizedImage
             src="/images/footer-produce.png"
             alt=""
             fill
             sizes="100vw"
-            priority={false}
             className="manifesto-photo-img"
           />
         </div>

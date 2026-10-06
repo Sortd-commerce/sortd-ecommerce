@@ -670,6 +670,7 @@ button {
 }
 
 .aisle-photo {
+  position: relative;
   display: grid;
   place-items: center;
   width: 6.875rem;
@@ -836,6 +837,7 @@ button {
 }
 
 .product-card-media {
+  position: relative;
   display: grid;
   height: 11.875rem;
   place-items: center;
@@ -1210,6 +1212,7 @@ button {
 }
 
 .gallery-stage {
+  position: relative;
   display: grid;
   min-height: 24rem;
   place-items: center;
@@ -1242,6 +1245,7 @@ button {
 }
 
 .gallery-thumbs button {
+  position: relative;
   width: 4.2rem;
   height: 4.2rem;
   overflow: hidden;
@@ -1659,6 +1663,7 @@ button {
 
 .basket-thumb,
 .order-thumb {
+  position: relative;
   display: grid;
   width: 3.4rem;
   height: 3.4rem;
