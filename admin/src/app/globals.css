@@ -11,6 +11,7 @@
   --accent: #3faf7a;
   --warn: #d4a24c;
   --danger: #e07a5f;
+  --stop: #e23b32;
   --btn-ease: cubic-bezier(0.22, 1, 0.36, 1);
   --btn-hover-shadow: 0 6px 16px rgb(0 0 0 / 0.28);
 }
@@ -58,6 +59,33 @@ a {
 
 .skip-link:focus {
   top: 1rem;
+}
+
+.brand-mark {
+  display: inline-flex;
+  align-items: baseline;
+  color: var(--text);
+  font-family: var(--font-brand), "Libre Baskerville", Georgia, "Times New Roman", serif;
+  font-size: 1.75rem;
+  font-weight: 700;
+  font-style: normal;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  text-transform: none;
+  white-space: nowrap;
+}
+
+.brand-sm {
+  font-size: 1.375rem;
+}
+
+.tone-muted {
+  color: var(--muted);
+}
+
+.brand-period {
+  color: var(--stop);
+  font-weight: 700;
 }
 
 .panel {

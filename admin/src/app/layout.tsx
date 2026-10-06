@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { IBM_Plex_Sans } from "next/font/google";
+import { IBM_Plex_Sans, Libre_Baskerville } from "next/font/google";
 import { AdminShell } from "@/components/AdminShell";
 import { getStaffProfile } from "@/lib/staff";
 import "./globals.css";
@@ -10,9 +10,19 @@ const body = IBM_Plex_Sans({
   weight: ["400", "500", "600", "700"],
 });
 
+const brand = Libre_Baskerville({
+  variable: "--font-brand",
+  subsets: ["latin"],
+  weight: ["700"],
+});
+
 export const metadata: Metadata = {
-  title: "Sortd Operations",
+  title: {
+    default: "Sortd Operations",
+    template: "%s · Sortd Operations",
+  },
   description: "Staff console for Sortd orders, catalog, and delivery.",
+  applicationName: "Sortd Operations",
 };
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
@@ -20,7 +30,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
 
   return (
     <html lang="en" style={{ colorScheme: "dark" }}>
-      <body className={`${body.variable} antialiased`}>
+      <body className={`${body.variable} ${brand.variable} antialiased`}>
         <a href="#main" className="skip-link">
           Skip to content
         </a>

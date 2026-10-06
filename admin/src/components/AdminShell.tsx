@@ -10,6 +10,7 @@ import {
   Truck,
   Users,
 } from "@phosphor-icons/react";
+import { BrandMark } from "@/components/BrandMark";
 import { logoutAction } from "@/lib/actions";
 import type { StaffProfile } from "@/lib/staff";
 
@@ -31,10 +32,10 @@ export function AdminShell({ me, children }: { me: StaffProfile; children: React
     <div className="min-h-dvh lg:grid lg:grid-cols-[240px_1fr]">
       <aside className="border-b border-line bg-sidebar lg:sticky lg:top-0 lg:flex lg:h-dvh lg:flex-col lg:border-b-0 lg:border-r">
         <div className="flex items-center justify-between gap-3 px-4 py-4 lg:block">
-          <Link href={isAdmin ? "/" : "/orders"} className="block">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted">Sortd</p>
-            <p className="text-sm font-semibold">Operations</p>
-          </Link>
+          <div className="block">
+            <BrandMark href={isAdmin ? "/" : "/orders"} size="sm" />
+            <p className="mt-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted">Operations</p>
+          </div>
           <form action={logoutAction} className="lg:hidden">
             <button type="submit" className="btn-ghost px-3 py-1.5 text-sm">
               Log out
