@@ -15,9 +15,15 @@ type PricingContextValue = {
 
 const PricingContext = createContext<PricingContextValue | null>(null);
 
-export function PricingProvider({ children }: { children: React.ReactNode }) {
+export function PricingProvider({
+  children,
+  initialRules = null,
+}: {
+  children: React.ReactNode;
+  initialRules?: PricingRules | null;
+}) {
   const { items } = useCart();
-  const [rules, setRules] = useState<PricingRules | null>(null);
+  const [rules, setRules] = useState<PricingRules | null>(initialRules);
   const [quote, setQuote] = useState<PriceQuote>(EMPTY_QUOTE);
   const [discountCode, setDiscountCode] = useState("");
   const discountRef = useRef(discountCode);
@@ -28,10 +34,11 @@ export function PricingProvider({ children }: { children: React.ReactNode }) {
   }, [discountCode]);
 
   useEffect(() => {
+    if (initialRules) return;
     void fetchPricingRulesAction().then((result) => {
       if (result.ok && result.data) setRules(result.data);
     });
-  }, []);
+  }, [initialRules]);
 
   const refreshQuote = useCallback(async () => {
     if (!items.length) {

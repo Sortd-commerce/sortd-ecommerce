@@ -216,13 +216,250 @@ a {
   background: rgb(255 255 255 / 0.025);
 }
 
+.pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+  padding: 0.85rem 1rem;
+  border-top: 1px solid var(--line);
+  background: var(--panel-2);
+}
+
+.pagination-summary {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.pagination-btn {
+  min-width: 5.5rem;
+  font-size: 0.8125rem;
+}
+
+.pagination-btn--disabled {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+.pagination-page {
+  min-width: 6.5rem;
+  text-align: center;
+  font-size: 0.8125rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.drawer-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+}
+
+.drawer-scrim {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: rgb(0 0 0 / 0.58);
+  cursor: pointer;
+}
+
+.drawer-panel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  width: min(100%, 420px);
+  flex-direction: column;
+  border-left: 1px solid var(--line);
+  background: var(--panel);
+  box-shadow: -14px 0 36px rgb(0 0 0 / 0.35);
+}
+
+.drawer-panel--enter {
+  animation: drawer-slide-in 220ms ease-out;
+}
+
+@keyframes drawer-slide-in {
+  from {
+    transform: translateX(100%);
+  }
+
+  to {
+    transform: translateX(0);
+  }
+}
+
+.drawer-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.25rem 1.25rem 1rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.drawer-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.25rem;
+}
+
+.drawer-close {
+  display: inline-flex;
+  width: 2rem;
+  height: 2rem;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-2);
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.drawer-close:hover {
+  color: var(--text);
+  background: rgb(255 255 255 / 0.04);
+}
+
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+@keyframes loading-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.skeleton {
+  border-radius: 8px;
+  background: linear-gradient(
+    90deg,
+    var(--panel-2) 0%,
+    color-mix(in srgb, var(--accent) 12%, var(--panel-2)) 50%,
+    var(--panel-2) 100%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+}
+
+.page-loading {
+  animation: page-fade-in 180ms ease-out;
+}
+
+@keyframes page-fade-in {
+  from {
+    opacity: 0.6;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+.loading-spinner {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.loading-spinner__ring,
+.btn-spinner {
+  width: 0.95rem;
+  height: 0.95rem;
+  border: 2px solid color-mix(in srgb, var(--accent) 20%, transparent);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: loading-spin 0.75s linear infinite;
+}
+
+.btn-spinner {
+  display: inline-block;
+  margin-right: 0.35rem;
+  vertical-align: -0.15em;
+}
+
+.skeleton--title {
+  height: 1.75rem;
+  width: 220px;
+}
+
+.skeleton--subtitle {
+  height: 1rem;
+  width: 320px;
+  max-width: 100%;
+}
+
+.skeleton--label {
+  height: 0.85rem;
+  width: 100px;
+  margin-bottom: 0.75rem;
+}
+
+.skeleton--stat {
+  height: 1.75rem;
+  width: 80px;
+}
+
+.skeleton--panel {
+  height: 10rem;
+}
+
+.skeleton--panel-tall {
+  height: 16rem;
+}
+
+.skeleton-table-head {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 1rem;
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.skeleton--th {
+  height: 0.85rem;
+}
+
+.skeleton--tr {
+  height: 3rem;
+  margin: 0.35rem 1rem;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .btn,
   .btn-ghost,
-  .btn-danger {
+  .btn-danger,
+  .page-loading {
     transition: none;
+    animation: none;
   }
   .btn:active {
     transform: none;
+  }
+  .skeleton,
+  .loading-spinner__ring,
+  .btn-spinner,
+  .drawer-panel--enter {
+    animation: none;
   }
 }

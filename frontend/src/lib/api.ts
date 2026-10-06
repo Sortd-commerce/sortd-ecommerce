@@ -7,6 +7,7 @@ type ApiOptions = {
   auth?: boolean;
   headers?: Record<string, string>;
   cache?: RequestCache;
+  revalidate?: number | false;
 };
 
 export type ApiResult<T> = {
@@ -48,6 +49,7 @@ export async function apiFetch<T>(path: string, options: ApiOptions = {}): Promi
       headers,
       body: options.body === undefined ? undefined : JSON.stringify(options.body),
       cache: options.cache || "no-store",
+      ...(options.revalidate !== undefined ? { next: { revalidate: options.revalidate } } : {}),
     });
   } catch {
     return {

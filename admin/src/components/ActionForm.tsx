@@ -6,6 +6,10 @@ import type { ActionState } from "@/lib/action-state";
 
 export const emptyActionState: ActionState = { ok: null, message: "" };
 
+function SubmitSpinner() {
+  return <span className="btn-spinner" aria-hidden />;
+}
+
 export function SubmitButton({
   children,
   className = "btn",
@@ -18,7 +22,14 @@ export function SubmitButton({
   const { pending } = useFormStatus();
   return (
     <button type="submit" className={className} disabled={pending} aria-busy={pending}>
-      {pending ? pendingLabel : children}
+      {pending ? (
+        <>
+          <SubmitSpinner />
+          {pendingLabel}
+        </>
+      ) : (
+        children
+      )}
     </button>
   );
 }

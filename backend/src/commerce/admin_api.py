@@ -452,10 +452,12 @@ class AdminController(ControllerBase):
         return success("Staff profile retrieved.", serialize_staff(authenticated_user(self.context.request)))
 
     @route.get("/members", response={200: SuccessResponse, **_ERROR_RESPONSES}, summary="List staff members")
-    def list_members(self):
+    def list_members(self, query: Query[PageQuery]):
         User = get_user_model()
-        rows = [serialize_staff(user) for user in User.objects.filter(is_staff=True).order_by("email")]
-        return success("Members retrieved.", rows)
+        qs = User.objects.filter(is_staff=True).order_by("email")
+        page = paginate_queryset(qs, page=query.page, page_size=query.page_size)
+        page["results"] = [serialize_staff(user) for user in page["results"]]
+        return success("Members retrieved.", page)
 
     @route.post("/members", response={201: SuccessResponse, **_ERROR_RESPONSES}, summary="Add a staff member")
     def create_member(self, payload: MemberIn):

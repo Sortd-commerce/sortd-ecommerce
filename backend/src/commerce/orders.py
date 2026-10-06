@@ -200,6 +200,7 @@ class OrderService:
                     self._stock.restore_for_cancellation(
                         variant=variant, quantity=line.quantity, order_id=order.id, actor=user
                     )
+        self._notify_cancelled(user, order)
         return order
 
     def _lock_slot(self, command: PlaceOrderCommand):
@@ -243,6 +244,19 @@ class OrderService:
             )
         except Exception:
             logger.exception("Order confirmation email failed for %s", order.number)
+
+    def _notify_cancelled(self, user, order: Order) -> None:
+        if self._email_sender is None:
+            return
+        try:
+            order = Order.objects.prefetch_related("lines").get(pk=order.pk)
+            self._email_sender.send_order_cancellation(
+                to=user.email,
+                order=serialize_order(order),
+                first_name=user.first_name,
+            )
+        except Exception:
+            logger.exception("Order cancellation email failed for %s", order.number)
 
 
 def request_hash_for(payload: dict) -> str:

@@ -1,24 +1,33 @@
 import Link from "next/link";
 import { EditProductLink } from "@/components/EditProductLink";
 import { PageHeader } from "@/components/PageHeader";
+import { Pagination } from "@/components/Pagination";
 import { StatusBadge } from "@/components/StatusBadge";
 import { apiFetch } from "@/lib/api";
+import { ADMIN_PAGE_SIZE, pageFromParam, type Paginated } from "@/lib/pagination";
 import { requireAdmin } from "@/lib/staff";
 
-type Products = {
-  results: Array<{
-    id: number;
-    title: string;
-    slug: string;
-    status: string;
-    category: { name: string };
-    variants: Array<{ on_hand: number; price: string }>;
-  }>;
+type ProductRow = {
+  id: number;
+  title: string;
+  slug: string;
+  status: string;
+  category: { name: string };
+  variants: Array<{ on_hand: number; price: string }>;
 };
 
-export default async function AdminProductsPage() {
+export default async function AdminProductsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string }>;
+}) {
   await requireAdmin();
-  const products = await apiFetch<Products>("/admin/products?page_size=100");
+  const { page: pageParam } = await searchParams;
+  const page = pageFromParam(pageParam);
+  const products = await apiFetch<Paginated<ProductRow>>(
+    `/admin/products?page=${page}&page_size=${ADMIN_PAGE_SIZE}`,
+  );
+  const data = products.data;
 
   return (
     <div className="space-y-6">
@@ -46,7 +55,7 @@ export default async function AdminProductsPage() {
             </tr>
           </thead>
           <tbody>
-            {(products.data?.results || []).map((product) => (
+            {(data?.results || []).map((product) => (
               <tr key={product.id}>
                 <td>
                   <Link href={`/products/${product.id}`} className="font-medium text-accent hover:underline">
@@ -66,7 +75,16 @@ export default async function AdminProductsPage() {
             ))}
           </tbody>
         </table>
-        {!products.data?.results?.length ? <p className="px-4 py-10 text-sm text-muted">No products yet.</p> : null}
+        {!data?.results?.length ? <p className="px-4 py-10 text-sm text-muted">No products yet.</p> : null}
+        {data ? (
+          <Pagination
+            page={data.page}
+            pages={data.pages}
+            count={data.count}
+            pageSize={data.page_size}
+            basePath="/products"
+          />
+        ) : null}
       </div>
     </div>
   );

@@ -7,6 +7,7 @@ import { Chrome } from "@/components/Chrome";
 import { PageTransition } from "@/components/PageTransition";
 import { SiteHeader } from "@/components/SiteHeader";
 import { ToastProvider } from "@/components/Toast";
+import { fetchPricingRules } from "@/lib/catalog";
 import { getAccessToken } from "@/lib/auth";
 import "./globals.css";
 
@@ -46,7 +47,10 @@ export const viewport: Viewport = {
 };
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  const signedIn = Boolean(await getAccessToken());
+  const [signedIn, pricing] = await Promise.all([
+    getAccessToken().then(Boolean),
+    fetchPricingRules(),
+  ]);
   return (
     <html lang="en">
       <body className={`${display.variable} ${body.variable} ${mono.variable} ${brand.variable} antialiased`}>
@@ -54,11 +58,11 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
           Skip to content
         </a>
         <CartProvider>
-          <PricingProvider>
+          <PricingProvider initialRules={pricing.ok ? pricing.data ?? null : null}>
             <ToastProvider>
               <BasketProvider>
                 <div className="site-bg" aria-hidden />
-                <Chrome header={<SiteHeader />} signedIn={signedIn}>
+                <Chrome header={<SiteHeader signedIn={signedIn} />} signedIn={signedIn}>
                   <PageTransition>{children}</PageTransition>
                 </Chrome>
               </BasketProvider>

@@ -238,10 +238,14 @@ class CheckoutTests(ApiTestCase):
             self.client, "/api/v1/orders", self._order_payload(), HTTP_IDEMPOTENCY_KEY="k4", **self.auth
         )
         number = placed.json()["data"]["number"]
+        mail.outbox.clear()
         cancelled = post_json(self.client, f"/api/v1/orders/{number}/cancel", {}, **self.auth)
         self.assertEqual(cancelled.status_code, 200)
         self.variant.refresh_from_db()
         self.assertEqual(self.variant.on_hand, 5)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn(number, mail.outbox[-1].subject)
+        self.assertIn("cancelled", mail.outbox[-1].subject.lower())
         again = post_json(self.client, f"/api/v1/orders/{number}/cancel", {}, **self.auth)
         self.assertEqual(again.status_code, 400)
         self.variant.refresh_from_db()

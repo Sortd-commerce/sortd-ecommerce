@@ -190,6 +190,53 @@ class DjangoEmailSender:
         )
         self._send(to=to, subject=subject, body=body, html=html)
 
+    def send_order_cancellation(self, *, to: str, order: dict, first_name: str = "") -> None:
+        name = first_name.strip() or "there"
+        number = order.get("number") or ""
+        total = order.get("total") or "0.00"
+        delivery = order.get("delivery_date") or ""
+        subject = f"Order {number} cancelled"
+        lines = order.get("lines") or []
+        text_lines = "\n".join(
+            f"- {row.get('title')} × {row.get('quantity')} — AED {row.get('line_total')}" for row in lines
+        )
+        body = (
+            f"Hi {name},\n\n"
+            f"Your Sortd order {number} has been cancelled.\n"
+            f"Total: AED {total}\n"
+            f"Was scheduled for: {delivery}\n"
+            f"{text_lines}\n\n"
+            "If you did not request this cancellation, contact us."
+        )
+        rows_html = "".join(
+            (
+                "<tr>"
+                f'<td style="padding:8px 0;border-bottom:1px solid {LINE};font-family:Arial,sans-serif;font-size:14px;">{escape(str(row.get("title") or ""))}</td>'
+                f'<td style="padding:8px 0;border-bottom:1px solid {LINE};font-family:Arial,sans-serif;font-size:14px;text-align:center;">{escape(str(row.get("quantity") or ""))}</td>'
+                f'<td style="padding:8px 0;border-bottom:1px solid {LINE};font-family:Arial,sans-serif;font-size:14px;text-align:right;">AED {escape(str(row.get("line_total") or ""))}</td>'
+                "</tr>"
+            )
+            for row in lines
+        )
+        extra = (
+            '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:20px;">'
+            '<tr style="color:#5b675f;font-size:12px;letter-spacing:0.08em;text-transform:uppercase;">'
+            '<td style="padding-bottom:8px;">Item</td><td style="padding-bottom:8px;text-align:center;">Qty</td>'
+            '<td style="padding-bottom:8px;text-align:right;">Total</td></tr>'
+            f"{rows_html}</table>"
+            f'<p style="margin:18px 0 0;font-family:Arial,sans-serif;font-size:16px;font-weight:700;color:{FOREST};">AED {escape(str(total))}</p>'
+            f'<p style="margin:8px 0 0;font-family:Arial,sans-serif;font-size:14px;color:{INK};">Was scheduled for {escape(str(delivery))}</p>'
+        )
+        html = _branded_html(
+            preview=f"Order {number} was cancelled.",
+            heading=f"Order {number} was cancelled",
+            intro=f"Hi {name}, your Sortd order has been cancelled. Any reserved stock has been released.",
+            extra_html=extra,
+            cta_label="View orders",
+            cta_url=f"{_shop_url()}/orders",
+        )
+        self._send(to=to, subject=subject, body=body, html=html)
+
     def send_new_device_login(
         self, *, to: str, first_name: str = "", label: str = "", ip_address: str | None = None
     ) -> None:

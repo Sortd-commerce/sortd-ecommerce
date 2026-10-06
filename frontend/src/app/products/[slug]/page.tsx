@@ -8,6 +8,7 @@ import { ProductCard } from "@/components/ProductCard";
 import { ProductRail } from "@/components/ProductRail";
 import type { CardProduct } from "@/components/catalog";
 import { apiFetch } from "@/lib/api";
+import { fetchProductCatalog } from "@/lib/catalog";
 
 type ProductDetail = {
   title: string;
@@ -63,8 +64,8 @@ type ProductList = { results: CardProduct[] };
 export default async function ProductPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const [result, catalog] = await Promise.all([
-    apiFetch<ProductDetail>(`/products/${slug}`, { auth: false }),
-    apiFetch<ProductList>("/products?page_size=100", { auth: false }),
+    apiFetch<ProductDetail>(`/products/${slug}`, { auth: false, revalidate: 60 }),
+    fetchProductCatalog(),
   ]);
   if (!result.ok || !result.data) notFound();
   const product = result.data;

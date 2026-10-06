@@ -382,7 +382,7 @@ class AdminApiTests(ApiTestCase):
         self.assertEqual(created.status_code, 201, created.json())
         member_id = created.json()["data"]["id"]
         listed = self.client.get("/api/v1/admin/members", **self.auth)
-        emails = [row["email"] for row in listed.json()["data"]]
+        emails = [row["email"] for row in listed.json()["data"]["results"]]
         self.assertIn("picker@example.com", emails)
 
         removed = self.client.delete(f"/api/v1/admin/members/{member_id}", **self.auth)

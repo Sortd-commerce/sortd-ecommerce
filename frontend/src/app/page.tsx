@@ -5,7 +5,7 @@ import { TrustStrip } from "@/components/TrustStrip";
 import { ProductCard } from "@/components/ProductCard";
 import { ProductRail } from "@/components/ProductRail";
 import type { CardProduct } from "@/components/catalog";
-import { apiFetch } from "@/lib/api";
+import { fetchCategories, fetchProductCatalog } from "@/lib/catalog";
 import { aisleTint } from "@/lib/tints";
 
 type ProductList = { results: CardProduct[]; count: number };
@@ -24,10 +24,7 @@ export default async function HomePage({
 }) {
   const { q = "", aisle = "" } = await searchParams;
   const query = q.trim().toLowerCase();
-  const [products, categories] = await Promise.all([
-    apiFetch<ProductList>("/products?page_size=100", { auth: false }),
-    apiFetch<Category[]>("/categories", { auth: false }),
-  ]);
+  const [products, categories] = await Promise.all([fetchProductCatalog(), fetchCategories()]);
   const results = products.data?.results || [];
   const filtered = results.filter((product) => {
     if (query && !`${product.title} ${product.category.name}`.toLowerCase().includes(query)) return false;

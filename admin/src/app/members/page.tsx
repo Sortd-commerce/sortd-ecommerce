@@ -1,20 +1,32 @@
 import { ActionForm, SubmitButton } from "@/components/ActionForm";
+import { AddMemberDrawer } from "@/components/AddMemberDrawer";
 import { PageHeader } from "@/components/PageHeader";
+import { Pagination } from "@/components/Pagination";
 import { StatusBadge } from "@/components/StatusBadge";
-import { createMemberAction, removeMemberAction, updateMemberAction } from "@/lib/actions";
+import { removeMemberAction, updateMemberAction } from "@/lib/actions";
 import { apiFetch } from "@/lib/api";
+import { ADMIN_PAGE_SIZE, pageFromParam, type Paginated } from "@/lib/pagination";
 import { requireAdmin, type StaffProfile } from "@/lib/staff";
-import { PasswordField } from "@/components/PasswordField";
 
-export default async function MembersPage() {
+export default async function MembersPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string }>;
+}) {
   const me = await requireAdmin();
-  const members = await apiFetch<StaffProfile[]>("/admin/members");
+  const { page: pageParam } = await searchParams;
+  const page = pageFromParam(pageParam);
+  const members = await apiFetch<Paginated<StaffProfile>>(
+    `/admin/members?page=${page}&page_size=${ADMIN_PAGE_SIZE}`,
+  );
+  const data = members.data;
 
   return (
     <div className="space-y-8">
       <PageHeader
         title="Members"
         description="Admins can change catalog, delivery, and staff. Members can only view orders."
+        actions={<AddMemberDrawer />}
       />
 
       <div className="panel overflow-hidden">
@@ -30,7 +42,7 @@ export default async function MembersPage() {
             </tr>
           </thead>
           <tbody>
-            {(members.data || []).map((member) => (
+            {(data?.results || []).map((member) => (
               <tr key={member.id}>
                 <td>
                   <p className="font-medium">{[member.first_name, member.last_name].filter(Boolean).join(" ") || member.email}</p>
@@ -65,38 +77,17 @@ export default async function MembersPage() {
             ))}
           </tbody>
         </table>
-        {!members.data?.length ? <p className="px-4 py-8 text-sm text-muted">No staff yet.</p> : null}
+        {!data?.results?.length ? <p className="px-4 py-8 text-sm text-muted">No staff yet.</p> : null}
+        {data ? (
+          <Pagination
+            page={data.page}
+            pages={data.pages}
+            count={data.count}
+            pageSize={data.page_size}
+            basePath="/members"
+          />
+        ) : null}
       </div>
-
-      <section className="panel max-w-xl p-5">
-        <h2 className="font-semibold">Add member</h2>
-        <p className="mt-1 text-sm text-muted">Creates a staff login, or promotes an existing shopper account.</p>
-        <ActionForm action={createMemberAction} className="mt-4 grid gap-3" successLabel="Member added.">
-          <label className="field">
-            <span>Email</span>
-            <input name="email" type="email" autoComplete="off" required />
-          </label>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <label className="field">
-              <span>First name</span>
-              <input name="first_name" />
-            </label>
-            <label className="field">
-              <span>Last name</span>
-              <input name="last_name" />
-            </label>
-          </div>
-          <PasswordField autoComplete="new-password" />
-          <label className="field">
-            <span>Role</span>
-            <select name="role" defaultValue="member">
-              <option value="member">Member (view orders)</option>
-              <option value="admin">Admin</option>
-            </select>
-          </label>
-          <SubmitButton>Add member</SubmitButton>
-        </ActionForm>
-      </section>
     </div>
   );
 }
