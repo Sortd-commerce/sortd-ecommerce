@@ -6,6 +6,8 @@ import type { ActionState } from "@/lib/action-state";
 import { apiFetch } from "@/lib/api";
 import { clearAuthCookies, getRefreshToken, setAuthCookies } from "@/lib/auth";
 import type { RemoteCart } from "@/lib/cart-store";
+import type { PriceQuote, PricingRules } from "@/lib/pricing";
+import { safeRedirectPath } from "@/lib/redirect";
 import { unwrapVerificationToken } from "@/lib/verification";
 
 type AuthPayload = {
@@ -42,7 +44,7 @@ export async function loginAction(_prev: ActionState, formData: FormData): Promi
   });
   if (!result.ok || !result.data) return { ok: false, message: result.message };
   await setAuthCookies(result.data.tokens.access, result.data.tokens.refresh);
-  redirect("/");
+  redirect(safeRedirectPath(String(formData.get("next") || "")));
 }
 
 export async function verifyEmailAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
@@ -106,6 +108,26 @@ export async function logoutAction() {
 export async function fetchCartAction(): Promise<{ ok: boolean; status: number; data?: RemoteCart }> {
   const result = await apiFetch<RemoteCart>("/cart");
   return { ok: result.ok, status: result.status, data: result.data };
+}
+
+export async function fetchPricingRulesAction(): Promise<{ ok: boolean; data?: PricingRules }> {
+  const result = await apiFetch<PricingRules>("/pricing", { auth: false });
+  return { ok: result.ok, data: result.data };
+}
+
+export async function quoteCartAction(
+  items: Array<{ variant_id: number; quantity: number }>,
+  discountCode?: string,
+): Promise<{ ok: boolean; data?: PriceQuote }> {
+  const result = await apiFetch<PriceQuote>("/pricing/quote", {
+    method: "POST",
+    auth: false,
+    body: {
+      items,
+      discount_code: discountCode?.trim() || null,
+    },
+  });
+  return { ok: result.ok, data: result.data };
 }
 
 export async function syncCartAction(
@@ -173,5 +195,47 @@ export async function saveAddressAction(_prev: ActionState, formData: FormData):
     : await apiFetch("/addresses", { method: "POST", body: payload });
   if (!result.ok) return { ok: false, message: result.message };
   revalidatePath("/checkout");
+  revalidatePath("/", "layout");
   return { ok: true, message: addressId ? "Address updated." : "Address saved." };
+}
+
+type SavedAddress = {
+  id: number;
+  line1: string;
+  line2?: string;
+  city: string;
+  region?: string;
+  postal_code?: string;
+  country?: string;
+  place_id?: string;
+  formatted_address: string;
+  latitude?: string | null;
+  longitude?: string | null;
+};
+
+export async function setPrimaryAddressAction(addressId: number): Promise<ActionState> {
+  const list = await apiFetch<SavedAddress[]>("/addresses");
+  if (!list.ok || !list.data) return { ok: false, message: list.message };
+  const row = list.data.find((item) => item.id === addressId);
+  if (!row) return { ok: false, message: "Address not found." };
+  const result = await apiFetch(`/addresses/${addressId}`, {
+    method: "PATCH",
+    body: {
+      line1: row.line1,
+      line2: row.line2 || "",
+      city: row.city,
+      region: row.region || "",
+      postal_code: row.postal_code || "",
+      country: row.country || "AE",
+      place_id: row.place_id || "",
+      formatted_address: row.formatted_address || row.line1,
+      latitude: row.latitude || null,
+      longitude: row.longitude || null,
+      is_default: true,
+    },
+  });
+  if (!result.ok) return { ok: false, message: result.message };
+  revalidatePath("/checkout");
+  revalidatePath("/", "layout");
+  return { ok: true, message: "Primary delivery address updated." };
 }

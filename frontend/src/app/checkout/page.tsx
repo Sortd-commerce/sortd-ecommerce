@@ -1,6 +1,6 @@
 import { CheckoutForm } from "@/components/CheckoutForm";
+import { CheckoutGuestGate } from "@/components/CheckoutGuestGate";
 import { apiFetch } from "@/lib/api";
-import Link from "next/link";
 
 type Address = {
   id: number;
@@ -37,14 +37,7 @@ export default async function CheckoutPage() {
   ]);
 
   if (addresses.status === 401) {
-    return (
-      <div className="checkout-page">
-        <h1>Checkout</h1>
-        <p className="fine-print">
-          <Link href="/login">Log in</Link> to checkout. Your basket stays in this browser.
-        </p>
-      </div>
-    );
+    return <CheckoutGuestGate />;
   }
 
   const addressList = addresses.data || [];
@@ -53,10 +46,6 @@ export default async function CheckoutPage() {
 
   return (
     <div className="checkout-page">
-      <Link href="/cart" className="back-link">
-        Back to basket
-      </Link>
-      <h1>Checkout</h1>
       <CheckoutForm addresses={addressList} slots={slots} paymentMethods={methods} />
     </div>
   );

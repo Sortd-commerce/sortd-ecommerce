@@ -48,12 +48,13 @@ export function BuyBox({
       <p className="buy-brand">{category}</p>
       <h1>{title}</h1>
       <p className="buy-price">
-        AED {selected?.price || "—"}
+        <span>AED</span>
+        {selected?.price || "—"}
         {selected?.compare_at_price ? <s>AED {selected.compare_at_price}</s> : null}
       </p>
+      {selected?.title ? <p className="buy-pack">{selected.title}</p> : null}
       <p className="buy-meta">
-        {selected?.title || "One pack"}
-        {selected ? ` · ${inStock ? `${selected.on_hand} in stock` : "Out of stock"}` : ""}
+        {inStock ? `${selected?.on_hand} in stock` : "Out of stock"}
         {hasPassedReport ? " · Lab report on file" : ""}
       </p>
       {description ? <p className="buy-copy">{description}</p> : null}
@@ -102,7 +103,9 @@ export function BuyBox({
                 <strong>{offer.title}</strong>
                 {offer.unit_count > 1 ? <small>{offer.unit_count} units</small> : null}
               </span>
-              <b>AED {offer.price}</b>
+              <b>
+                <span>AED</span> {offer.price}
+              </b>
             </label>
           ))}
         </div>

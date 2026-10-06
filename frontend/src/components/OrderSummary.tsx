@@ -54,11 +54,11 @@ export function OrderSummary({
         </div>
       </dl>
       {remaining > 0 ? (
-        <p className="delivery-note-line">
-          Add AED {money(quote.amount_until_free_delivery)} more for free delivery.
+        <p className="delivery-note-line delivery-note-banner">
+          Add AED {money(quote.amount_until_free_delivery)} more and delivery is free.
         </p>
       ) : Number(quote.free_delivery_minimum) > 0 && deliveryFree ? (
-        <p className="delivery-note-line">Delivery is free on this order.</p>
+        <p className="delivery-note-line delivery-note-banner">Delivery is free on this order.</p>
       ) : null}
     </div>
   );

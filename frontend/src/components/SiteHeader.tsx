@@ -2,64 +2,92 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { BrandMark } from "@/components/BrandMark";
 import { CartLink } from "@/components/CartLink";
+import { AccountIcon, CaretDownIcon, DeliverPinIcon } from "@/components/HeaderIcons";
 import { SearchField } from "@/components/SearchField";
 import { apiFetch } from "@/lib/api";
 import { getAccessToken } from "@/lib/auth";
-import { logoutAction } from "@/lib/actions";
 
 type Category = { name: string; slug: string };
 type Address = { formatted_address: string; line1: string; city: string; is_default?: boolean };
 type Catalog = { count: number };
+type PricingRules = { free_delivery_minimum: string };
 
 export async function SiteHeader() {
   const signedIn = Boolean(await getAccessToken());
-  const [catalog, categories, addresses] = await Promise.all([
+  const [catalog, categories, addresses, pricing] = await Promise.all([
     apiFetch<Catalog>("/products?page_size=1", { auth: false }),
     apiFetch<Category[]>("/categories", { auth: false }),
     signedIn ? apiFetch<Address[]>("/addresses") : Promise.resolve(null),
+    apiFetch<PricingRules>("/pricing", { auth: false }),
   ]);
   const count = catalog.data?.count || 0;
+  const categoryCount = categories.data?.length || 0;
   const hint = (categories.data || [])
     .slice(0, 3)
     .map((category) => category.name.toLowerCase())
     .join(", ");
-  const saved = addresses?.data?.find((row) => row.is_default) || addresses?.data?.[0];
-  const deliverTo = saved?.formatted_address || (saved ? `${saved.line1}, ${saved.city}` : "Dubai");
+  const saved =
+    signedIn && addresses?.ok
+      ? addresses.data?.find((row) => row.is_default) || addresses.data?.[0]
+      : null;
+  const deliverTo = saved
+    ? saved.formatted_address || `${saved.line1}, ${saved.city}`
+    : null;
+  const freeMinimum = pricing.data?.free_delivery_minimum || "99.00";
 
   return (
     <header className="site-header">
       <div className="deliver-bar">
-        <div className="shell deliver-row">
-          <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true">
-            <path fill="currentColor" d="M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 0 0-7-7m0 9.5A2.5 2.5 0 1 1 12 6a2.5 2.5 0 0 1 0 5.5" />
-          </svg>
-          <span>Delivering to</span>
-          <Link href={signedIn ? "/checkout" : "/login"} className="deliver-place">
-            {deliverTo}
-            <svg width="12" height="12" viewBox="0 0 24 24" aria-hidden="true">
-              <path fill="currentColor" d="M7 10h10l-5 6z" />
-            </svg>
-          </Link>
+        <div className="header-inner deliver-row">
+          <div className="deliver-location">
+            <DeliverPinIcon />
+            <span className="deliver-label">Delivering to</span>
+            {deliverTo ? (
+              <Link href="/checkout" className="deliver-place">
+                {deliverTo}
+                <CaretDownIcon />
+              </Link>
+            ) : signedIn ? (
+              <Link href="/checkout" className="deliver-place deliver-place--cta">
+                Add your address
+                <CaretDownIcon />
+              </Link>
+            ) : (
+              <p className="deliver-signin-prompt">
+                Not signed in yet?{" "}
+                <Link href="/login?next=/checkout" className="deliver-signin-link">
+                  Sign in
+                </Link>
+              </p>
+            )}
+          </div>
+          <div className="deliver-promise">
+            <span>Delivery in 30 minutes</span>
+            <span className="deliver-free">Free over AED {Number(freeMinimum).toFixed(0)}</span>
+          </div>
         </div>
       </div>
-      <div className="shell header-main">
-        <BrandMark />
-        <Suspense fallback={<div className="search-form" aria-hidden />}>
-          <SearchField count={count} hint={hint} />
-        </Suspense>
-        <nav className="header-nav" aria-label="Account">
-          <Link href={signedIn ? "/orders" : "/login"} className="members-link">
-            Members
-          </Link>
-          {signedIn ? (
-            <form action={logoutAction}>
-              <button type="submit" className="logout-link">
-                Log out
-              </button>
-            </form>
-          ) : null}
-          <CartLink />
-        </nav>
+      <div className="header-main">
+        <div className="header-inner header-row">
+          <BrandMark />
+          <Suspense fallback={<div className="search-form" aria-hidden />}>
+            <SearchField count={count} hint={hint} categoryCount={categoryCount} />
+          </Suspense>
+          <nav className="header-nav" aria-label="Account">
+            <Link href={signedIn ? "/account" : "/login?next=/account"} className="header-link">
+              Membership
+            </Link>
+            <span className="header-link header-link-static">What we reject</span>
+            <Link
+              href={signedIn ? "/account" : "/login?next=/account"}
+              className="header-account"
+              aria-label="Account"
+            >
+              <AccountIcon />
+            </Link>
+            <CartLink />
+          </nav>
+        </div>
       </div>
     </header>
   );

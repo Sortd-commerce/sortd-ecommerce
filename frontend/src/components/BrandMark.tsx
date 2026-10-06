@@ -9,11 +9,10 @@ export function BrandMark({
   size?: "sm" | "md";
   href?: string | null;
 }) {
-  const className = `brand-mark tone-${tone} brand-${size}`;
+  const className = `brand-mark tone-${tone}${size === "sm" ? " brand-sm" : ""}`;
   const word = (
     <>
-      Sortd
-      <span className="brand-stop" aria-hidden />
+      Sortd<span className="brand-period">.</span>
     </>
   );
   if (!href) return <span className={className}>{word}</span>;

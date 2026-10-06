@@ -2,7 +2,8 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useCart } from "@/components/CartProvider";
-import { EMPTY_QUOTE, fetchPricingRules, quoteCart, type PriceQuote, type PricingRules } from "@/lib/pricing";
+import { fetchPricingRulesAction, quoteCartAction } from "@/lib/actions";
+import { buildLocalQuote, EMPTY_QUOTE, type PriceQuote, type PricingRules } from "@/lib/pricing";
 
 type PricingContextValue = {
   rules: PricingRules | null;
@@ -27,7 +28,7 @@ export function PricingProvider({ children }: { children: React.ReactNode }) {
   }, [discountCode]);
 
   useEffect(() => {
-    void fetchPricingRules().then((result) => {
+    void fetchPricingRulesAction().then((result) => {
       if (result.ok && result.data) setRules(result.data);
     });
   }, []);
@@ -37,9 +38,27 @@ export function PricingProvider({ children }: { children: React.ReactNode }) {
       setQuote(EMPTY_QUOTE);
       return;
     }
-    const result = await quoteCart(items, discountRef.current);
-    if (result.ok && result.data) setQuote(result.data);
-  }, [items]);
+    setQuote(buildLocalQuote(items, rules));
+    try {
+      const result = await quoteCartAction(
+        items.map((item) => ({ variant_id: item.variant_id, quantity: item.quantity })),
+        discountRef.current,
+      );
+      if (result.ok && result.data) {
+        setQuote(result.data);
+      }
+    } catch {
+      setQuote(buildLocalQuote(items, rules));
+    }
+  }, [items, rules]);
+
+  useEffect(() => {
+    if (!items.length) {
+      setQuote(EMPTY_QUOTE);
+      return;
+    }
+    setQuote(buildLocalQuote(items, rules));
+  }, [items, rules]);
 
   useEffect(() => {
     if (timer.current) clearTimeout(timer.current);

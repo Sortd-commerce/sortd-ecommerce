@@ -11,9 +11,9 @@ export type StaffProfile = {
 };
 
 export async function getStaffProfile(): Promise<StaffProfile | null> {
-  const result = await apiFetch<StaffProfile>("/admin/me");
+  const result = await apiFetch<StaffProfile>("/staff/me");
   if (result.ok && result.data) return result.data;
-  const fallback = await apiFetch<StaffProfile>("/staff/me");
+  const fallback = await apiFetch<StaffProfile>("/admin/me");
   if (!fallback.ok || !fallback.data) return null;
   return fallback.data;
 }

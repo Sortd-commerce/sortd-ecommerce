@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { OrderCartClear } from "@/components/OrderCartClear";
 import { apiFetch } from "@/lib/api";
 
 type Order = {
@@ -24,6 +25,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ nu
 
   return (
     <div className="mx-auto max-w-2xl space-y-6 pt-4">
+      <OrderCartClear />
       <Link href="/orders" className="text-sm text-leaf">
         ← Orders
       </Link>

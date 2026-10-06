@@ -38,6 +38,7 @@ function toSelected(check: DeliveryCheck, fallbackLabel = ""): SelectedPlace {
 export function AddressPicker({
   addressId,
   isDefault = true,
+  showPrimaryToggle = false,
   submitLabel = "Save address",
   initialQuery = "",
   initialPlace,
@@ -45,6 +46,7 @@ export function AddressPicker({
 }: {
   addressId?: number;
   isDefault?: boolean;
+  showPrimaryToggle?: boolean;
   submitLabel?: string;
   initialQuery?: string;
   initialPlace?: {
@@ -74,6 +76,7 @@ export function AddressPicker({
     };
   });
   const [locating, setLocating] = useState(false);
+  const [makePrimary, setMakePrimary] = useState(isDefault);
   const [pending, startTransition] = useTransition();
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const skipSuggest = useRef(Boolean(initialPlace || initialQuery));
@@ -245,7 +248,17 @@ export function AddressPicker({
 
       <form action={formAction} className="grid gap-3">
         {addressId ? <input type="hidden" name="address_id" value={addressId} /> : null}
-        <input type="hidden" name="is_default" value={isDefault ? "true" : "false"} />
+        {showPrimaryToggle || addressId ? (
+          <label className="field-check">
+            <input
+              type="checkbox"
+              checked={makePrimary}
+              onChange={(event) => setMakePrimary(event.target.checked)}
+            />
+            <span>Use as my primary delivery address</span>
+          </label>
+        ) : null}
+        <input type="hidden" name="is_default" value={showPrimaryToggle || addressId ? (makePrimary ? "true" : "false") : "true"} />
         <input type="hidden" name="place_id" value={selected?.place_id || ""} />
         <input type="hidden" name="formatted_address" value={selected?.formatted_address || ""} />
         <input type="hidden" name="latitude" value={selected?.latitude || ""} />

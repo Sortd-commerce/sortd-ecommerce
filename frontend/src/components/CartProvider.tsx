@@ -25,10 +25,12 @@ type CartContextValue = {
   items: CartLine[];
   count: number;
   subtotal: string;
+  ready: boolean;
   quantityOf: (variantId: number) => number;
   addItem: (line: Omit<CartLine, "quantity"> & { quantity?: number }) => AddItemResult;
   setQuantity: (variantId: number, quantity: number, onHand?: number | null) => void;
   removeItem: (variantId: number) => void;
+  clearCart: () => void;
   flush: () => Promise<void>;
 };
 
@@ -37,9 +39,9 @@ const CartContext = createContext<CartContextValue | null>(null);
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [items, setItems] = useState<CartLine[]>([]);
+  const [ready, setReady] = useState(false);
   const itemsRef = useRef(items);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const hydrating = useRef(false);
 
   useEffect(() => {
     itemsRef.current = items;
@@ -51,38 +53,52 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     saveCart(next);
   }, []);
 
+  const clearCart = useCallback(() => {
+    if (timer.current) {
+      clearTimeout(timer.current);
+      timer.current = null;
+    }
+    persist([]);
+  }, [persist]);
+
   const flush = useCallback(async () => {
+    if (!ready) return;
     if (timer.current) {
       clearTimeout(timer.current);
       timer.current = null;
     }
     const payload = toSyncPayload(itemsRef.current);
+    if (!payload.length) return;
     const result = await syncCartAction(payload);
     if (result.status === 401) return;
     if (result.ok && result.data) {
       persist(keepLineDetails(itemsRef.current, fromRemote(result.data)));
     }
-  }, [persist]);
+  }, [persist, ready]);
 
   const scheduleFlush = useCallback(() => {
+    if (!ready) return;
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(() => {
       void flush();
     }, 1600);
-  }, [flush]);
+  }, [flush, ready]);
 
   useEffect(() => {
+    setReady(false);
     const local = loadCart();
     persist(local);
+    setReady(true);
+
     if (pathname.startsWith("/orders/") && consumeClearCartFlag()) {
-      persist([]);
+      clearCart();
       return;
     }
-    if (hydrating.current) return;
-    hydrating.current = true;
+
+    let cancelled = false;
     void (async () => {
       const remote = await fetchCartAction();
-      hydrating.current = false;
+      if (cancelled) return;
       if (!remote.ok || remote.status === 401 || !remote.data) {
         return;
       }
@@ -92,7 +108,11 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         await syncCartAction(toSyncPayload(merged));
       }
     })();
-  }, [pathname, persist]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [pathname, persist, clearCart]);
 
   const addItem = useCallback(
     (line: Omit<CartLine, "quantity"> & { quantity?: number }) => {
@@ -127,13 +147,15 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       items,
       count: cartCount(items),
       subtotal: cartSubtotal(items),
+      ready,
       quantityOf,
       addItem,
       setQuantity,
       removeItem,
+      clearCart,
       flush,
     }),
-    [items, quantityOf, addItem, setQuantity, removeItem, flush],
+    [items, ready, quantityOf, addItem, setQuantity, removeItem, clearCart, flush],
   );
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;

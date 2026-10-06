@@ -13,8 +13,12 @@ export function MobileTabBar({ signedIn }: { signedIn: boolean }) {
   if (pathname.startsWith("/checkout")) return null;
 
   const shopOn = pathname === "/" && !open;
-  const accountHref = signedIn ? "/orders" : "/login";
-  const accountOn = pathname.startsWith("/orders") || pathname === "/login" || pathname === "/signup";
+  const accountHref = signedIn ? "/account" : "/login?next=/account";
+  const accountOn =
+    pathname.startsWith("/account") ||
+    pathname.startsWith("/orders") ||
+    pathname === "/login" ||
+    pathname === "/signup";
 
   return (
     <nav className="tab-bar" aria-label="App">
@@ -37,16 +41,16 @@ export function MobileTabBar({ signedIn }: { signedIn: boolean }) {
         <MagnifyingGlass size={22} weight="bold" />
         <span>Search</span>
       </button>
-      <button type="button" className={open || pathname === "/cart" ? "tab-on" : ""} onClick={openBasket} aria-haspopup="dialog">
+      <button type="button" className={open ? "tab-on" : ""} onClick={openBasket} aria-haspopup="dialog">
         <span className="tab-icon">
-          <ShoppingBag size={22} weight={open || pathname === "/cart" ? "fill" : "bold"} />
+          <ShoppingBag size={22} weight={open ? "fill" : "bold"} />
           {count > 0 ? <span className="tab-count">{count > 99 ? "99+" : count}</span> : null}
         </span>
         <span>Basket</span>
       </button>
       <Link href={accountHref} className={accountOn ? "tab-on" : ""} aria-current={accountOn ? "page" : undefined}>
         <User size={22} weight={accountOn ? "fill" : "bold"} />
-        <span>{signedIn ? "Orders" : "Account"}</span>
+        <span>Account</span>
       </Link>
     </nav>
   );

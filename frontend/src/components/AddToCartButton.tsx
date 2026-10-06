@@ -1,8 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect } from "react";
-import { ShoppingCart } from "@phosphor-icons/react";
+import { useBasket } from "@/components/BasketProvider";
 import { useCart } from "@/components/CartProvider";
 import { QuantityStepper } from "@/components/QuantityStepper";
 import { useToast } from "@/components/Toast";
@@ -29,6 +28,7 @@ export function AddToCartButton({
   className?: string;
 }) {
   const { items, addItem, setQuantity, removeItem } = useCart();
+  const { openBasket } = useBasket();
   const toast = useToast();
   const line = items.find((item) => item.variant_id === variantId);
   const inCart = line?.quantity || 0;
@@ -72,9 +72,9 @@ export function AddToCartButton({
             }}
           />
         </div>
-        <Link href="/cart" className="btn btn-secondary w-full">
+        <button type="button" className="btn btn-secondary w-full" onClick={openBasket}>
           View basket
-        </Link>
+        </button>
       </div>
     );
   }
@@ -106,8 +106,7 @@ export function AddToCartButton({
         toast.success("Added to cart");
       }}
     >
-      <ShoppingCart size={18} weight="bold" />
-      Add to basket
+      ADD TO BASKET
     </button>
   );
 }

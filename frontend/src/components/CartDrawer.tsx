@@ -8,7 +8,7 @@ import { useBasket } from "@/components/BasketProvider";
 export function CartDrawer() {
   const pathname = usePathname();
   const { open, closeBasket } = useBasket();
-  const visible = open && pathname !== "/cart" && !pathname.startsWith("/checkout");
+  const visible = open && pathname !== "/cart";
 
   useEffect(() => {
     if (!visible) return;

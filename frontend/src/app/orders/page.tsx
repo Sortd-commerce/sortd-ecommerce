@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { logoutAction } from "@/lib/actions";
 import { apiFetch } from "@/lib/api";
 
 type Orders = {
@@ -23,11 +22,9 @@ export default async function OrdersPage() {
     <div className="space-y-6 pt-4">
       <div className="flex items-end justify-between gap-3">
         <h1 className="font-[family-name:var(--font-display)] text-4xl text-forest">Your orders</h1>
-        <form action={logoutAction}>
-          <button type="submit" className="link-quiet">
-            Log out
-          </button>
-        </form>
+        <Link href="/account" className="link-quiet">
+          Account
+        </Link>
       </div>
       <div className="card-quiet divide-y divide-line rounded-[1.8rem]">
         {(orders.data?.results || []).map((order) => (

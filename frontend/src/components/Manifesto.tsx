@@ -1,31 +1,51 @@
+import Image from "next/image";
 import Link from "next/link";
-import { BrandMark } from "@/components/BrandMark";
 
 export function Manifesto() {
   return (
-    <section className="manifesto" id="manifesto">
-      <div className="manifesto-inner">
-        <BrandMark tone="cream" size="sm" href={null} />
-        <h2>
-          That&apos;s Sortd.
-          <br />
-          Only what passes.
-          <br />
-          Everything else is removed.
-        </h2>
-        <Link href="/#catalog" className="btn btn-light">
-          See the products
-        </Link>
+    <footer className="manifesto">
+      <div className="manifesto-frame">
+        <div className="manifesto-photo" aria-hidden>
+          <Image
+            src="/images/footer-produce.png"
+            alt=""
+            fill
+            sizes="100vw"
+            priority={false}
+            className="manifesto-photo-img"
+          />
+        </div>
+        <div className="manifesto-shell">
+          <div className="manifesto-panel">
+            <h2>
+              <span>That&apos;s Sortd.</span>
+              <span className="manifesto-accent">Only what passes.</span>
+              <span>Everything else is removed.</span>
+            </h2>
+            <Link href="/#catalog" className="manifesto-cta">
+              See The Products
+            </Link>
+            <div className="manifesto-foot">
+              <nav className="manifesto-links manifesto-links--mobile" aria-label="Footer">
+                <Link href="/">Home</Link>
+                <Link href="/#catalog">Products</Link>
+              </nav>
+              <div className="manifesto-meta manifesto-meta--mobile">
+                <p className="manifesto-tagline">Only what passes.</p>
+                <p className="manifesto-copy">© 2026 SORTD</p>
+              </div>
+              <div className="manifesto-meta manifesto-meta--desktop">
+                <p className="manifesto-tagline">Only what passes.</p>
+                <nav className="manifesto-links" aria-label="Footer">
+                  <Link href="/">Home</Link>
+                  <Link href="/#catalog">Products</Link>
+                  <span className="manifesto-copy">© 2026 SORTD</span>
+                </nav>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
-      <footer className="manifesto-foot">
-        <p>Only what passes.</p>
-        <nav aria-label="Footer">
-          <Link href="/">Home</Link>
-          <a href="#manifesto">About</a>
-          <a href="/#catalog">Products</a>
-          <a href="/#catalog">Lab reports</a>
-        </nav>
-      </footer>
-    </section>
+    </footer>
   );
 }

@@ -1,19 +1,15 @@
 import Link from "next/link";
+import Image from "next/image";
 import { Manifesto } from "@/components/Manifesto";
+import { TrustStrip } from "@/components/TrustStrip";
 import { ProductCard } from "@/components/ProductCard";
 import { ProductRail } from "@/components/ProductRail";
 import type { CardProduct } from "@/components/catalog";
 import { apiFetch } from "@/lib/api";
+import { aisleTint } from "@/lib/tints";
 
 type ProductList = { results: CardProduct[]; count: number };
 type Category = { name: string; slug: string };
-
-const GATES = [
-  { title: "Four gates", detail: "Checked before it is listed." },
-  { title: "100% released", detail: "If it is here, it passed." },
-  { title: "Lab reports", detail: "On each product, when signed off." },
-  { title: "30 minutes", detail: "Dubai delivery, when a window is open." },
-];
 
 function findGroup(groups: Array<Category & { products: CardProduct[] }>, needles: string[]) {
   return groups.find((group) =>
@@ -66,91 +62,97 @@ export default async function HomePage({
 
   return (
     <div className="home">
-      {!products.ok ? <p className="catalog-error">{products.message}</p> : null}
+      {!products.ok ? (
+        <div className="home-section">
+          <div className="home-inner">
+            <p className="catalog-error">{products.message}</p>
+          </div>
+        </div>
+      ) : null}
 
       {showLanding && aisleGroups.length ? (
-        <section className="aisle-picker" aria-label="Shop by aisle">
-          <h2>Shop by aisle</h2>
-          <div className="aisle-row">
-            {aisleGroups.map((category) => (
-              <a key={category.slug} href={`#aisle-${category.slug}`} className="aisle-tile">
-                <span className="aisle-photo">
-                  {category.cover?.primary_image?.url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={category.cover.primary_image.url} alt="" />
-                  ) : (
-                    <span>{category.name.slice(0, 1)}</span>
-                  )}
-                </span>
-                <span>{category.name}</span>
-              </a>
-            ))}
+        <section className="home-section home-section--tight" aria-label="Shop by aisle">
+          <div className="home-inner aisle-picker">
+            <div className="aisle-head">
+              <h2>Shop by aisle</h2>
+              <p className="aisle-all">All {aisleGroups.length} categories →</p>
+            </div>
+            <div className="aisle-row">
+              {aisleGroups.map((category, index) => (
+                <a key={category.slug} href={`#aisle-${category.slug}`} className="aisle-tile">
+                  <span className="aisle-photo" style={{ background: aisleTint(index) }}>
+                    {category.cover?.primary_image?.url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={category.cover.primary_image.url} alt="" />
+                    ) : (
+                      <span>{category.name.slice(0, 1)}</span>
+                    )}
+                  </span>
+                  <span>{category.name}</span>
+                </a>
+              ))}
+            </div>
           </div>
         </section>
       ) : null}
 
       {showLanding && (breakfast || chocolate) ? (
-        <section className="promo-row">
-          {breakfast ? (
-            <a href={`#aisle-${breakfast.slug}`} className="promo promo-photo">
-              <div>
-                <p>Breakfast</p>
-                <h2>Breakfast, sorted.</h2>
-                <span>Spreads, oats and seeds that cleared all four gates.</span>
-                <strong>Shop breakfast →</strong>
-              </div>
-              <div className="promo-photos">
-                {breakfast.products.slice(0, 3).map((product) =>
-                  product.primary_image?.url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img key={product.id} src={product.primary_image.url} alt="" />
-                  ) : null,
-                )}
-              </div>
-            </a>
-          ) : null}
-          {chocolate ? (
-            <a href={`#aisle-${chocolate.slug}`} className="promo promo-solid">
-              <p>Chocolate</p>
-              <h2>Chocolate, chosen carefully.</h2>
-              <span>Bars and truffles held to the same standard as everything else.</span>
-              <strong>Shop chocolate →</strong>
-            </a>
-          ) : null}
+        <section className="home-section home-section--promo">
+          <div className="home-inner promo-row">
+            {breakfast ? (
+              <a href={`#aisle-${breakfast.slug}`} className="promo promo-breakfast">
+                <Image src="/images/promo-breakfast.png" alt="" fill className="promo-bg" sizes="(max-width: 768px) 100vw, 50vw" />
+                <div className="promo-copy">
+                  <p>Breakfast</p>
+                  <h2>Breakfast, sorted.</h2>
+                  <strong>Shop breakfast →</strong>
+                </div>
+              </a>
+            ) : null}
+            {chocolate ? (
+              <a href={`#aisle-${chocolate.slug}`} className="promo promo-chocolate">
+                <Image src="/images/promo-chocolate.png" alt="" fill className="promo-bg" sizes="(max-width: 768px) 100vw, 50vw" />
+                <div className="promo-copy">
+                  <p>Chocolate</p>
+                  <h2>Chocolate, chosen carefully.</h2>
+                  <strong>Shop chocolate →</strong>
+                </div>
+              </a>
+            ) : null}
+          </div>
         </section>
       ) : null}
 
       {(query || aisle) && (
-        <p className="filter-note">
-          {query ? `Results for “${q.trim()}”` : `Aisle`}
-          {aisle ? ` · ${aisleGroups.find((row) => row.slug === aisle)?.name || aisle}` : ""}
-          {" · "}
-          <Link href="/">Clear</Link>
-        </p>
+        <div className="home-section">
+          <div className="home-inner">
+            <p className="filter-note">
+              {query ? `Results for “${q.trim()}”` : `Aisle`}
+              {aisle ? ` · ${aisleGroups.find((row) => row.slug === aisle)?.name || aisle}` : ""}
+              {" · "}
+              <Link href="/">Clear</Link>
+            </p>
+          </div>
+        </div>
       )}
 
-      <div id="catalog" className="catalog">
-        {groups.map((group) => (
-          <ProductRail key={group.slug} id={`aisle-${group.slug}`} title={group.name} count={group.products.length}>
-            {group.products.map((product) => (
-              <ProductCard key={product.id} product={product} />
-            ))}
-          </ProductRail>
-        ))}
-        {products.ok && !results.length ? <p className="empty-catalog">No active products yet.</p> : null}
-        {products.ok && results.length > 0 && !groups.length ? <p className="empty-catalog">Nothing matched that search.</p> : null}
-      </div>
-
-      {showLanding ? (
-        <section className="trust-row" aria-label="How Sortd checks products">
-          {GATES.map((gate) => (
-            <div key={gate.title}>
-              <strong>{gate.title}</strong>
-              <span>{gate.detail}</span>
-            </div>
+      <section className="home-section home-section--catalog">
+        <div id="catalog" className="home-inner catalog">
+          {groups.map((group) => (
+            <ProductRail key={group.slug} id={`aisle-${group.slug}`} title={group.name} count={group.products.length}>
+              {group.products.map((product) => (
+                <ProductCard key={product.id} product={product} />
+              ))}
+            </ProductRail>
           ))}
-        </section>
-      ) : null}
+          {products.ok && !results.length ? <p className="empty-catalog">No active products yet.</p> : null}
+          {products.ok && results.length > 0 && !groups.length ? (
+            <p className="empty-catalog">Nothing matched that search.</p>
+          ) : null}
+        </div>
+      </section>
+
+      {showLanding ? <TrustStrip /> : null}
 
       <Manifesto />
     </div>

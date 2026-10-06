@@ -96,39 +96,51 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
 
   return (
     <div className="product-page">
-      <nav className="crumbs" aria-label="Breadcrumb">
-        <Link href="/">Shop</Link>
-        <span>/</span>
-        <Link href={`/?aisle=${product.category.slug}`}>{product.category.name}</Link>
-        <span>/</span>
-        <span>{product.title}</span>
-      </nav>
+      <section className="home-section">
+        <div className="home-inner">
+          <nav className="crumbs" aria-label="Breadcrumb">
+            <Link href="/">Home</Link>
+            <span>/</span>
+            <Link href={`/?aisle=${product.category.slug}`}>{product.category.name}</Link>
+            <span>/</span>
+            <span aria-current="page">{product.title}</span>
+          </nav>
 
-      <div className="product-layout">
-        <ProductGallery title={product.title} images={product.images || []} />
-        <BuyBox
-          title={product.title}
-          category={product.category.name}
-          description={product.description}
-          currentSlug={product.slug}
-          imageUrl={product.images?.find((image) => image.url)?.url}
-          variants={product.variants || []}
-          flavors={flavors}
-          highlights={highlights}
-          hasPassedReport={product.has_passed_report}
-        />
-      </div>
+          <div className="product-layout">
+            <ProductGallery title={product.title} images={product.images || []} />
+            <BuyBox
+              title={product.title}
+              category={product.category.name}
+              description={product.description}
+              currentSlug={product.slug}
+              imageUrl={product.images?.find((image) => image.url)?.url}
+              variants={product.variants || []}
+              flavors={flavors}
+              highlights={highlights}
+              hasPassedReport={product.has_passed_report}
+            />
+          </div>
+        </div>
+      </section>
 
       {product.label ? (
-        <LabelChecked slug={product.slug} label={product.label} hasPassedReport={product.has_passed_report} />
+        <section className="home-section">
+          <div className="home-inner">
+            <LabelChecked slug={product.slug} label={product.label} hasPassedReport={product.has_passed_report} />
+          </div>
+        </section>
       ) : null}
 
       {rail.length ? (
-        <ProductRail id="also-passed" title="Also passed our checks" count={rail.length}>
-          {rail.map((item) => (
-            <ProductCard key={item.id} product={item} />
-          ))}
-        </ProductRail>
+        <section className="home-section home-section--catalog">
+          <div className="home-inner">
+            <ProductRail id="also-passed" title="More that passed" count={rail.length}>
+              {rail.map((item) => (
+                <ProductCard key={item.id} product={item} />
+              ))}
+            </ProductRail>
+          </div>
+        </section>
       ) : null}
 
       <Manifesto />

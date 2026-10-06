@@ -1,6 +1,3 @@
-import { apiFetch } from "@/lib/api";
-import type { CartLine } from "@/lib/cart-store";
-
 export type PriceQuote = {
   subtotal: string;
   discount_amount: string;
@@ -36,17 +33,34 @@ export const EMPTY_QUOTE: PriceQuote = {
   total: "0.00",
 };
 
-export async function fetchPricingRules() {
-  return apiFetch<PricingRules>("/pricing", { auth: false });
+type QuoteLine = {
+  unit_price: string;
+  quantity: number;
+};
+
+function money(value: number) {
+  return Number.isFinite(value) ? value.toFixed(2) : "0.00";
 }
 
-export async function quoteCart(items: CartLine[], discountCode?: string) {
-  return apiFetch<PriceQuote>("/pricing/quote", {
-    method: "POST",
-    auth: false,
-    body: {
-      items: items.map((item) => ({ variant_id: item.variant_id, quantity: item.quantity })),
-      discount_code: discountCode?.trim() || null,
-    },
-  });
+/** Client-side estimate when the pricing API is unavailable or still loading. */
+export function buildLocalQuote(items: QuoteLine[], rules: PricingRules | null): PriceQuote {
+  if (!items.length) return EMPTY_QUOTE;
+
+  const subtotalNum = items.reduce((sum, item) => sum + Number(item.unit_price) * item.quantity, 0);
+  const configuredFee = Number(rules?.delivery_fee ?? 0);
+  const minimum = Number(rules?.free_delivery_minimum ?? 0);
+  const amountUntilFree = minimum > 0 ? Math.max(0, minimum - subtotalNum) : 0;
+  const deliveryFee = minimum > 0 && subtotalNum >= minimum ? 0 : configuredFee;
+  const total = subtotalNum + deliveryFee;
+
+  return {
+    subtotal: money(subtotalNum),
+    discount_amount: "0.00",
+    discount_code: "",
+    delivery_fee: money(deliveryFee),
+    configured_delivery_fee: money(configuredFee),
+    free_delivery_minimum: money(minimum),
+    amount_until_free_delivery: money(amountUntilFree),
+    total: money(total),
+  };
 }

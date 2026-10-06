@@ -1,15 +1,17 @@
 "use client";
 
-import { useActionState, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useActionState, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import type { ActionState } from "@/lib/action-state";
-import { placeOrderAction } from "@/lib/actions";
+import { placeOrderAction, setPrimaryAddressAction } from "@/lib/actions";
 import { emptyActionState, SubmitButton } from "@/components/ActionForm";
 import { AddressPicker } from "@/components/AddressPicker";
 import { useToast } from "@/components/Toast";
+import { OpenBasketLink } from "@/components/OpenBasketLink";
 import { OrderSummary } from "@/components/OrderSummary";
 import { usePricing } from "@/components/PricingProvider";
 import { useCart } from "@/components/CartProvider";
-import { markCartForClear, toSyncPayload } from "@/lib/cart-store";
+import { toSyncPayload } from "@/lib/cart-store";
 
 export type CheckoutAddress = {
   id: number;
@@ -84,8 +86,22 @@ function ChoiceCard({
   onChange: () => void;
 }) {
   return (
-    <label className={`pick-card ${checked ? "pick-card-on" : ""} ${disabled ? "is-disabled" : ""}`}>
-      <input type="radio" name={name} value={value} checked={checked} disabled={disabled} onChange={onChange} />
+    <label
+      className={`pick-card ${checked ? "pick-card-on" : ""} ${disabled ? "is-disabled" : ""}`}
+      onClick={() => {
+        if (!disabled) onChange();
+      }}
+    >
+      <input
+        type="radio"
+        name={name}
+        value={value}
+        checked={checked}
+        disabled={disabled}
+        readOnly
+        tabIndex={-1}
+        aria-hidden="true"
+      />
       <span>
         <strong>{title}</strong>
         {detail ? <small>{detail}</small> : null}
@@ -103,9 +119,12 @@ export function CheckoutForm({
   slots: CheckoutSlot[];
   paymentMethods: CheckoutPaymentMethod[];
 }) {
+  const router = useRouter();
   const toast = useToast();
   const { items, count, flush } = useCart();
+  const itemsRef = useRef(items);
   const { quote, discountCode, refreshQuote } = usePricing();
+  const [settingPrimary, startPrimary] = useTransition();
   const defaultAddress = addresses.find((row) => row.is_default) || addresses[0];
   const activePayments = paymentMethods.filter((row) => row.is_active);
   const [addressId, setAddressId] = useState<number | "">(defaultAddress?.id || "");
@@ -114,6 +133,10 @@ export function CheckoutForm({
   const [paymentMethod, setPaymentMethod] = useState(activePayments[0]?.code || "");
   const [panel, setPanel] = useState<"pick" | "add" | "edit">(addresses.length ? "pick" : "add");
   const [addressOpen, setAddressOpen] = useState(false);
+
+  useEffect(() => {
+    itemsRef.current = items;
+  }, [items]);
 
   const selectedAddress = useMemo(
     () => addresses.find((row) => row.id === addressId) || defaultAddress,
@@ -125,16 +148,11 @@ export function CheckoutForm({
   const [state, formAction] = useActionState(async (prev: ActionState, formData: FormData) => {
     await flush();
     await refreshQuote();
-    markCartForClear();
-    formData.set("cart_json", JSON.stringify(toSyncPayload(items)));
+    formData.set("cart_json", JSON.stringify(toSyncPayload(itemsRef.current)));
     formData.set("expected_total", quote.total);
     formData.set("discount_code", discountCode.trim());
     return placeOrderAction(prev, formData);
   }, emptyActionState);
-
-  useEffect(() => {
-    void flush();
-  }, [flush]);
 
   useEffect(() => {
     if (!state.message || state.ok) return;
@@ -152,6 +170,26 @@ export function CheckoutForm({
   }, [addresses, addressId, defaultAddress]);
 
   const canPlace = Boolean(selectedAddress && activeSlot && paymentMethod && items.length);
+
+  function onAddressSaved() {
+    setPanel("pick");
+    setAddressOpen(false);
+    router.refresh();
+  }
+
+  function makePrimary(address: CheckoutAddress) {
+    startPrimary(async () => {
+      const result = await setPrimaryAddressAction(address.id);
+      if (result.ok) {
+        toast.success(result.message);
+        setAddressId(address.id);
+        router.refresh();
+      } else {
+        toast.error(result.message);
+      }
+    });
+  }
+
   const nowDetail = slots[0]
     ? isToday(slots[0].date)
       ? "Arrives in about 30 minutes"
@@ -159,34 +197,61 @@ export function CheckoutForm({
     : "No open windows right now";
 
   return (
-    <div className="checkout-layout">
+    <>
+      <div className="checkout-intro">
+        <OpenBasketLink className="back-link">Back to basket</OpenBasketLink>
+        <h1>Checkout</h1>
+      </div>
+      <div className="checkout-layout">
       <div className="checkout-steps-col">
         <section className="checkout-block">
-          <p className="step-index">01</p>
-          <div className="block-head">
-            <h2>Deliver to</h2>
+          <div className="checkout-block-head">
+            <div className="checkout-block-title">
+              <p className="step-index">01</p>
+              <h2>Deliver to</h2>
+              {!addresses.length && panel === "pick" ? (
+                <p className="fine-print">Add your primary delivery address to continue.</p>
+              ) : null}
+            </div>
+            {panel === "pick" && addressOpen ? (
+              <button type="button" className="checkout-done" onClick={() => setAddressOpen(false)}>
+                Done
+              </button>
+            ) : null}
+            {(panel === "add" || panel === "edit") && addresses.length ? (
+              <button
+                type="button"
+                className="checkout-cancel"
+                onClick={() => {
+                  setPanel("pick");
+                  setAddressOpen(false);
+                }}
+              >
+                Cancel
+              </button>
+            ) : null}
           </div>
-          {panel === "pick" && selectedAddress ? (
-            <div className={`pick-card pick-card-on address-card`}>
-              <input type="radio" checked readOnly aria-label="Selected address" />
+          {panel === "pick" && !addressOpen && selectedAddress ? (
+            <div className="pick-card pick-card-on address-summary">
+              <input type="radio" checked readOnly tabIndex={-1} aria-label="Selected address" />
               <span>
-                <strong>{selectedAddress.is_default ? "Home" : "Saved address"}</strong>
+                <strong>{selectedAddress.is_default ? "Primary address" : "Saved address"}</strong>
                 <small>{selectedAddress.formatted_address || `${selectedAddress.line1}, ${selectedAddress.city}`}</small>
               </span>
-              <button type="button" className="text-action" onClick={() => setAddressOpen((open) => !open)}>
+              <button type="button" className="text-action address-change" onClick={() => setAddressOpen(true)}>
                 Change
               </button>
             </div>
           ) : null}
           {panel === "pick" && addressOpen ? (
-            <div className="choice-stack" role="radiogroup" aria-label="Saved addresses">
+            <div className="choice-stack address-picker-list" role="radiogroup" aria-label="Saved addresses">
               {addresses.map((address) => (
                 <ChoiceCard
                   key={address.id}
                   name="saved_address"
                   value={String(address.id)}
                   checked={address.id === selectedAddress?.id}
-                  title={address.is_default ? "Home" : address.city || "Address"}
+                  title={address.is_default ? "Primary address" : address.city || "Address"}
                   detail={address.formatted_address || address.line1}
                   onChange={() => {
                     setAddressId(address.id);
@@ -196,23 +261,48 @@ export function CheckoutForm({
               ))}
             </div>
           ) : null}
-          {panel === "pick" ? (
-            <button type="button" className="text-action add-address" onClick={() => setPanel("add")}>
+          {panel === "pick" && selectedAddress && !selectedAddress.is_default && !addressOpen ? (
+            <button
+              type="button"
+              className="text-action"
+              disabled={settingPrimary}
+              onClick={() => makePrimary(selectedAddress)}
+            >
+              Set as primary delivery address
+            </button>
+          ) : null}
+          {panel === "pick" && !addressOpen ? (
+            <button
+              type="button"
+              className="text-action add-address"
+              onClick={() => {
+                setAddressOpen(false);
+                setPanel("add");
+              }}
+            >
               + Add a new address
             </button>
           ) : null}
-          {panel !== "pick" && addresses.length ? (
-            <button type="button" className="text-action" onClick={() => setPanel("pick")}>
-              Cancel
-            </button>
+          {panel === "pick" && !addressOpen ? (
+            <p className="fine-print">Delivery is available in Dubai. We check the pin code before an address can be saved.</p>
           ) : null}
-          <p className="fine-print">Delivery is available in Dubai. We check the pin code before an address can be saved.</p>
-          {panel === "add" ? <AddressPicker onSaved={() => setPanel("pick")} /> : null}
+          {panel === "add" ? (
+            <>
+              <p className="fine-print">Delivery is available in Dubai. We check the pin code before an address can be saved.</p>
+              <AddressPicker
+                isDefault={addresses.length === 0}
+                showPrimaryToggle={addresses.length > 0}
+                submitLabel={addresses.length === 0 ? "Save primary address" : "Save address"}
+                onSaved={onAddressSaved}
+              />
+            </>
+          ) : null}
           {panel === "edit" && selectedAddress ? (
             <AddressPicker
               key={selectedAddress.id}
               addressId={selectedAddress.id}
               isDefault={Boolean(selectedAddress.is_default)}
+              showPrimaryToggle
               submitLabel="Update address"
               initialQuery={selectedAddress.formatted_address || selectedAddress.line1}
               initialPlace={{
@@ -222,7 +312,7 @@ export function CheckoutForm({
                 postal_code: selectedAddress.postal_code,
                 formatted_address: selectedAddress.formatted_address || selectedAddress.line1,
               }}
-              onSaved={() => setPanel("pick")}
+              onSaved={onAddressSaved}
             />
           ) : null}
         </section>
@@ -358,8 +448,9 @@ export function CheckoutForm({
           <span>Place order</span>
           <span>AED {quote.total} →</span>
         </SubmitButton>
-        <p className="fine-print center">Every item in this order passed all four gates. Lab reports are on each product page.</p>
+        <p className="fine-print checkout-footnote">Every item in this order passed all four gates. Lab reports are on each product page.</p>
       </form>
     </div>
+    </>
   );
 }

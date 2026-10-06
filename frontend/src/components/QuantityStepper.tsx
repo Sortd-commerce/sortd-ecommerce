@@ -27,28 +27,30 @@ export function QuantityStepper({
   const pad = size === "sm" ? "h-8 w-8" : "h-10 w-10";
   const text = size === "sm" ? "min-w-8 text-sm" : "min-w-10 text-base";
 
+  const inverse = tone === "inverse";
+
   return (
-    <div className={`qty-stepper ${tone === "inverse" ? "qty-on-dark" : ""} ${disabled ? "opacity-55" : ""}`} role="group" aria-label="Quantity">
+    <div className={`qty-stepper ${inverse ? "qty-on-dark" : ""} ${disabled ? "opacity-55" : ""}`} role="group" aria-label="Quantity">
       <button
         type="button"
-        className={`qty-btn ${pad}`}
+        className={`qty-btn ${inverse && size === "sm" ? "qty-btn-text" : pad}`}
         aria-label={value <= 1 && floor < 1 ? "Remove item" : "Decrease quantity"}
         disabled={disabled || atMin}
         onClick={() => onChange(Math.max(floor, value - 1))}
       >
-        <Minus size={size === "sm" ? 14 : 16} weight="bold" />
+        {inverse && size === "sm" ? "−" : <Minus size={size === "sm" ? 14 : 16} weight="bold" />}
       </button>
       <span className={`qty-value ${text}`} aria-live="polite">
         {value}
       </span>
       <button
         type="button"
-        className={`qty-btn ${pad}`}
+        className={`qty-btn ${inverse && size === "sm" ? "qty-btn-text" : pad}`}
         aria-label="Increase quantity"
         disabled={disabled || atMax}
         onClick={() => onChange(Math.min(cap, value + 1))}
       >
-        <Plus size={size === "sm" ? 14 : 16} weight="bold" />
+        {inverse && size === "sm" ? "+" : <Plus size={size === "sm" ? 14 : 16} weight="bold" />}
       </button>
     </div>
   );

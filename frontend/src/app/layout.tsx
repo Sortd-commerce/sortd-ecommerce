@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Fraunces, Manrope } from "next/font/google";
+import { Archivo, Archivo_Narrow, IBM_Plex_Mono, Libre_Baskerville } from "next/font/google";
 import { BasketProvider } from "@/components/BasketProvider";
 import { CartProvider } from "@/components/CartProvider";
 import { PricingProvider } from "@/components/PricingProvider";
@@ -10,16 +10,28 @@ import { ToastProvider } from "@/components/Toast";
 import { getAccessToken } from "@/lib/auth";
 import "./globals.css";
 
-const body = Manrope({
+const body = Archivo({
   variable: "--font-body",
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
+  weight: ["400", "500", "600", "700"],
 });
 
-const display = Fraunces({
+const display = Archivo_Narrow({
   variable: "--font-display",
   subsets: ["latin"],
   weight: ["600", "700"],
+});
+
+const mono = IBM_Plex_Mono({
+  variable: "--font-mono",
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+});
+
+const brand = Libre_Baskerville({
+  variable: "--font-brand",
+  subsets: ["latin"],
+  weight: ["700"],
 });
 
 export const metadata: Metadata = {
@@ -28,7 +40,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#1B4D36",
+  themeColor: "#143503",
   width: "device-width",
   initialScale: 1,
 };
@@ -37,7 +49,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   const signedIn = Boolean(await getAccessToken());
   return (
     <html lang="en">
-      <body className={`${display.variable} ${body.variable} antialiased`}>
+      <body className={`${display.variable} ${body.variable} ${mono.variable} ${brand.variable} antialiased`}>
         <a href="#main" className="skip-link">
           Skip to content
         </a>

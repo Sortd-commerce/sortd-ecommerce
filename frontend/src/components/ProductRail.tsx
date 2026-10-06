@@ -1,6 +1,5 @@
 "use client";
 
-import { CaretRight } from "@phosphor-icons/react";
 import { useRef } from "react";
 
 export function ProductRail({
@@ -21,17 +20,28 @@ export function ProductRail({
       <div className="aisle-head">
         <h2>{title}</h2>
         <div className="aisle-meta">
-          <span>
-            {count} {count === 1 ? "product" : "products"}
-          </span>
+          <a href={`#${id}`} className="aisle-see-all">
+            See all →
+          </a>
           <button
             type="button"
-            className="rail-next"
-            aria-label={`More in ${title}`}
-            onClick={() => scroller.current?.scrollBy({ left: 280, behavior: "smooth" })}
+            className="rail-nav"
+            aria-label={`Previous in ${title}`}
+            onClick={() => scroller.current?.scrollBy({ left: -320, behavior: "smooth" })}
           >
-            <CaretRight size={16} weight="bold" />
+            ←
           </button>
+          <button
+            type="button"
+            className="rail-nav"
+            aria-label={`Next in ${title}`}
+            onClick={() => scroller.current?.scrollBy({ left: 320, behavior: "smooth" })}
+          >
+            →
+          </button>
+          <span className="sr-only">
+            {count} {count === 1 ? "product" : "products"}
+          </span>
         </div>
       </div>
       <div ref={scroller} className="product-rail">

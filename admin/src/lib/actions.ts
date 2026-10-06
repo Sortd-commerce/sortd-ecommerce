@@ -97,14 +97,25 @@ export async function loginAction(_prev: ActionState, formData: FormData): Promi
   if (!result.ok || !result.data) return { ok: false, message: result.message };
   await setAuthCookies(result.data.tokens.access, result.data.tokens.refresh);
   const headers = { Authorization: `Bearer ${result.data.tokens.access}` };
-  let me = await apiFetch<{ role: string }>("/admin/me", { auth: false, headers });
+  let me = await apiFetch<{ role: string }>("/staff/me", { auth: false, headers });
   if (!me.ok || !me.data) {
-    me = await apiFetch<{ role: string }>("/staff/me", { auth: false, headers });
+    me = await apiFetch<{ role: string }>("/admin/me", { auth: false, headers });
   }
   if (!me.ok || !me.data) {
     await clearAuthCookies();
     if (me.status === 403) {
-      return { ok: false, message: "This account can sign in, but it is not staff. Use a superuser or a member added in Operations." };
+      return {
+        ok: false,
+        message:
+          "This account can sign in, but it is not staff. Use a superuser or a member added in Operations.",
+      };
+    }
+    if (me.status === 404 || me.status === 0) {
+      return {
+        ok: false,
+        message:
+          "Sign-in worked, but the staff API is unreachable. Start Django on port 8000 and confirm admin/.env.local has API_BASE_URL=http://127.0.0.1:8000/api/v1.",
+      };
     }
     return { ok: false, message: me.message || "Could not open the staff console." };
   }
