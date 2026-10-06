@@ -55,6 +55,13 @@ class ProductWriter:
             unit_count = int(row.get("unit_count") or 1)
             if unit_count < 1:
                 raise CatalogWriteError(f"unit_count must be at least 1 for SKU '{sku}'.")
+            max_order = row.get("max_order")
+            if max_order in (None, ""):
+                max_order_value = None
+            else:
+                max_order_value = int(max_order)
+                if max_order_value < 1:
+                    raise CatalogWriteError(f"max_order must be at least 1 for SKU '{sku}'.")
             variant, created = ProductVariant.objects.update_or_create(
                 sku=sku,
                 defaults={
@@ -63,6 +70,7 @@ class ProductWriter:
                     "price": price,
                     "compare_at_price": money(Decimal(str(compare))) if compare not in (None, "") else None,
                     "unit_count": unit_count,
+                    "max_order": max_order_value,
                     "is_active": bool(row.get("is_active", True)),
                 },
             )
@@ -169,6 +177,7 @@ def serialize_variant(variant: ProductVariant) -> dict:
         "price": money_str(variant.price),
         "compare_at_price": money_str(variant.compare_at_price) if variant.compare_at_price is not None else None,
         "unit_count": variant.unit_count,
+        "max_order": variant.max_order,
         "on_hand": variant.on_hand,
         "is_active": variant.is_active,
     }

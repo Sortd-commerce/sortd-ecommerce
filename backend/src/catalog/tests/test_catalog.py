@@ -73,6 +73,20 @@ def make_report(product, *, passed=True, with_results=True, current=True):
 
 
 class CatalogTests(ApiTestCase):
+    def test_categories_include_aisle_image_url(self):
+        category = Category.objects.create(name="Bars", slug="bars", is_active=True)
+        category.image.save(
+            "bars.jpg",
+            SimpleUploadedFile("bars.jpg", b"fake-image", content_type="image/jpeg"),
+            save=True,
+        )
+
+        response = self.client.get("/api/v1/categories")
+
+        self.assertEqual(response.status_code, 200)
+        row = next(item for item in response.json()["data"] if item["slug"] == "bars")
+        self.assertTrue(row["image_url"])
+
     def test_lists_active_products_and_hides_drafts(self):
         make_product(slug="coffee-bar")
         make_product(slug="draft-bar", title="Draft", status=ProductStatus.DRAFT)

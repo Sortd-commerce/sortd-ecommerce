@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { paginatedPath } from "@/lib/pagination";
+import type { ListQuery } from "@/lib/list-query";
+import { listPath } from "@/lib/list-query";
 
 export function Pagination({
   page,
@@ -7,12 +8,14 @@ export function Pagination({
   count,
   pageSize,
   basePath,
+  query = {},
 }: {
   page: number;
   pages: number;
   count: number;
   pageSize: number;
   basePath: string;
+  query?: ListQuery;
 }) {
   if (pages <= 1) return null;
 
@@ -26,7 +29,7 @@ export function Pagination({
       </p>
       <div className="pagination-controls">
         {page > 1 ? (
-          <Link href={paginatedPath(basePath, page - 1, pageSize)} className="btn-ghost pagination-btn">
+          <Link href={listPath(basePath, query, page - 1)} className="btn-ghost pagination-btn">
             Previous
           </Link>
         ) : (
@@ -36,7 +39,7 @@ export function Pagination({
           Page {page} of {pages}
         </span>
         {page < pages ? (
-          <Link href={paginatedPath(basePath, page + 1, pageSize)} className="btn-ghost pagination-btn">
+          <Link href={listPath(basePath, query, page + 1)} className="btn-ghost pagination-btn">
             Next
           </Link>
         ) : (

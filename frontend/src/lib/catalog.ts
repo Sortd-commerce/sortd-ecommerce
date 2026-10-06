@@ -4,7 +4,7 @@ import type { CardProduct } from "@/components/catalog";
 import type { PricingRules } from "@/lib/pricing";
 
 type ProductList = { results: CardProduct[]; count: number };
-type Category = { name: string; slug: string };
+type Category = { name: string; slug: string; image_url?: string | null };
 type CatalogCount = { count: number };
 
 export const fetchCategories = unstable_cache(

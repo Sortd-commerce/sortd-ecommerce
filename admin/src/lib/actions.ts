@@ -376,7 +376,10 @@ export async function updateProductAction(_prev: ActionState, formData: FormData
     method: "PATCH",
     body: {
       title: String(formData.get("title") || ""),
+      brand: String(formData.get("brand") || ""),
       description: String(formData.get("description") || ""),
+      shelf: String(formData.get("shelf") || ""),
+      tags: String(formData.get("tags") || ""),
       status: String(formData.get("status") || "draft"),
       category_id: Number(formData.get("category_id")),
       related_slugs: related,
@@ -399,6 +402,7 @@ export async function updateOfferAction(_prev: ActionState, formData: FormData):
       price: String(formData.get("price") || "0"),
       compare_at_price: compare || null,
       unit_count: Number(formData.get("unit_count") || 1),
+      max_order: Number(formData.get("max_order") || 0) || null,
       is_active: formData.get("is_active") === "on",
     },
   });
@@ -465,6 +469,87 @@ export async function deleteProductImageAction(_prev: ActionState, formData: For
   const result = await apiFetch(`/admin/products/${productId}/images/${imageId}`, { method: "DELETE" });
   if (!result.ok) return replied(false, result.message);
   return replied(true, "Image removed.", `/products/${productId}`);
+}
+
+export async function uploadCategoryImageAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const categoryId = String(formData.get("category_id") || "");
+  const file = formData.get("file");
+  if (!(file instanceof File) || !file.size) {
+    return replied(false, "Choose an image to upload.");
+  }
+  const payload = new FormData();
+  payload.append("file", file);
+  const result = await apiForm(`/admin/categories/${categoryId}/image`, payload);
+  if (!result.ok) return replied(false, result.message);
+  return replied(true, "Aisle image uploaded.", "/products/categories");
+}
+
+export async function deleteCategoryImageAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const categoryId = String(formData.get("category_id") || "");
+  const result = await apiFetch(`/admin/categories/${categoryId}/image`, { method: "DELETE" });
+  if (!result.ok) return replied(false, result.message);
+  return replied(true, "Aisle image removed.", "/products/categories");
+}
+
+export type CatalogImportIssue = {
+  row: number;
+  sku: string;
+  field: string;
+  message: string;
+  level: string;
+};
+
+export type CatalogImportResult = {
+  valid: boolean;
+  dry_run: boolean;
+  row_count: number;
+  created: number;
+  updated: number;
+  skipped: number;
+  aisle_images_updated: number;
+  errors: CatalogImportIssue[];
+  warnings: CatalogImportIssue[];
+};
+
+export type CatalogImportState = ActionState & {
+  result: CatalogImportResult | null;
+};
+
+export async function importCatalogAction(_prev: CatalogImportState, formData: FormData): Promise<CatalogImportState> {
+  const file = formData.get("file");
+  if (!(file instanceof File) || !file.size) {
+    return { ok: false, message: "Choose an .xlsx workbook to import.", result: null };
+  }
+
+  const payload = new FormData();
+  payload.append("file", file);
+  if (formData.get("dry_run") === "on") {
+    payload.append("dry_run", "true");
+  }
+  if (formData.get("force_active") === "on") {
+    payload.append("force_active", "true");
+  }
+
+  const result = await apiForm<CatalogImportResult>("/admin/catalog/import", payload);
+  if (!result.ok || !result.data) {
+    return { ok: false, message: result.message, result: null };
+  }
+
+  const data = result.data;
+  if (!data.valid) {
+    return {
+      ok: false,
+      message: result.message || `Validation failed with ${data.errors.length} error(s).`,
+      result: data,
+    };
+  }
+
+  revalidatePath("/products");
+  return {
+    ok: true,
+    message: result.message,
+    result: data,
+  };
 }
 
 

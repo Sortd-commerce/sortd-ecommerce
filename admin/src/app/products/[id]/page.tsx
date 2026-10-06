@@ -15,7 +15,10 @@ type Product = {
   id: number;
   title: string;
   slug: string;
+  brand: string;
   description: string;
+  shelf: string;
+  tags: string;
   status: string;
   category: { id: number; name: string };
   images: Array<{
@@ -34,6 +37,7 @@ type Product = {
     price: string;
     compare_at_price: string | null;
     unit_count: number;
+    max_order: number | null;
     on_hand: number;
     is_active: boolean;
   }>;
@@ -108,6 +112,10 @@ export default async function AdminProductDetailPage({
             <input name="title" defaultValue={product.title} required />
           </label>
           <label className="field">
+            <span>Brand</span>
+            <input name="brand" defaultValue={product.brand} />
+          </label>
+          <label className="field">
             <span>Category</span>
             <select name="category_id" defaultValue={String(product.category.id)}>
               {(categories.data || []).map((category) => (
@@ -117,10 +125,18 @@ export default async function AdminProductDetailPage({
               ))}
             </select>
           </label>
+          <label className="field">
+            <span>Shelf</span>
+            <input name="shelf" defaultValue={product.shelf} placeholder="e.g. Dark chocolate" />
+          </label>
         </div>
         <label className="field">
           <span>Description</span>
           <textarea name="description" rows={3} defaultValue={product.description} />
+        </label>
+        <label className="field">
+          <span>Tags</span>
+          <input name="tags" defaultValue={product.tags} placeholder="Comma-separated search tags" />
         </label>
         <label className="field">
           <span>Status</span>
@@ -240,6 +256,10 @@ export default async function AdminProductDetailPage({
               <label className="field">
                 <span>On hand</span>
                 <input name="on_hand" type="number" min={0} defaultValue={variant.on_hand} required />
+              </label>
+              <label className="field">
+                <span>Max / order</span>
+                <input name="max_order" type="number" min={0} defaultValue={variant.max_order || ""} />
               </label>
               <label className="field flex items-center gap-2 sm:col-span-4">
                 <input name="is_active" type="checkbox" defaultChecked={variant.is_active} />

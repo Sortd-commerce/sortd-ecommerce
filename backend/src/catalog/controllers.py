@@ -4,12 +4,13 @@ from ninja_extra import ControllerBase, api_controller, route
 from ninja_extra.permissions import AllowAny
 
 from catalog.models import Category, Product, ProductStatus
-from catalog.queries import active_products, current_report, report_has_passed
+from catalog.queries import active_products, current_report, product_has_lab_report, report_has_passed
 from catalog.schemas import (
     CategoryOut,
     LabReportOut,
     ProductDetailOut,
     ProductListOut,
+    parse_tags,
     serialize_category,
     serialize_image,
     serialize_variant,
@@ -38,7 +39,10 @@ def _serialize_detail(product: Product) -> dict:
         "id": product.id,
         "title": product.title,
         "slug": product.slug,
+        "brand": product.brand,
         "description": product.description,
+        "shelf": product.shelf,
+        "tags": parse_tags(product.tags),
         "category": serialize_category(product.category),
         "images": [serialize_image(image, position=index) for index, image in enumerate(product.images.all())],
         "variants": [serialize_variant(variant) for variant in product.variants.filter(is_active=True)],
@@ -50,6 +54,7 @@ def _serialize_detail(product: Product) -> dict:
         "related": serialize_related(product),
         "label": label,
         "has_passed_report": report_has_passed(report),
+        "has_lab_report": product_has_lab_report(report),
     }
 
 
@@ -70,10 +75,13 @@ def _serialize_list_item(product: Product) -> dict:
         "id": product.id,
         "title": product.title,
         "slug": product.slug,
+        "brand": product.brand,
+        "tags": parse_tags(product.tags),
         "category": serialize_category(product.category),
         "primary_image": serialize_image(primary, position=0) if primary else None,
         "from_price": f"{min(prices):.2f}" if prices else None,
         "has_passed_report": report_has_passed(report),
+        "has_lab_report": product_has_lab_report(report),
         "default_variant": _default_variant(product),
     }
 

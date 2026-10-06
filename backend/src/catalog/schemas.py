@@ -12,6 +12,7 @@ class CategoryOut(Schema):
     slug: str
     parent_id: int | None
     sort_order: int
+    image_url: str | None = None
 
 
 class ImageOut(Schema):
@@ -32,6 +33,7 @@ class VariantOut(Schema):
     price: str
     compare_at_price: str | None
     unit_count: int
+    max_order: int | None = None
     on_hand: int
     is_active: bool
 
@@ -112,10 +114,13 @@ class ProductListOut(Schema):
     id: int
     title: str
     slug: str
+    brand: str
+    tags: list[str]
     category: CategoryOut
     primary_image: ImageOut | None
     from_price: str | None
     has_passed_report: bool
+    has_lab_report: bool
     default_variant: VariantOut | None = None
 
 
@@ -123,7 +128,10 @@ class ProductDetailOut(Schema):
     id: int
     title: str
     slug: str
+    brand: str
     description: str
+    shelf: str
+    tags: list[str]
     category: CategoryOut
     images: list[ImageOut]
     variants: list[VariantOut]
@@ -133,6 +141,7 @@ class ProductDetailOut(Schema):
     related: list[RelatedProductOut]
     label: LabelOut | None
     has_passed_report: bool
+    has_lab_report: bool
 
 
 class LabResultOut(Schema):
@@ -174,13 +183,38 @@ def image_url(image) -> str:
     return f"{origin}/{url.lstrip('/')}"
 
 
+def category_image_url(category) -> str:
+    file_field = getattr(category, "image", None)
+    if not file_field:
+        return ""
+    name = str(file_field.name or "").replace("\\", "/")
+    if not name:
+        return ""
+    local = Path(settings.MEDIA_ROOT) / name
+    if local.is_file():
+        return f"{settings.PUBLIC_API_ORIGIN.rstrip('/')}/{settings.MEDIA_URL.strip('/')}/{name.lstrip('/')}"
+    url = file_field.url or ""
+    if url.startswith("//"):
+        return f"https:{url}"
+    if url.startswith("http://") or url.startswith("https://"):
+        return url
+    origin = settings.PUBLIC_API_ORIGIN.rstrip("/")
+    return f"{origin}/{url.lstrip('/')}"
+
+
+def parse_tags(raw: str) -> list[str]:
+    return [part.strip() for part in str(raw or "").split(",") if part.strip()]
+
+
 def serialize_category(category) -> dict:
+    image_url = category_image_url(category)
     return {
         "id": category.id,
         "name": category.name,
         "slug": category.slug,
         "parent_id": category.parent_id,
         "sort_order": category.sort_order,
+        "image_url": image_url or None,
     }
 
 

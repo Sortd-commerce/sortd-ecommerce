@@ -26,9 +26,16 @@ export function ProductGallery({ title, images }: { title: string; images: Galle
           alt={current.alt || title}
           fill
           priority
-          sizes="(max-width: 768px) 100vw, 50vw"
-          className="object-contain"
+          sizes="(max-width: 768px) 100vw, 640px"
+          className="gallery-stage__img"
         />
+        {usable.length > 1 ? (
+          <div className="gallery-dots" aria-hidden>
+            {usable.map((_, index) => (
+              <span key={index} className={index === active ? "gallery-dot gallery-dot--active" : "gallery-dot"} />
+            ))}
+          </div>
+        ) : null}
       </div>
       {usable.length > 1 ? (
         <div className="gallery-thumbs">
@@ -36,7 +43,7 @@ export function ProductGallery({ title, images }: { title: string; images: Galle
             <button
               key={`${image.url}-${index}`}
               type="button"
-              className={index === active ? "thumb-on" : ""}
+              className={index === active ? "gallery-thumb gallery-thumb--active" : "gallery-thumb"}
               aria-label={`Show photo ${index + 1}`}
               aria-pressed={index === active}
               onClick={() => setActive(index)}
@@ -45,8 +52,8 @@ export function ProductGallery({ title, images }: { title: string; images: Galle
                 src={image.url}
                 alt=""
                 fill
-                sizes="72px"
-                className="object-cover"
+                sizes="118px"
+                className={index === active ? "gallery-thumb__img gallery-thumb__img--inset" : "gallery-thumb__img"}
               />
             </button>
           ))}

@@ -9,7 +9,7 @@ import { fetchCategories, fetchProductCatalog } from "@/lib/catalog";
 import { aisleTint } from "@/lib/tints";
 
 type ProductList = { results: CardProduct[]; count: number };
-type Category = { name: string; slug: string };
+type Category = { name: string; slug: string; image_url?: string | null };
 
 function findGroup(groups: Array<Category & { products: CardProduct[] }>, needles: string[]) {
   return groups.find((group) =>
@@ -27,7 +27,14 @@ export default async function HomePage({
   const [products, categories] = await Promise.all([fetchProductCatalog(), fetchCategories()]);
   const results = products.data?.results || [];
   const filtered = results.filter((product) => {
-    if (query && !`${product.title} ${product.category.name}`.toLowerCase().includes(query)) return false;
+    if (
+      query &&
+      !`${product.title} ${product.brand || ""} ${product.category.name} ${(product.tags || []).join(" ")}`
+        .toLowerCase()
+        .includes(query)
+    ) {
+      return false;
+    }
     if (aisle && product.category.slug !== aisle) return false;
     return true;
   });
@@ -38,10 +45,6 @@ export default async function HomePage({
     }))
     .filter((group) => group.products.length);
   const aisleGroups = (categories.data || [])
-    .map((category) => ({
-      ...category,
-      cover: results.find((product) => product.category.slug === category.slug && product.primary_image?.url),
-    }))
     .filter((category) => results.some((product) => product.category.slug === category.slug));
   const promoSource = (categories.data || [])
     .map((category) => ({
@@ -78,9 +81,9 @@ export default async function HomePage({
               {aisleGroups.map((category, index) => (
                 <a key={category.slug} href={`#aisle-${category.slug}`} className="aisle-tile">
                   <span className="aisle-photo" style={{ background: aisleTint(index) }}>
-                    {category.cover?.primary_image?.url ? (
+                    {category.image_url ? (
                       <OptimizedImage
-                        src={category.cover.primary_image.url}
+                        src={category.image_url}
                         alt=""
                         fill
                         sizes="110px"

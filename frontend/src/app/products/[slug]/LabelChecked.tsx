@@ -1,9 +1,13 @@
+"use client";
+
 import Link from "next/link";
+import { useLayoutEffect, useRef, useState } from "react";
 
 type Fact = {
   name: string;
   amount: string;
   unit: string;
+  daily_value?: string;
   is_highlight: boolean;
   level: string;
   note: string;
@@ -32,153 +36,498 @@ type Label = {
   };
 };
 
-function levelClass(level: string) {
-  if (level === "high") return "bg-[#f4ddd6] text-[#8a3b2a]";
-  if (level === "medium") return "bg-[#f4ead0] text-[#7a5a1e]";
-  if (level === "low") return "bg-[#dcecdc] text-[#2f5a3a]";
-  return "bg-sand text-ink/70";
+type Tab = "nutrition" | "ingredients" | "checks";
+
+const TAB_ORDER: Tab[] = ["nutrition", "ingredients", "checks"];
+
+const ING_COLORS = ["#143503", "#2d5a20", "#4a7a2e", "#7a9e6a", "#a7c49a", "#c4b89a", "#d4c4a8", "#e8ddd0"];
+
+const PRIMARY_ORDER = ["Energy", "Protein", "Carbohydrate", "Fat", "Total sugars", "Cacao / cocoa solids"];
+
+const SECONDARY_NAMES = ["Fibre", "Trans fat", "Cholesterol"];
+
+const TRAFFIC_ORDER = ["Total sugars", "Sodium", "Fat", "Saturates"];
+
+function formatAmount(fact: Fact) {
+  return `${fact.amount}${fact.unit ? ` ${fact.unit}` : ""}`;
 }
 
-export function LabelChecked({ slug, label, hasPassedReport }: { slug: string; label: Label; hasPassedReport: boolean }) {
-  const highlights = label.facts.filter((fact) => fact.is_highlight);
-  const tableFacts = label.facts;
-  const shares = label.ingredients.filter((row) => row.share_percent);
-  const checks = label.checks;
+function formatServingMeta(basis: string, size: string) {
+  const cleanBasis = basis.trim();
+  const cleanSize = size.trim();
+  if (!cleanBasis && !cleanSize) return "";
+
+  const basisOnly = cleanBasis.replace(/\s*[·•-]\s*per\s+\d+\s*g?\s*$/i, "").trim();
+
+  if (cleanSize && /^\d+(\.\d+)?$/.test(cleanSize)) {
+    const sizePart = `${cleanSize} G`;
+    if (basisOnly) return `${basisOnly.toUpperCase()} · ${sizePart}`;
+    return sizePart;
+  }
+
+  if (cleanBasis && cleanSize && !cleanBasis.toLowerCase().includes(cleanSize.toLowerCase())) {
+    return `${cleanBasis.toUpperCase()} · ${cleanSize.toUpperCase()}`;
+  }
+
+  return (basisOnly || cleanBasis || cleanSize).toUpperCase();
+}
+
+function macroLabel(name: string) {
+  if (name === "Energy") return "kcal";
+  if (name === "Carbohydrate") return "carbs";
+  if (name === "Cacao / cocoa solids") return "cacao";
+  if (name === "Total sugars") return "total sugars";
+  return name.toLowerCase();
+}
+
+function highlightVariant(name: string) {
+  if (name === "Energy" || name === "Total sugars") return "label-highlight--peach";
+  if (name === "Protein" || name === "Cacao / cocoa solids") return "label-highlight--forest";
+  if (name === "Carbohydrate") return "label-highlight--mint";
+  if (name === "Fat") return "label-highlight--sky";
+  return "label-highlight--mint";
+}
+
+function trafficLabel(name: string) {
+  const label = name === "Sodium" ? "Salt" : name.replace(/^Total /, "");
+  return label.charAt(0).toUpperCase() + label.slice(1);
+}
+
+function saltAmountFromSodium(fact: Fact) {
+  const sodium = Number.parseFloat(fact.amount);
+  if (!Number.isFinite(sodium)) return null;
+  return (sodium / 400).toFixed(2).replace(/\.?0+$/, "");
+}
+
+function trafficNote(fact: Fact, facts: Fact[], sugarSource: string) {
+  if (fact.note) return fact.note;
+  if (fact.name === "Sodium") return `${formatAmount(fact)} sodium`;
+  if (fact.name === "Total sugars") {
+    const added = facts.find((row) => row.name === "Added sugars");
+    if (added) {
+      const amount = Number.parseFloat(added.amount);
+      if (Number.isFinite(amount) && amount === 0) {
+        return sugarSource && !/none/i.test(sugarSource) ? sugarSource : "0 g added";
+      }
+    }
+  }
+  if (fact.name === "Fat") {
+    const mufa = facts.find((row) => row.name === "MUFA");
+    const pufa = facts.find((row) => row.name === "PUFA");
+    if (mufa || pufa) {
+      const unsaturated = [mufa, pufa]
+        .filter(Boolean)
+        .reduce((sum, row) => sum + (Number.parseFloat(row?.amount || "") || 0), 0);
+      if (unsaturated > 0) return `${unsaturated.toFixed(1).replace(/\.0$/, "")} g of it unsaturated`;
+    }
+  }
+  if (fact.name === "Saturates" && fact.daily_value) return `${fact.daily_value} of daily guidance`;
+  return "";
+}
+
+function levelTone(level: string) {
+  if (level === "high") return "label-traffic--high";
+  if (level === "medium") return "label-traffic--medium";
+  if (level === "low") return "label-traffic--low";
+  return "";
+}
+
+type CheckState = "pass" | "note" | "missing";
+
+function TabChecksBadge({ noteCount, isActive }: { noteCount: number; isActive: boolean }) {
+  if (noteCount > 0) {
+    return (
+      <span className="label-box__tab-badge label-box__tab-badge--notes" aria-hidden>
+        {noteCount}
+      </span>
+    );
+  }
 
   return (
-    <section className="label-section">
-      <div className="label-intro">
-        <h2>The label, checked.</h2>
-        <p>More on this product</p>
-      </div>
-      {label.headline ? <p className="label-headline">{label.headline}</p> : null}
-      <nav className="label-tabs" aria-label="Label sections">
-        <a href="#nutrition">Nutrition</a>
-        <a href="#ingredients">Ingredients</a>
-        <a href="#checks">Checks</a>
-      </nav>
-      <div className="label-grid">
-        <div id="nutrition" className="label-card">
-          <div className="flex items-start justify-between gap-3">
-            <h3 className="font-semibold text-forest">Nutrition</h3>
-            <p className="text-xs uppercase tracking-[0.12em] text-ink/45">
-              {label.serving_basis}
-              {label.serving_size ? ` · ${label.serving_size}` : ""}
-            </p>
+    <span
+      className={`label-box__tab-badge label-box__tab-badge--clear${isActive ? " label-box__tab-badge--clear-active" : ""}`}
+      aria-hidden
+    >
+      ✓
+    </span>
+  );
+}
+
+function CheckStatusIcon({ state }: { state: CheckState }) {
+  if (state === "note") {
+    return (
+      <span className="label-check-icon label-check-icon--note" aria-hidden>
+        i
+      </span>
+    );
+  }
+
+  if (state === "missing") {
+    return <span className="label-check-icon label-check-icon--missing" aria-hidden />;
+  }
+
+  return (
+    <span className="label-check-icon label-check-icon--pass" aria-hidden>
+      <svg viewBox="0 0 24 24" fill="none">
+        <path d="M7.2 12.3 10.4 15.5 16.8 9.1" stroke="#f6f1e6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    </span>
+  );
+}
+
+function checkDetailClass(state: CheckState) {
+  if (state === "missing") return "label-checks__detail label-checks__detail--muted";
+  return "label-checks__detail label-checks__detail--status";
+}
+
+function checkRowClass(state: CheckState) {
+  if (state === "note") return "label-check-row label-check-row--note";
+  if (state === "missing") return "label-check-row label-check-row--missing";
+  return "label-check-row label-check-row--pass";
+}
+
+function addedSugarStatus(facts: Fact[], sugarSource: string) {
+  const added = facts.find((fact) => fact.name === "Added sugars");
+  if (added) {
+    const amount = Number.parseFloat(added.amount);
+    if (Number.isFinite(amount) && amount === 0) return "None found";
+    return formatAmount(added);
+  }
+  if (sugarSource && !/none/i.test(sugarSource)) return sugarSource;
+  return "None found";
+}
+
+function addedSugarState(facts: Fact[], sugarSource: string): CheckState {
+  return addedSugarStatus(facts, sugarSource) === "None found" ? "pass" : "note";
+}
+
+function labCheck(checks: Label["checks"], hasLabReport: boolean) {
+  if (!hasLabReport && !checks.lab_total_count) {
+    return { state: "missing" as const, detail: "Not on file" };
+  }
+
+  if (checks.lab_total_count) {
+    const allPassed = checks.lab_passed_count >= checks.lab_total_count;
+    return {
+      state: (allPassed ? "pass" : "note") as CheckState,
+      detail: `${checks.lab_passed_count} / ${checks.lab_total_count} within limits`,
+    };
+  }
+
+  if (hasLabReport) {
+    return {
+      state: (checks.lab_passed ? "pass" : "note") as CheckState,
+      detail: checks.lab_passed ? "None found" : "On file",
+    };
+  }
+
+  return { state: "missing" as const, detail: "Not on file" };
+}
+
+type CheckRowData = {
+  title: string;
+  detail: string;
+  state: CheckState;
+  showReport?: boolean;
+};
+
+function buildCheckRows(
+  checks: Label["checks"],
+  facts: Fact[],
+  hasLabReport: boolean,
+): CheckRowData[] {
+  const lab = labCheck(checks, hasLabReport);
+
+  return [
+    {
+      title: "Banned ingredients",
+      detail: checks.banned_found === 0 ? "None found" : `${checks.banned_found} found`,
+      state: checks.banned_found === 0 ? "pass" : "note",
+    },
+    {
+      title: "Hidden sugars",
+      detail: checks.hidden_sugars_found === 0 ? "None found" : `${checks.hidden_sugars_found} found`,
+      state: checks.hidden_sugars_found === 0 ? "pass" : "note",
+    },
+    {
+      title: "Added sugar",
+      detail: addedSugarStatus(facts, checks.sugar_source),
+      state: addedSugarState(facts, checks.sugar_source),
+    },
+    {
+      title: "Lab report",
+      detail: lab.detail,
+      state: lab.state,
+      showReport: hasLabReport || checks.lab_total_count > 0,
+    },
+  ];
+}
+
+export function LabelChecked({
+  slug,
+  label,
+  hasLabReport,
+  templateLabel,
+}: {
+  slug: string;
+  label: Label;
+  hasLabReport: boolean;
+  templateLabel: string;
+}) {
+  const [tab, setTab] = useState<Tab>("nutrition");
+  const [slideDir, setSlideDir] = useState(0);
+  const [indicator, setIndicator] = useState({ width: 0, left: 0 });
+  const tabsRef = useRef<HTMLDivElement>(null);
+
+  const highlightPool = label.facts.filter((fact) => fact.is_highlight);
+  const highlights = PRIMARY_ORDER.map((name) => highlightPool.find((fact) => fact.name === name))
+    .filter((fact): fact is Fact => Boolean(fact))
+    .concat(highlightPool.filter((fact) => !PRIMARY_ORDER.includes(fact.name)))
+    .slice(0, 4);
+  const secondaryMacros = SECONDARY_NAMES.map((name) => label.facts.find((fact) => fact.name === name)).filter(
+    (fact): fact is Fact => Boolean(fact),
+  );
+  const trafficFacts = TRAFFIC_ORDER.map((name) => label.facts.find((fact) => fact.name === name)).filter(
+    (fact): fact is Fact => Boolean(fact),
+  );
+  const shares = label.ingredients.filter((row) => row.share_percent);
+  const checks = label.checks;
+  const contains = label.allergens.filter(
+    (row) => row.name !== "May contain" && !/^none/i.test(row.name.trim()),
+  );
+  const mayContain = label.allergens.find((row) => row.name === "May contain")?.detail || "";
+  const servingMeta = formatServingMeta(label.serving_basis, label.serving_size);
+  const checkRows = buildCheckRows(checks, label.facts, hasLabReport);
+  const checksNoteCount = checkRows.filter((row) => row.state === "note").length;
+
+  useLayoutEffect(() => {
+    const track = tabsRef.current;
+    if (!track) return;
+
+    const updateIndicator = () => {
+      const active = track.querySelector<HTMLElement>('[aria-selected="true"]');
+      if (!active) return;
+      setIndicator({
+        left: active.offsetLeft,
+        width: active.offsetWidth,
+      });
+    };
+
+    updateIndicator();
+    window.addEventListener("resize", updateIndicator);
+    return () => window.removeEventListener("resize", updateIndicator);
+  }, [tab]);
+
+  function selectTab(next: Tab) {
+    const currentIdx = TAB_ORDER.indexOf(tab);
+    const nextIdx = TAB_ORDER.indexOf(next);
+    setSlideDir(nextIdx - currentIdx);
+    setTab(next);
+  }
+
+  const panelClass = slideDir >= 0 ? "label-panel--forward" : "label-panel--back";
+
+  return (
+    <section className="label-section" aria-label="The label, checked">
+      <h2 className="label-intro">The label, checked.</h2>
+      <div className="label-section__body">
+        <p className="label-kicker">More on this product</p>
+        <div className="label-box">
+        <header className="label-box__header">
+          <div className="label-box__meta">
+            <span>{servingMeta || "AS PRINTED ON PACK"}</span>
+            <span>{templateLabel.toUpperCase()}</span>
           </div>
-          {highlights.length ? (
-            <div className="mt-4 grid grid-cols-2 gap-2">
-              {highlights.map((fact) => (
-                <div key={fact.name} className="rounded-2xl bg-forest px-3 py-3 text-white">
-                  <p className="text-xl font-semibold">
-                    {fact.amount}
-                    {fact.unit ? ` ${fact.unit}` : ""}
-                  </p>
-                  <p className="text-xs uppercase tracking-[0.12em] opacity-80">{fact.name}</p>
-                </div>
+          <div className="label-box__hero">
+            {label.headline ? <p className="label-box__headline">{label.headline}</p> : <span />}
+            <div className="label-box__tabs" ref={tabsRef} role="tablist" aria-label="Label sections">
+              <span
+                className="label-box__tab-indicator"
+                style={{ width: indicator.width, transform: `translateX(${indicator.left}px)` }}
+                aria-hidden
+              />
+              {(
+                [
+                  ["nutrition", "Nutrition"],
+                  ["ingredients", "Ingredients"],
+                  ["checks", "Checks"],
+                ] as const
+              ).map(([key, title]) => (
+                <button
+                  key={key}
+                  type="button"
+                  role="tab"
+                  aria-selected={tab === key}
+                  className={tab === key ? "label-box__tab label-box__tab--active" : "label-box__tab"}
+                  onClick={() => selectTab(key)}
+                >
+                  {title}
+                  {key === "checks" ? <TabChecksBadge noteCount={checksNoteCount} isActive={tab === key} /> : null}
+                </button>
               ))}
             </div>
-          ) : null}
-          <dl className="mt-4 space-y-2 text-sm">
-            {tableFacts.map((fact) => (
-              <div key={`${fact.group}-${fact.name}`} className={`flex items-start justify-between gap-3 ${fact.is_subfact ? "pl-3 text-ink/70" : ""}`}>
-                <dt>
-                  {fact.name}
-                  {fact.level ? (
-                    <span className={`ml-2 rounded-full px-2 py-0.5 text-[10px] uppercase ${levelClass(fact.level)}`}>
-                      {fact.level}
-                    </span>
+          </div>
+        </header>
+
+        <div className="label-box__body">
+          <div key={tab} className={`label-panel ${panelClass}`} role="tabpanel">
+            {tab === "nutrition" ? (
+              <div className="label-nutrition">
+                <div className="label-nutrition__macros">
+                  {highlights.length ? (
+                    <div className="label-highlights">
+                      {highlights.map((fact) => (
+                        <article key={fact.name} className={`label-highlight ${highlightVariant(fact.name)}`}>
+                          <p className="label-highlight__value">{formatAmount(fact)}</p>
+                          <p className="label-highlight__name">{macroLabel(fact.name)}</p>
+                        </article>
+                      ))}
+                    </div>
                   ) : null}
-                  {fact.note ? <p className="text-xs text-ink/50">{fact.note}</p> : null}
-                </dt>
-                <dd className="font-medium">
-                  {fact.amount}
-                  {fact.unit ? ` ${fact.unit}` : ""}
-                </dd>
+
+                  {secondaryMacros.length ? (
+                    <div className="label-secondary-macros">
+                      {secondaryMacros.map((fact) => (
+                        <article key={fact.name} className="label-secondary-macro">
+                          <p className="label-secondary-macro__value">{formatAmount(fact)}</p>
+                          <p className="label-secondary-macro__name">{macroLabel(fact.name)}</p>
+                        </article>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+
+                {trafficFacts.length || label.note ? (
+                  <div className="label-nutrition__aside">
+                    <div className="label-traffic-wrap">
+                      {trafficFacts.length ? (
+                        <div className="label-traffic-list">
+                          {trafficFacts.map((fact) => {
+                            const note = trafficNote(fact, label.facts, checks.sugar_source);
+                            const displayAmount =
+                              fact.name === "Sodium" && saltAmountFromSodium(fact)
+                                ? `${saltAmountFromSodium(fact)} g`
+                                : formatAmount(fact);
+                            return (
+                              <article
+                                key={fact.name}
+                                className={`label-traffic ${fact.level ? levelTone(fact.level) : "label-traffic--neutral"}`}
+                              >
+                                <div className="label-traffic__row">
+                                  <span className="label-traffic__dot" aria-hidden />
+                                  <p className="label-traffic__title">
+                                    {trafficLabel(fact.name)} <strong>{displayAmount}</strong>
+                                    {fact.level ? (
+                                      <>
+                                        {" "}
+                                        · <span className="label-traffic__level">{fact.level}</span>
+                                      </>
+                                    ) : null}
+                                  </p>
+                                </div>
+                                {note ? <p className="label-traffic__note">{note}</p> : null}
+                              </article>
+                            );
+                          })}
+                        </div>
+                      ) : null}
+                      {label.note ? <p className="label-footnote">{label.note}</p> : null}
+                    </div>
+                  </div>
+                ) : null}
               </div>
-            ))}
-          </dl>
-          {label.note ? <p className="mt-4 text-xs text-ink/55">{label.note}</p> : null}
-        </div>
+            ) : null}
 
-        <div id="ingredients" className="label-card">
-          <div className="flex items-start justify-between gap-3">
-            <h3 className="font-semibold text-forest">Ingredients</h3>
-            <p className="text-xs uppercase tracking-[0.12em] text-ink/45">{label.ingredients.length} in total</p>
-          </div>
-          {shares.length ? (
-            <div className="mt-3 flex h-2 overflow-hidden rounded-full bg-sand">
-              {shares.map((row) => (
-                <span key={row.name} className="bg-leaf" style={{ width: `${row.share_percent}%`, opacity: 0.4 + Number(row.share_percent) / 80 }} />
-              ))}
-            </div>
-          ) : (
-            <p className="mt-3 text-sm text-ink/55">Shares not printed on pack.</p>
-          )}
-          <ol className="mt-4 space-y-2 text-sm">
-            {label.ingredients.map((row, index) => (
-              <li key={row.name} className="flex justify-between gap-3">
-                <span>
-                  {index + 1}. {row.name}
-                  {row.detail ? <span className="block text-xs text-ink/50">{row.detail}</span> : null}
-                </span>
-                {row.share_percent ? <span className="text-ink/55">{Number(row.share_percent)}%</span> : null}
-              </li>
-            ))}
-          </ol>
-          {label.allergens.length ? (
-            <p className="mt-4 text-xs text-ink/60">
-              Contains{" "}
-              {label.allergens.map((row) => `${row.name}${row.detail ? ` · ${row.detail}` : ""}`).join(" · ")}
-            </p>
-          ) : null}
-        </div>
+            {tab === "ingredients" ? (
+              <div className="label-ingredients">
+                <div className="label-ingredients__head">
+                  <p className="label-ingredients__kicker">By share of weight — as printed on the pack</p>
+                  <span className="label-ingredients__count">{label.ingredients.length} in total</span>
+                </div>
 
-        <div id="checks" className="label-card">
-          <div className="flex items-start justify-between gap-3">
-            <h3 className="font-semibold text-forest">Sortd checks</h3>
-            <p className="text-xs uppercase tracking-[0.12em] text-leaf">
-              {checks.banned_found === 0 && checks.hidden_sugars_found === 0 ? "All clear" : "Review"}
-            </p>
+                {shares.length && checks.shares_printed ? (
+                  <div className="label-ing-bar" aria-hidden>
+                    {shares.map((row, index) => (
+                      <span
+                        key={row.name}
+                        className="label-ing-bar__segment"
+                        style={{ width: `${row.share_percent}%`, background: ING_COLORS[index % ING_COLORS.length] }}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <p className="label-ingredients__empty">Shares not printed on pack.</p>
+                )}
+
+                <ul className="label-ingredients__list">
+                  {label.ingredients.map((row, index) => (
+                    <li key={row.name}>
+                      <span className="label-ingredients__swatch" style={{ background: ING_COLORS[index % ING_COLORS.length] }} aria-hidden />
+                      <span className="label-ingredients__name">
+                        {row.name}
+                        {row.detail ? <span className="label-ingredients__detail">{row.detail}</span> : null}
+                      </span>
+                      {row.share_percent ? <span className="label-ingredients__pct">{Number(row.share_percent)}%</span> : null}
+                    </li>
+                  ))}
+                </ul>
+
+                {checks.sugar_source ? <p className="label-ingredients__note">{checks.sugar_source}</p> : null}
+
+                {contains.length ? (
+                  <div className="label-allergens">
+                    <p className="label-allergens__label">Contains</p>
+                    <div className="label-allergens__pills">
+                      {contains.map((row) => (
+                        <span key={row.name} className="label-allergens__pill">
+                          {row.name}
+                          {row.detail ? ` · ${row.detail}` : ""}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+
+                {mayContain ? (
+                  <p className="label-allergens__may">
+                    <span>May contain —</span> {mayContain}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
+
+            {tab === "checks" ? (
+              <div className="label-checks">
+                <ul className="label-checks__list">
+                  {checkRows.map((row) => (
+                    <li key={row.title} className={`${checkRowClass(row.state)}${row.showReport ? " label-checks__lab" : ""}`}>
+                      <CheckStatusIcon state={row.state} />
+                      <div className="label-checks__copy">
+                        <p className="label-checks__title">{row.title}</p>
+                        <p className={checkDetailClass(row.state)}>{row.detail}</p>
+                      </div>
+                      {row.showReport ? (
+                        <Link href={`/products/${slug}/report`} className="label-checks__report-btn">
+                          View report
+                        </Link>
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
+
+                <aside className="label-checks__aside">
+                  <p>
+                    Every product is read against our banned list before it goes on the shelf. The same four checks, every time.
+                  </p>
+                  <Link href="/" className="label-checks__link">
+                    See what we ban →
+                  </Link>
+                </aside>
+              </div>
+            ) : null}
           </div>
-          <ul className="mt-4 space-y-3 text-sm">
-            <li>
-              <p className="font-medium">Banned ingredients</p>
-              <p className="text-ink/60">{checks.banned_found === 0 ? "None found" : `${checks.banned_found} found`}</p>
-            </li>
-            <li>
-              <p className="font-medium">Hidden sugar names</p>
-              <p className="text-ink/60">
-                {checks.hidden_sugars_found === 0 ? "None found" : `${checks.hidden_sugars_found} found`}
-              </p>
-            </li>
-            <li>
-              <p className="font-medium">{checks.sugar_source ? "Sugar source" : "Ingredient shares on pack"}</p>
-              <p className="text-ink/60">
-                {checks.sugar_source || (checks.shares_printed ? "Printed" : "Not printed")}
-              </p>
-            </li>
-            <li>
-              <p className="font-medium">Lab report</p>
-              <p className="text-ink/60">
-                {checks.lab_total_count
-                  ? `${checks.lab_passed_count} / ${checks.lab_total_count} within limits`
-                  : hasPassedReport
-                    ? "On file"
-                    : "Not attached yet"}
-              </p>
-              {hasPassedReport || checks.lab_total_count ? (
-                <Link href={`/products/${slug}/report`} className="mt-1 inline-flex text-sm font-semibold text-citrus">
-                  View
-                </Link>
-              ) : null}
-            </li>
-            <li>
-              <p className="font-medium">Nutritionist note</p>
-              <p className="text-ink/60">{checks.nutritionist_note || "[To be written by Sortd]"}</p>
-            </li>
-          </ul>
         </div>
+      </div>
       </div>
     </section>
   );

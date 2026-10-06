@@ -19,7 +19,13 @@ def report_has_passed(report: LabReport | None) -> bool:
     if report is None or not report.is_current:
         return False
     passed, total = report_score(report)
-    return total > 0 and passed == total
+    if total == 0:
+        return bool(report.pdf)
+    return passed == total
+
+
+def product_has_lab_report(report: LabReport | None) -> bool:
+    return report is not None and report.is_current and bool(report.pdf)
 
 
 def active_products():

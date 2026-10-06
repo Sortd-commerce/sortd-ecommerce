@@ -287,6 +287,39 @@ button {
   background: rgb(255 255 255 / 0.025);
 }
 
+.list-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.85rem 1rem;
+  padding: 1rem;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel-2);
+}
+
+.list-toolbar-fields {
+  display: flex;
+  flex: 1 1 720px;
+  flex-wrap: wrap;
+  gap: 0.75rem 0.85rem;
+}
+
+.list-toolbar-search {
+  flex: 1 1 220px;
+  min-width: 200px;
+}
+
+.list-toolbar .field {
+  min-width: 140px;
+}
+
+.list-toolbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
 .pagination {
   display: flex;
   flex-wrap: wrap;

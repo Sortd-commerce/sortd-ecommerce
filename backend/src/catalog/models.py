@@ -40,6 +40,12 @@ class Category(models.Model):
     parent = models.ForeignKey("self", null=True, blank=True, on_delete=models.SET_NULL, related_name="children")
     sort_order = models.PositiveIntegerField(default=0)
     is_active = models.BooleanField(default=True)
+    image = models.FileField(
+        upload_to="categories/images/",
+        storage=public_media_storage,
+        validators=[validate_image_file],
+        blank=True,
+    )
 
     class Meta:
         ordering = ["sort_order", "name"]
@@ -56,8 +62,11 @@ class Category(models.Model):
 class Product(models.Model):
     title = models.CharField(max_length=200)
     slug = models.SlugField(max_length=220, unique=True)
+    brand = models.CharField(max_length=120, blank=True)
     description = models.TextField(blank=True)
     category = models.ForeignKey(Category, on_delete=models.PROTECT, related_name="products")
+    shelf = models.CharField(max_length=120, blank=True)
+    tags = models.TextField(blank=True)
     status = models.CharField(max_length=20, choices=ProductStatus.choices, default=ProductStatus.DRAFT)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -99,6 +108,7 @@ class ProductVariant(models.Model):
     price = models.DecimalField(max_digits=10, decimal_places=2)
     compare_at_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     unit_count = models.PositiveIntegerField(default=1)
+    max_order = models.PositiveIntegerField(null=True, blank=True)
     on_hand = models.PositiveIntegerField(default=0)
     is_active = models.BooleanField(default=True)
 

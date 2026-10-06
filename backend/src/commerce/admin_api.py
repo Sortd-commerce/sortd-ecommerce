@@ -8,7 +8,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
-from django.db.models import Count, Max, Sum
+from django.db.models import Count, Max, Min, Q, Sum
 from django.db.models.functions import TruncDate
 from django.utils import timezone
 from django.utils.text import slugify
@@ -19,9 +19,10 @@ from accounts.auth import SessionJWTAuth
 from accounts.staff import ROLE_ADMIN, ROLE_MEMBER, STAFF_ROLES, admin_queryset, is_admin, role_of, serialize_staff
 from pydantic import Field, field_validator, model_validator
 
+from catalog.excel_importer import ExcelCatalogImporter, ExcelImportError, ExcelImportResult
 from catalog.images import apply_image_order, make_image_first, sync_image_order
 from catalog.models import Category, Product, ProductImage, ProductStatus, ProductVariant
-from catalog.schemas import serialize_image
+from catalog.schemas import serialize_category, serialize_image
 from catalog.stock import StockService
 from catalog.writer import CatalogWriteError, ProductWriter, serialize_label, serialize_related, serialize_variant
 from commerce.models import (
@@ -132,7 +133,10 @@ class ProductCreateIn(Schema):
 
 class ProductUpdateIn(Schema):
     title: str | None = Field(default=None, min_length=1, max_length=200)
+    brand: str | None = Field(default=None, max_length=120)
     description: str | None = None
+    shelf: str | None = Field(default=None, max_length=120)
+    tags: str | None = None
     category_id: int | None = None
     status: str | None = None
     related_slugs: list[str] | None = None
@@ -162,6 +166,7 @@ class VariantUpdateIn(Schema):
     price: Decimal | None = None
     compare_at_price: Decimal | None = None
     unit_count: int | None = Field(default=None, ge=1)
+    max_order: int | None = Field(default=None, ge=1)
     is_active: bool | None = None
 
 
@@ -321,6 +326,13 @@ class CategoryIn(Schema):
     is_active: bool = True
 
 
+class CategoryUpdateIn(Schema):
+    name: str | None = Field(default=None, min_length=1, max_length=120)
+    slug: str | None = None
+    sort_order: int | None = None
+    is_active: bool | None = None
+
+
 def _product_qs():
     return Product.objects.select_related("category", "nutrition").prefetch_related(
         "variants",
@@ -333,8 +345,103 @@ def _product_qs():
     )
 
 
+def _serialize_import_result(result: ExcelImportResult) -> dict:
+    def issue_row(issue) -> dict:
+        return {
+            "row": issue.row,
+            "sku": issue.sku,
+            "field": issue.field,
+            "message": issue.message,
+            "level": issue.level,
+        }
+
+    return {
+        "valid": result.valid,
+        "dry_run": result.dry_run,
+        "row_count": result.row_count,
+        "created": result.created,
+        "updated": result.updated,
+        "skipped": result.skipped,
+        "aisle_images_updated": result.aisle_images_updated,
+        "errors": [issue_row(issue) for issue in result.errors],
+        "warnings": [issue_row(issue) for issue in result.warnings],
+    }
+
+
+PRODUCT_SORT_FIELDS = {
+    "updated_at": "updated_at",
+    "title": "title",
+    "status": "status",
+    "category": "category__name",
+    "price": "from_price",
+    "stock": "total_stock",
+}
+
+ORDER_SORT_FIELDS = {
+    "created_at": "created_at",
+    "delivery_date": "delivery_date",
+    "total": "total",
+    "status": "status",
+}
+
+
+def _sort_order(sort: str | None, *, allowed: dict[str, str], default: str, direction: str | None) -> str:
+    field = allowed.get(sort or "", default)
+    prefix = "" if (direction or "desc").lower() == "asc" else "-"
+    return f"{prefix}{field}"
+
+
 def _product_list_qs():
     return Product.objects.select_related("category").prefetch_related("variants")
+
+
+def _filter_products_qs(
+    qs,
+    *,
+    status_filter: str | None,
+    category_id: int | None,
+    search: str | None,
+    sort: str | None,
+    order: str | None,
+):
+    if status_filter:
+        if status_filter not in ProductStatus.values:
+            raise ValidationError({"status_filter": "Invalid product status."})
+        qs = qs.filter(status=status_filter)
+    if category_id:
+        if not Category.objects.filter(pk=category_id).exists():
+            raise ValidationError({"category_id": "Category not found."})
+        qs = qs.filter(category_id=category_id)
+    if search:
+        term = search.strip()
+        if term:
+            qs = qs.filter(
+                Q(title__icontains=term)
+                | Q(slug__icontains=term)
+                | Q(variants__sku__icontains=term)
+            ).distinct()
+    qs = qs.annotate(from_price=Min("variants__price"), total_stock=Sum("variants__on_hand"))
+    return qs.order_by(_sort_order(sort, allowed=PRODUCT_SORT_FIELDS, default="updated_at", direction=order))
+
+
+def _filter_orders_qs(
+    qs,
+    *,
+    status_filter: str | None,
+    search: str | None,
+    sort: str | None,
+    order: str | None,
+):
+    if status_filter:
+        allowed = {choice for choice, _ in OrderStatus.choices}
+        if status_filter not in allowed:
+            raise ValidationError({"status_filter": "Invalid order status."})
+        qs = qs.filter(status=status_filter)
+    if search:
+        term = search.strip()
+        if term:
+            qs = qs.filter(Q(number__icontains=term) | Q(user__email__icontains=term))
+    return qs.order_by(_sort_order(sort, allowed=ORDER_SORT_FIELDS, default="created_at", direction=order))
 
 
 def _product_list_row(product: Product) -> dict:
@@ -355,11 +462,16 @@ def _product_list_row(product: Product) -> dict:
 
 
 def _product_admin_row(product: Product) -> dict:
+    from catalog.schemas import parse_tags
+
     return {
         "id": product.id,
         "title": product.title,
         "slug": product.slug,
+        "brand": product.brand,
         "description": product.description,
+        "shelf": product.shelf,
+        "tags": ", ".join(parse_tags(product.tags)),
         "status": product.status,
         "category": {"id": product.category_id, "name": product.category.name, "slug": product.category.slug},
         "images": [serialize_image(image, position=index) for index, image in enumerate(product.images.all())],
@@ -617,10 +729,16 @@ class AdminController(ControllerBase):
         )
 
     @route.get("/orders", response={200: SuccessResponse, **_ERROR_RESPONSES}, summary="List all orders", permissions=[IsStaff()])
-    def list_orders(self, query: Query[PageQuery], status_filter: str | None = None):
-        qs = Order.objects.select_related("user").prefetch_related("lines").order_by("-created_at")
-        if status_filter:
-            qs = qs.filter(status=status_filter)
+    def list_orders(
+        self,
+        query: Query[PageQuery],
+        status_filter: str | None = None,
+        search: str | None = None,
+        sort: str | None = None,
+        order: str | None = None,
+    ):
+        qs = Order.objects.select_related("user").prefetch_related("lines")
+        qs = _filter_orders_qs(qs, status_filter=status_filter, search=search, sort=sort, order=order)
         page = paginate_queryset(qs, page=query.page, page_size=query.page_size)
         page["results"] = [
             {**serialize_order(order), "user_email": order.user.email} for order in page["results"]
@@ -658,11 +776,60 @@ class AdminController(ControllerBase):
             order.save(update_fields=["status"])
         return success("Order updated.", serialize_order(order))
 
+    @route.post(
+        "/catalog/import",
+        response={200: SuccessResponse, **_ERROR_RESPONSES},
+        summary="Import products from the Sortd Excel workbook",
+    )
+    def import_catalog_workbook(
+        self,
+        file: UploadedFile = File(...),
+        dry_run: bool = Form(False),
+        force_active: bool = Form(False),
+    ):
+        name = (getattr(file, "name", "") or "").lower()
+        if not name.endswith(".xlsx"):
+            raise ValidationError({"file": "Upload an .xlsx workbook."})
+        importer = ExcelCatalogImporter()
+        try:
+            result = importer.import_file(file, dry_run=dry_run, force_active=force_active)
+        except ExcelImportError as exc:
+            raise ValidationError({"file": str(exc)}) from exc
+
+        payload = _serialize_import_result(result)
+        if result.errors:
+            return success(
+                f"Validation failed with {len(result.errors)} error(s).",
+                payload,
+            )
+        if dry_run:
+            return success(
+                f"Validation passed for {result.row_count} product row(s).",
+                payload,
+            )
+        return success(
+            f"Imported {result.created + result.updated} product row(s).",
+            payload,
+        )
+
     @route.get("/products", response={200: SuccessResponse, **_ERROR_RESPONSES}, summary="List products for admin")
-    def list_products(self, query: Query[PageQuery], status_filter: str | None = None):
-        qs = _product_list_qs().order_by("-updated_at")
-        if status_filter:
-            qs = qs.filter(status=status_filter)
+    def list_products(
+        self,
+        query: Query[PageQuery],
+        status_filter: str | None = None,
+        category_id: int | None = None,
+        search: str | None = None,
+        sort: str | None = None,
+        order: str | None = None,
+    ):
+        qs = _filter_products_qs(
+            _product_list_qs(),
+            status_filter=status_filter,
+            category_id=category_id,
+            search=search,
+            sort=sort,
+            order=order,
+        )
         page = paginate_queryset(qs, page=query.page, page_size=query.page_size)
         page["results"] = [_product_list_row(product) for product in page["results"]]
         return success("Products retrieved.", page)
@@ -715,9 +882,18 @@ class AdminController(ControllerBase):
         if payload.title is not None:
             product.title = payload.title.strip()
             fields.append("title")
+        if payload.brand is not None:
+            product.brand = payload.brand.strip()
+            fields.append("brand")
         if payload.description is not None:
             product.description = payload.description
             fields.append("description")
+        if payload.shelf is not None:
+            product.shelf = payload.shelf.strip()
+            fields.append("shelf")
+        if payload.tags is not None:
+            product.tags = payload.tags.strip()
+            fields.append("tags")
         if payload.status is not None:
             product.status = payload.status
             fields.append("status")
@@ -864,6 +1040,9 @@ class AdminController(ControllerBase):
         if payload.unit_count is not None:
             variant.unit_count = payload.unit_count
             fields.append("unit_count")
+        if payload.max_order is not None:
+            variant.max_order = payload.max_order
+            fields.append("max_order")
         if payload.is_active is not None:
             variant.is_active = payload.is_active
             fields.append("is_active")
@@ -877,6 +1056,7 @@ class AdminController(ControllerBase):
                 "title": variant.title,
                 "compare_at_price": money_str(variant.compare_at_price) if variant.compare_at_price is not None else None,
                 "unit_count": variant.unit_count,
+                "max_order": variant.max_order,
                 "on_hand": variant.on_hand,
                 "is_active": variant.is_active,
             },
@@ -900,13 +1080,7 @@ class AdminController(ControllerBase):
     @route.get("/categories", response={200: SuccessResponse, **_ERROR_RESPONSES}, summary="List categories")
     def list_categories(self):
         rows = [
-            {
-                "id": category.id,
-                "name": category.name,
-                "slug": category.slug,
-                "sort_order": category.sort_order,
-                "is_active": category.is_active,
-            }
+            {**serialize_category(category), "is_active": category.is_active}
             for category in Category.objects.all().order_by("sort_order", "name")
         ]
         return success("Categories retrieved.", rows)
@@ -924,14 +1098,64 @@ class AdminController(ControllerBase):
         )
         return status.HTTP_201_CREATED, success(
             "Category created.",
-            {
-                "id": category.id,
-                "name": category.name,
-                "slug": category.slug,
-                "sort_order": category.sort_order,
-                "is_active": category.is_active,
-            },
+            {**serialize_category(category), "is_active": category.is_active},
         )
+
+    @route.patch("/categories/{category_id}", response={200: SuccessResponse, **_ERROR_RESPONSES}, summary="Update category")
+    def update_category(self, category_id: int, payload: CategoryUpdateIn):
+        category = Category.objects.filter(pk=category_id).first()
+        if category is None:
+            raise NotFound("Category not found.")
+        if payload.name is not None:
+            category.name = payload.name.strip()
+        if payload.slug is not None:
+            slug = payload.slug.strip()
+            if Category.objects.exclude(pk=category_id).filter(slug=slug).exists():
+                raise ValidationError({"slug": "Category slug already exists."})
+            category.slug = slug
+        if payload.sort_order is not None:
+            category.sort_order = payload.sort_order
+        if payload.is_active is not None:
+            category.is_active = payload.is_active
+        category.save()
+        return success("Category updated.", {**serialize_category(category), "is_active": category.is_active})
+
+    @route.post(
+        "/categories/{category_id}/image",
+        response={201: SuccessResponse, **_ERROR_RESPONSES},
+        summary="Upload a category aisle image",
+    )
+    def upload_category_image(self, category_id: int, file: UploadedFile = File(...)):
+        category = Category.objects.filter(pk=category_id).first()
+        if category is None:
+            raise NotFound("Category not found.")
+        if category.image:
+            category.image.delete(save=False)
+        category.image = file
+        try:
+            category.full_clean()
+        except DjangoValidationError as exc:
+            raise ValidationError(exc.message_dict if hasattr(exc, "message_dict") else {"file": list(exc.messages)})
+        category.save(update_fields=["image"])
+        return status.HTTP_201_CREATED, success(
+            "Category image uploaded.",
+            {**serialize_category(category), "is_active": category.is_active},
+        )
+
+    @route.delete(
+        "/categories/{category_id}/image",
+        response={200: SuccessResponse, **_ERROR_RESPONSES},
+        summary="Remove a category aisle image",
+    )
+    def delete_category_image(self, category_id: int):
+        category = Category.objects.filter(pk=category_id).first()
+        if category is None:
+            raise NotFound("Category not found.")
+        if category.image:
+            category.image.delete(save=False)
+            category.image = ""
+            category.save(update_fields=["image"])
+        return success("Category image removed.", {**serialize_category(category), "is_active": category.is_active})
 
     @route.get("/delivery/windows", response={200: SuccessResponse, **_ERROR_RESPONSES}, summary="List delivery windows")
     def list_windows(self):

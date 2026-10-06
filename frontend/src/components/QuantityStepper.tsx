@@ -11,6 +11,7 @@ export function QuantityStepper({
   size = "md",
   disabled,
   tone = "default",
+  variant = "default",
 }: {
   value: number;
   max?: number | null;
@@ -19,6 +20,7 @@ export function QuantityStepper({
   size?: "sm" | "md";
   disabled?: boolean;
   tone?: "default" | "inverse";
+  variant?: "default" | "buy";
 }) {
   const floor = Math.max(0, Math.floor(min));
   const cap = max == null || !Number.isFinite(Number(max)) ? MAX_QTY : Math.max(0, Math.min(MAX_QTY, Math.floor(Number(max))));
@@ -29,28 +31,34 @@ export function QuantityStepper({
 
   const inverse = tone === "inverse";
 
+  const useTextControls = variant === "buy" || (inverse && size === "sm");
+
   return (
-    <div className={`qty-stepper ${inverse ? "qty-on-dark" : ""} ${disabled ? "opacity-55" : ""}`} role="group" aria-label="Quantity">
+    <div
+      className={`qty-stepper ${variant === "buy" ? "qty-stepper--buy" : ""} ${inverse ? "qty-on-dark" : ""} ${disabled ? "opacity-55" : ""}`}
+      role="group"
+      aria-label="Quantity"
+    >
       <button
         type="button"
-        className={`qty-btn ${inverse && size === "sm" ? "qty-btn-text" : pad}`}
+        className={`qty-btn ${useTextControls ? "qty-btn-text" : pad}`}
         aria-label={value <= 1 && floor < 1 ? "Remove item" : "Decrease quantity"}
         disabled={disabled || atMin}
         onClick={() => onChange(Math.max(floor, value - 1))}
       >
-        {inverse && size === "sm" ? "−" : <Minus size={size === "sm" ? 14 : 16} weight="bold" />}
+        {useTextControls ? "−" : <Minus size={size === "sm" ? 14 : 16} weight="bold" />}
       </button>
-      <span className={`qty-value ${text}`} aria-live="polite">
+      <span className={`qty-value ${variant === "buy" ? "qty-value--buy" : text}`} aria-live="polite">
         {value}
       </span>
       <button
         type="button"
-        className={`qty-btn ${inverse && size === "sm" ? "qty-btn-text" : pad}`}
+        className={`qty-btn ${useTextControls ? "qty-btn-text" : pad}`}
         aria-label="Increase quantity"
         disabled={disabled || atMax}
         onClick={() => onChange(Math.min(cap, value + 1))}
       >
-        {inverse && size === "sm" ? "+" : <Plus size={size === "sm" ? 14 : 16} weight="bold" />}
+        {useTextControls ? "+" : <Plus size={size === "sm" ? 14 : 16} weight="bold" />}
       </button>
     </div>
   );

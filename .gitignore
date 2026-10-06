@@ -21,6 +21,12 @@ ENV/
 .env.*
 !.env.example
 
+# Local design exports (re-fetch with tools/fetch-figma.mjs)
+design/figma/
+
+# Import workbooks and bundled import assets (generate locally)
+catalog/import/
+
 # Django / local database
 *.sqlite3
 *.sqlite3-journal

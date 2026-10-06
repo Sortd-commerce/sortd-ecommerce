@@ -13,8 +13,12 @@ import { fetchProductCatalog } from "@/lib/catalog";
 type ProductDetail = {
   title: string;
   slug: string;
+  brand: string;
   description: string;
+  shelf: string;
+  tags: string[];
   has_passed_report: boolean;
+  has_lab_report: boolean;
   category: { name: string; slug: string };
   images: Array<{ url: string; alt: string; role: string }>;
   variants: Array<{
@@ -24,6 +28,7 @@ type ProductDetail = {
     price: string;
     compare_at_price: string | null;
     unit_count: number;
+    max_order: number | null;
     on_hand: number;
     is_active: boolean;
   }>;
@@ -38,6 +43,7 @@ type ProductDetail = {
       name: string;
       amount: string;
       unit: string;
+      daily_value?: string;
       is_highlight: boolean;
       level: string;
       note: string;
@@ -59,7 +65,40 @@ type ProductDetail = {
   } | null;
 };
 
-type ProductList = { results: CardProduct[] };
+function flavorLabel(title: string) {
+  const parts = title.split(",").map((part) => part.trim()).filter(Boolean);
+  return parts.length > 1 ? parts[parts.length - 1] : title;
+}
+
+function buyHighlights(headline: string | undefined, ingredientCount: number) {
+  if (headline) {
+    const parts = headline.split(".").map((part) => part.trim()).filter(Boolean);
+    if (parts.length >= 3) {
+      return parts.slice(0, 3).map((part) => {
+        const words = part.split(/\s+/);
+        if (/^six$/i.test(words[0])) {
+          return { value: "6", label: words.slice(1).join(" ").toLowerCase() };
+        }
+        if (/^[\d.]+%?$/.test(words[0])) {
+          return { value: words[0], label: words.slice(1).join(" ").toLowerCase() };
+        }
+        if (/^coconut$/i.test(words[0])) {
+          const tail = words
+            .slice(1)
+            .join(" ")
+            .toLowerCase()
+            .replace(/nothing more/i, "nothing refined");
+          return { value: "Coconut", label: tail };
+        }
+        return { value: words[0], label: words.slice(1).join(" ").toLowerCase() };
+      });
+    }
+  }
+
+  return [
+    ingredientCount ? { value: String(ingredientCount), label: "ingredients" } : null,
+  ].filter((row): row is { value: string; label: string } => Boolean(row));
+}
 
 export default async function ProductPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
@@ -71,71 +110,68 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
   const product = result.data;
   const results = catalog.data?.results || [];
   const bySlug = new Map(results.map((row) => [row.slug, row]));
-  const linked = product.related.map((row) => bySlug.get(row.slug)).filter((row): row is CardProduct => Boolean(row));
-  const others = results.filter((row) => row.slug !== product.slug);
-  const passed = others.filter((row) => row.has_passed_report);
-  const rail = linked.length ? linked : (passed.length ? passed : others).slice(0, 8);
   const flavors = product.related
     .filter((row) => row.kind === "flavor")
     .map((row) => ({
-      title: row.title,
+      title: flavorLabel(row.title),
       slug: row.slug,
       image: bySlug.get(row.slug)?.primary_image?.url || "",
     }));
-  const facts = product.label?.facts.filter((fact) => fact.is_highlight) || [];
-  const highlights = [
-    ...facts.slice(0, 2).map((fact) => ({
-      value: `${fact.amount}${fact.unit ? ` ${fact.unit}` : ""}`,
-      label: fact.name,
-    })),
-    product.label?.ingredients.length
-      ? { value: String(product.label.ingredients.length), label: "Ingredients" }
-      : null,
-  ]
-    .filter((row): row is { value: string; label: string } => Boolean(row))
-    .slice(0, 3);
+  const rail = results
+    .filter((row) => row.slug !== product.slug && row.category.slug === product.category.slug)
+    .sort((a, b) => Number(b.has_passed_report) - Number(a.has_passed_report))
+    .slice(0, 8);
+  const highlights = buyHighlights(product.label?.headline, product.label?.ingredients.length || 0);
 
   return (
     <div className="product-page">
       <section className="home-section">
         <div className="home-inner">
-          <nav className="crumbs" aria-label="Breadcrumb">
-            <Link href="/">Home</Link>
+          <nav className="crumbs product-crumbs" aria-label="Breadcrumb">
+            <Link href="/">Shop</Link>
             <span>/</span>
-            <Link href={`/?aisle=${product.category.slug}`}>{product.category.name}</Link>
+            <Link href={`/?aisle=${product.category.slug}`}>{product.category.name.toUpperCase()}</Link>
+            {product.shelf ? (
+              <>
+                <span>/</span>
+                <span>{product.shelf.toUpperCase()}</span>
+              </>
+            ) : null}
             <span>/</span>
-            <span aria-current="page">{product.title}</span>
+            <span aria-current="page">{product.title.toUpperCase()}</span>
           </nav>
 
           <div className="product-layout">
             <ProductGallery title={product.title} images={product.images || []} />
             <BuyBox
               title={product.title}
-              category={product.category.name}
+              brand={product.brand || product.category.name}
+              flavorLabel={flavorLabel(product.title)}
               description={product.description}
               currentSlug={product.slug}
               imageUrl={product.images?.find((image) => image.url)?.url}
               variants={product.variants || []}
               flavors={flavors}
               highlights={highlights}
-              hasPassedReport={product.has_passed_report}
+              hasLabReport={product.has_lab_report || product.has_passed_report}
             />
           </div>
+
+          {product.label ? (
+            <LabelChecked
+              slug={product.slug}
+              label={product.label}
+              hasLabReport={product.has_lab_report || product.has_passed_report}
+              templateLabel={product.category.name}
+            />
+          ) : null}
         </div>
       </section>
-
-      {product.label ? (
-        <section className="home-section">
-          <div className="home-inner">
-            <LabelChecked slug={product.slug} label={product.label} hasPassedReport={product.has_passed_report} />
-          </div>
-        </section>
-      ) : null}
 
       {rail.length ? (
         <section className="home-section home-section--catalog">
           <div className="home-inner">
-            <ProductRail id="also-passed" title="More that passed" count={rail.length}>
+            <ProductRail id="also-passed" title="Also passed our checks" count={rail.length}>
               {rail.map((item) => (
                 <ProductCard key={item.id} product={item} />
               ))}
