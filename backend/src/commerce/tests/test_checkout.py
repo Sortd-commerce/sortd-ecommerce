@@ -402,3 +402,60 @@ class CheckoutTests(ApiTestCase):
         self.assertEqual(self.address.place_id, "fixture-dubai-marina")
         self.assertEqual(self.address.postal_code, "00000")
         self.assertTrue(self.address.is_default)
+
+    def test_first_order_coupon_works_once(self):
+        Discount.objects.create(
+            code="WELCOME10",
+            name="Welcome offer",
+            kind=Discount.Kind.PERCENT,
+            value=Decimal("10"),
+            scope=Discount.Scope.ALL,
+            first_order_only=True,
+            is_active=True,
+        )
+        self._add_to_cart(1)
+        first_quote = post_json(
+            self.client,
+            "/api/v1/pricing/quote",
+            {"items": [{"variant_id": self.variant.id, "quantity": 1}], "discount_code": "WELCOME10"},
+            **self.auth,
+        )
+        self.assertEqual(first_quote.status_code, 200)
+        self.assertEqual(first_quote.json()["data"]["discount_amount"], "1.69")
+
+        first_order = post_json(
+            self.client,
+            "/api/v1/orders",
+            self._order_payload(total=first_quote.json()["data"]["total"], discount_code="WELCOME10"),
+            HTTP_IDEMPOTENCY_KEY="welcome-first",
+            **self.auth,
+        )
+        self.assertEqual(first_order.status_code, 201)
+
+        self._add_to_cart(1)
+        repeat_quote = post_json(
+            self.client,
+            "/api/v1/pricing/quote",
+            {"items": [{"variant_id": self.variant.id, "quantity": 1}], "discount_code": "WELCOME10"},
+            **self.auth,
+        )
+        self.assertEqual(repeat_quote.status_code, 400)
+        self.assertEqual(repeat_quote.json()["message"], "This code is for first orders only.")
+
+    def test_first_order_coupon_requires_sign_in(self):
+        Discount.objects.create(
+            code="WELCOME10",
+            name="Welcome offer",
+            kind=Discount.Kind.PERCENT,
+            value=Decimal("10"),
+            scope=Discount.Scope.ALL,
+            first_order_only=True,
+            is_active=True,
+        )
+        response = post_json(
+            self.client,
+            "/api/v1/pricing/quote",
+            {"items": [{"variant_id": self.variant.id, "quantity": 1}], "discount_code": "WELCOME10"},
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["message"], "Sign in to use this code.")

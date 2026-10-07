@@ -1,8 +1,22 @@
+from django.http import HttpRequest
 from ninja_jwt.authentication import JWTAuth
 from ninja_jwt.exceptions import InvalidToken
 
 from accounts.models import DeviceSession
 from core.messages import ErrorMessage
+
+
+def optional_user(request: HttpRequest):
+    user = getattr(request, "user", None)
+    if user is not None and getattr(user, "is_authenticated", False):
+        return user
+    auth_header = request.headers.get("Authorization") or ""
+    if not auth_header.lower().startswith("bearer "):
+        return None
+    try:
+        return SessionJWTAuth().jwt_authenticate(request, auth_header.split(" ", 1)[1].strip())
+    except InvalidToken:
+        return None
 
 
 class SessionJWTAuth(JWTAuth):

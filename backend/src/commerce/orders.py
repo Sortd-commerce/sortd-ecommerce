@@ -26,7 +26,11 @@ from commerce.models import (
     PaymentMethod,
     PaymentStatus,
 )
-from commerce.stripe_payments import create_payment_intent, require_card_available, stripe_enabled
+from commerce.stripe_payments import (
+    require_paid_intent,
+    require_stripe_available,
+    uses_stripe_payment,
+)
 from core.exceptions import Conflict
 from core.messages import ErrorMessage
 from core.money import money, money_str
@@ -44,6 +48,7 @@ class PlaceOrderCommand:
     expected_total: Decimal
     discount_code: str | None
     payment_method: str = "cod"
+    stripe_payment_intent_id: str | None = None
 
 
 class OrderService:
@@ -88,8 +93,8 @@ class OrderService:
         payment = PaymentMethod.objects.filter(code=command.payment_method, is_active=True).first()
         if payment is None:
             raise ValidationError({"payment_method": "That payment method is not available."})
-        if payment.code == "card":
-            require_card_available()
+        if uses_stripe_payment(payment.code):
+            require_stripe_available()
 
         cart = self._cart.get_or_create(user)
         items = list(cart.items.select_related("variant", "variant__product").all())
@@ -129,12 +134,29 @@ class OrderService:
                 if money(command.expected_total) != priced_quote.total:
                     raise Conflict(ErrorMessage.TOTAL_MISMATCH)
 
+                stripe_intent_id = ""
+                if uses_stripe_payment(payment.code):
+                    intent_id = (command.stripe_payment_intent_id or "").strip()
+                    if not intent_id:
+                        raise ValidationError({"payment": "Complete payment before placing your order."})
+                    paid_intent = require_paid_intent(
+                        intent_id=intent_id,
+                        user_id=user.id,
+                        total=priced_quote.total,
+                        currency=settings.DEFAULT_CURRENCY,
+                    )
+                    stripe_intent_id = paid_intent.id
+                    payment_status = PaymentStatus.PAID
+                else:
+                    payment_status = PaymentStatus.UNPAID
+
                 order = Order.objects.create(
                     user=user,
                     number=self._next_number(),
                     status=OrderStatus.PLACED,
                     payment_method=payment.code,
-                    payment_status=PaymentStatus.UNPAID,
+                    payment_status=payment_status,
+                    stripe_payment_intent_id=stripe_intent_id,
                     currency=settings.DEFAULT_CURRENCY,
                     subtotal=priced_quote.subtotal,
                     discount_amount=priced_quote.discount_amount,
@@ -176,11 +198,6 @@ class OrderService:
             if existing and existing.request_hash == request_hash:
                 return existing
             raise Conflict("The request could not be completed because of a conflict.") from None
-
-        if payment.code == "card" and stripe_enabled():
-            intent = create_payment_intent(order)
-            order.stripe_payment_intent_id = intent.id
-            order.save(update_fields=["stripe_payment_intent_id"])
 
         self._notify_placed(user, order)
         return order

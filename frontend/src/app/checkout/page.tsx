@@ -1,6 +1,7 @@
 import { CheckoutForm } from "@/components/CheckoutForm";
 import { CheckoutGuestGate } from "@/components/CheckoutGuestGate";
 import { apiFetch } from "@/lib/api";
+import { getAccessToken } from "@/lib/auth";
 
 type Address = {
   id: number;
@@ -31,13 +32,18 @@ type PaymentMethod = {
 };
 
 export default async function CheckoutPage() {
+  const access = await getAccessToken();
+  if (!access) {
+    return <CheckoutGuestGate />;
+  }
+
   const [addresses, windows, payments] = await Promise.all([
     apiFetch<Address[]>("/addresses"),
     apiFetch<Slot[]>("/delivery/windows", { auth: false }),
     apiFetch<PaymentMethod[]>("/payments/methods", { auth: false }),
   ]);
 
-  if (addresses.status === 401) {
+  if (!addresses.ok && (addresses.status === 401 || addresses.status === 403)) {
     return <CheckoutGuestGate />;
   }
 

@@ -85,6 +85,11 @@ class PriceQuoteIn(Schema):
     discount_code: str | None = None
 
 
+class StripeIntentIn(Schema):
+    expected_total: Decimal
+    discount_code: str | None = None
+
+
 class PlaceOrderIn(Schema):
     address_id: int
     delivery_date: date
@@ -94,6 +99,7 @@ class PlaceOrderIn(Schema):
     expected_total: Decimal
     discount_code: str | None = None
     payment_method: str = "cod"
+    stripe_payment_intent_id: str | None = None
 
     @field_validator("payment_method")
     @classmethod

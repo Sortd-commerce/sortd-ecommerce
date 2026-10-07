@@ -6,11 +6,14 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { apiFetch } from "@/lib/api";
 import { apiListQuery, parseListQuery, type ListQuery } from "@/lib/list-query";
 import { ADMIN_PAGE_SIZE, pageFromParam, type Paginated } from "@/lib/pagination";
+import { paymentMethodLabel } from "@/lib/payments";
 import { requireStaff } from "@/lib/staff";
 
 type OrderRow = {
   number: string;
   status: string;
+  payment_method: string;
+  payment_status: string;
   total: string;
   delivery_date: string;
   user_email: string;
@@ -86,6 +89,7 @@ export default async function AdminOrdersPage({
               <th>Number</th>
               <th>Customer</th>
               <th>Status</th>
+              <th>Payment</th>
               <th>Delivery</th>
               <th>Total</th>
             </tr>
@@ -101,6 +105,12 @@ export default async function AdminOrdersPage({
                 <td>{order.user_email}</td>
                 <td>
                   <StatusBadge value={order.status} />
+                </td>
+                <td>
+                  <div className="space-y-1">
+                    <p className="text-sm">{paymentMethodLabel(order.payment_method)}</p>
+                    <StatusBadge value={order.payment_status} />
+                  </div>
                 </td>
                 <td>{order.delivery_date}</td>
                 <td className="tabular-nums">AED {order.total}</td>

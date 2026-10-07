@@ -163,13 +163,33 @@ export async function previewCouponsAction(
   return { ok: result.ok, data: result.data, message: result.message };
 }
 
+export async function prepareStripePaymentAction(
+  expectedTotal: string,
+  discountCode?: string,
+): Promise<{ ok: boolean; clientSecret?: string; paymentIntentId?: string; message?: string }> {
+  const result = await apiFetch<{ client_secret: string; payment_intent_id: string }>("/payments/stripe/intent", {
+    method: "POST",
+    body: {
+      expected_total: expectedTotal,
+      discount_code: discountCode?.trim() || null,
+    },
+  });
+  if (!result.ok || !result.data) {
+    return { ok: false, message: result.message };
+  }
+  return {
+    ok: true,
+    clientSecret: result.data.client_secret,
+    paymentIntentId: result.data.payment_intent_id,
+  };
+}
+
 export async function quoteCartAction(
   items: Array<{ variant_id: number; quantity: number }>,
   discountCode?: string,
 ): Promise<{ ok: boolean; data?: PriceQuote; message?: string }> {
   const result = await apiFetch<PriceQuote>("/pricing/quote", {
     method: "POST",
-    auth: false,
     body: {
       items,
       discount_code: discountCode?.trim() || null,
@@ -199,8 +219,23 @@ export async function syncCartAction(
   return { ok: result.ok, status: result.status, message: result.message, data: result.data };
 }
 
-export async function placeOrderAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
-  const rawCart = String(formData.get("cart_json") || "").trim();
+export type PlaceOrderPayload = {
+  address_id: number;
+  delivery_date: string;
+  window_id: number;
+  window_source: string;
+  note: string;
+  expected_total: string;
+  payment_method: string;
+  discount_code: string | null;
+  stripe_payment_intent_id?: string | null;
+  cart_json?: string;
+};
+
+export async function placePaidOrderAction(
+  payload: PlaceOrderPayload,
+): Promise<{ ok: boolean; orderNumber?: string; message?: string }> {
+  const rawCart = payload.cart_json?.trim() || "";
   if (rawCart) {
     try {
       const items = JSON.parse(rawCart) as Array<{ variant_id: number; quantity: number }>;
@@ -210,7 +245,31 @@ export async function placeOrderAction(_prev: ActionState, formData: FormData): 
       return { ok: false, message: "Something went wrong with your basket. Please try again." };
     }
   }
-  const payload = {
+  const key = crypto.randomUUID();
+  const result = await apiFetch<{ number: string }>(
+    "/orders",
+    {
+      method: "POST",
+      body: {
+        address_id: payload.address_id,
+        delivery_date: payload.delivery_date,
+        window_id: payload.window_id,
+        window_source: payload.window_source,
+        note: payload.note,
+        expected_total: payload.expected_total,
+        payment_method: payload.payment_method,
+        discount_code: payload.discount_code,
+        stripe_payment_intent_id: payload.stripe_payment_intent_id || null,
+      },
+      headers: { "Idempotency-Key": key },
+    },
+  );
+  if (!result.ok || !result.data) return { ok: false, message: result.message };
+  return { ok: true, orderNumber: result.data.number };
+}
+
+export async function placeOrderAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const result = await placePaidOrderAction({
     address_id: Number(formData.get("address_id")),
     delivery_date: String(formData.get("delivery_date") || ""),
     window_id: Number(formData.get("window_id")),
@@ -219,24 +278,11 @@ export async function placeOrderAction(_prev: ActionState, formData: FormData): 
     expected_total: String(formData.get("expected_total") || ""),
     payment_method: String(formData.get("payment_method") || ""),
     discount_code: String(formData.get("discount_code") || "") || null,
-  };
-  const key = crypto.randomUUID();
-  const result = await apiFetch("/orders", {
-    method: "POST",
-    body: payload,
-    headers: { "Idempotency-Key": key },
+    stripe_payment_intent_id: String(formData.get("stripe_payment_intent_id") || "") || null,
+    cart_json: String(formData.get("cart_json") || ""),
   });
-  if (!result.ok || !result.data) return { ok: false, message: result.message };
-  const order = result.data as { number: string; client_secret?: string; payment_method?: string };
-  if (order.client_secret) {
-    return {
-      ok: true,
-      message: "",
-      orderNumber: order.number,
-      clientSecret: order.client_secret,
-    };
-  }
-  redirect(`/orders/${order.number}`);
+  if (!result.ok || !result.orderNumber) return { ok: false, message: result.message || "Order could not be placed." };
+  redirect(`/orders/${result.orderNumber}`);
 }
 
 export async function saveAddressAction(_prev: ActionState, formData: FormData): Promise<ActionState> {

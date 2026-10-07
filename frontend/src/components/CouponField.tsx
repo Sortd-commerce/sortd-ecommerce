@@ -103,6 +103,8 @@ export function CouponField() {
             ? ` Try ${bestCode}.`
             : null}
         </p>
+      ) : typed ? (
+        <p className="coupon-hint">Press Apply to check the code.</p>
       ) : (
         <button type="button" className="coupon-offers-toggle" onClick={() => setShowOffers((open) => !open)}>
           {showOffers ? "Hide available offers" : "See available offers →"}

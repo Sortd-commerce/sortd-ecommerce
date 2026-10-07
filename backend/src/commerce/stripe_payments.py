@@ -11,6 +11,8 @@ from commerce.models import Order, PaymentStatus
 
 logger = logging.getLogger(__name__)
 
+STRIPE_CHECKOUT_METHODS = frozenset({"card", "apple_pay"})
+
 
 class StripeNotConfigured(Exception):
     pass
@@ -37,6 +39,16 @@ def _amount_minor(total: Decimal, currency: str) -> int:
     if code in {"JPY", "KRW"}:
         return int(total)
     return int(total * 100)
+
+
+def create_checkout_intent(*, total: Decimal, currency: str, user_id: int) -> stripe.PaymentIntent:
+    client = _client()
+    return client.PaymentIntent.create(
+        amount=_amount_minor(total, currency),
+        currency=currency.lower(),
+        metadata={"user_id": str(user_id)},
+        automatic_payment_methods={"enabled": True},
+    )
 
 
 def create_payment_intent(order: Order) -> stripe.PaymentIntent:
@@ -77,6 +89,24 @@ def sync_order_from_intent(order: Order, intent: stripe.PaymentIntent) -> Order:
     return order
 
 
-def require_card_available() -> None:
+def uses_stripe_payment(code: str) -> bool:
+    return code in STRIPE_CHECKOUT_METHODS
+
+
+def require_stripe_available() -> None:
     if not stripe_enabled():
-        raise ValidationError({"payment_method": "Card payments are not available right now."})
+        raise ValidationError({"payment_method": "Online payments are not available right now."})
+
+
+def require_paid_intent(*, intent_id: str, user_id: int, total: Decimal, currency: str) -> stripe.PaymentIntent:
+    intent = retrieve_payment_intent(intent_id)
+    metadata = intent.metadata or {}
+    if str(metadata.get("user_id")) != str(user_id):
+        raise ValidationError({"payment": "Invalid payment session."})
+    if intent.status != "succeeded":
+        raise ValidationError({"payment": "Payment has not completed yet."})
+    if _amount_minor(total, currency) != intent.amount:
+        raise ValidationError({"payment": "Payment amount does not match order total."})
+    if Order.objects.filter(stripe_payment_intent_id=intent_id).exists():
+        raise ValidationError({"payment": "This payment was already used for an order."})
+    return intent

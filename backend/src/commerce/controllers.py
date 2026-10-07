@@ -2,7 +2,7 @@ from ninja import Query
 from ninja_extra import ControllerBase, api_controller, route, status
 from ninja_extra.exceptions import NotFound, ValidationError
 from ninja_extra.permissions import AllowAny, IsAuthenticated
-from accounts.auth import SessionJWTAuth
+from accounts.auth import SessionJWTAuth, optional_user
 
 from commerce.cart import CartLineCommand
 from commerce.factory import build_cart_service, build_delivery_service, build_order_service
@@ -10,11 +10,14 @@ from commerce.models import Address, PaymentMethod, normalize_postal_code
 from commerce.orders import PlaceOrderCommand, request_hash_for, serialize_order
 from commerce.stripe_payments import (
     StripeNotConfigured,
+    create_checkout_intent,
     mark_order_paid,
+    require_stripe_available,
     retrieve_payment_intent,
     stripe_enabled,
     stripe_publishable_key,
     sync_order_from_intent,
+    uses_stripe_payment,
     verify_webhook,
 )
 from commerce.pricing import preview_coupons, quote_variants, serialize_offer_rules
@@ -27,7 +30,9 @@ from commerce.schemas import (
     DeliveryCheckIn,
     PlaceOrderIn,
     PriceQuoteIn,
+    StripeIntentIn,
 )
+from core.exceptions import Conflict
 from core.messages import ErrorMessage
 from core.money import money
 from core.pagination import PageQuery, paginate_queryset
@@ -103,8 +108,7 @@ class PricingController(ControllerBase):
 
     @route.post("/quote", response={200: SuccessResponse, **_ERROR_RESPONSES}, summary="Quote a basket")
     def quote(self, payload: PriceQuoteIn):
-        user = getattr(self.context.request, "user", None)
-        user = user if getattr(user, "is_authenticated", False) else None
+        user = optional_user(self.context.request)
         quoted = quote_variants(
             [(item.variant_id, item.quantity) for item in payload.items],
             code=payload.discount_code,
@@ -116,8 +120,7 @@ class PricingController(ControllerBase):
     def coupon_preview(self, payload: PriceQuoteIn):
         from catalog.models import ProductVariant
 
-        user = getattr(self.context.request, "user", None)
-        user = user if getattr(user, "is_authenticated", False) else None
+        user = optional_user(self.context.request)
         wanted = {item.variant_id: item.quantity for item in payload.items if item.quantity > 0}
         variants = ProductVariant.objects.select_related("product").filter(pk__in=wanted)
         lines = []
@@ -135,7 +138,7 @@ class PaymentController(ControllerBase):
         rows = []
         for method in PaymentMethod.objects.order_by("-is_active", "name"):
             is_active = method.is_active
-            if method.code == "card" and not stripe_enabled():
+            if uses_stripe_payment(method.code) and not stripe_enabled():
                 is_active = False
             rows.append({"code": method.code, "name": method.name, "is_active": is_active})
         return success("Payment methods retrieved.", rows)
@@ -146,6 +149,55 @@ class PaymentController(ControllerBase):
         if not key:
             raise NotFound(ErrorMessage.NOT_FOUND)
         return success("Stripe config retrieved.", {"publishable_key": key})
+
+    @route.post(
+        "/stripe/intent",
+        auth=SessionJWTAuth(),
+        permissions=[IsAuthenticated],
+        response={200: SuccessResponse, **_ERROR_RESPONSES},
+        summary="Prepare Stripe payment before checkout",
+    )
+    def stripe_intent(self, payload: StripeIntentIn):
+        from django.conf import settings
+
+        from catalog.models import ProductStatus, ProductVariant
+
+        from commerce.pricing import quote_lines
+
+        require_stripe_available()
+        user = self.context.request.user
+        cart = build_cart_service().get_or_create(user)
+        items = list(cart.items.select_related("variant", "variant__product").all())
+        if not items:
+            raise ValidationError({"cart": "Your cart is empty."})
+        quantities: dict[int, int] = {}
+        for item in items:
+            quantities[item.variant_id] = quantities.get(item.variant_id, 0) + item.quantity
+        variants = list(ProductVariant.objects.select_related("product").filter(pk__in=quantities))
+        if len(variants) != len(quantities):
+            raise ValidationError({"stock": ErrorMessage.OUT_OF_STOCK})
+        priced = []
+        for variant in variants:
+            qty = quantities[variant.id]
+            if (
+                not variant.is_active
+                or variant.product.status != ProductStatus.ACTIVE
+                or variant.on_hand < qty
+            ):
+                raise ValidationError({"stock": ErrorMessage.OUT_OF_STOCK})
+            priced.append((variant, qty, money(variant.price) * qty))
+        quoted = quote_lines(priced, code=payload.discount_code, user=user)
+        if money(payload.expected_total) != quoted.total:
+            raise Conflict(ErrorMessage.TOTAL_MISMATCH)
+        intent = create_checkout_intent(
+            total=quoted.total,
+            currency=settings.DEFAULT_CURRENCY,
+            user_id=user.id,
+        )
+        return success(
+            "Payment session ready.",
+            {"client_secret": intent.client_secret, "payment_intent_id": intent.id},
+        )
 
     @route.post("/stripe/webhook", auth=None, permissions=[AllowAny], summary="Stripe webhook")
     def stripe_webhook(self):
@@ -161,11 +213,15 @@ class PaymentController(ControllerBase):
 
         if event.type == "payment_intent.succeeded":
             intent = event.data.object
-            order_number = (intent.metadata or {}).get("order_number")
+            metadata = intent.metadata or {}
+            order_number = metadata.get("order_number")
+            order = None
             if order_number:
                 order = Order.objects.filter(number=order_number).first()
-                if order is not None:
-                    mark_order_paid(order, payment_intent_id=intent.id)
+            if order is None:
+                order = Order.objects.filter(stripe_payment_intent_id=intent.id).first()
+            if order is not None:
+                mark_order_paid(order, payment_intent_id=intent.id)
         return success("Webhook received.", {"received": True})
 
 
@@ -257,15 +313,12 @@ class OrderController(ControllerBase):
                 expected_total=payload.expected_total,
                 discount_code=payload.discount_code,
                 payment_method=payload.payment_method,
+                stripe_payment_intent_id=payload.stripe_payment_intent_id,
             ),
             idempotency_key=key,
             request_hash=request_hash_for(body),
         )
-        client_secret = None
-        if order.payment_method == "card" and order.stripe_payment_intent_id:
-            intent = retrieve_payment_intent(order.stripe_payment_intent_id)
-            client_secret = intent.client_secret
-        return status.HTTP_201_CREATED, success("Order placed.", serialize_order(order, client_secret=client_secret))
+        return status.HTTP_201_CREATED, success("Order placed.", serialize_order(order))
 
     @route.get("/{number}", response={200: SuccessResponse, **_ERROR_RESPONSES}, summary="Get an order")
     def retrieve(self, number: str):
@@ -281,8 +334,8 @@ class OrderController(ControllerBase):
         from commerce.models import Order, PaymentStatus
 
         order = build_order_service().get_for(self.context.request.user, number=number)
-        if order.payment_method != "card" or not order.stripe_payment_intent_id:
-            raise ValidationError({"payment": "This order does not require card payment."})
+        if not uses_stripe_payment(order.payment_method) or not order.stripe_payment_intent_id:
+            raise ValidationError({"payment": "This order does not require online payment."})
         if order.payment_status == PaymentStatus.PAID:
             return success("Payment already confirmed.", serialize_order(order))
         intent = retrieve_payment_intent(order.stripe_payment_intent_id)

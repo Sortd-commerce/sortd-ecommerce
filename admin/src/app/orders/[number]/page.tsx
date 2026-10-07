@@ -5,11 +5,14 @@ import { ActionForm, SubmitButton } from "@/components/ActionForm";
 import { PageHeader } from "@/components/PageHeader";
 import { StatusBadge } from "@/components/StatusBadge";
 import { apiFetch } from "@/lib/api";
+import { paymentMethodLabel, paymentStatusLabel } from "@/lib/payments";
 import { requireStaff } from "@/lib/staff";
 
 type Order = {
   number: string;
   status: string;
+  payment_method: string;
+  payment_status: string;
   total: string;
   user_email: string;
   note: string;
@@ -57,6 +60,14 @@ export default async function AdminOrderDetailPage({ params }: { params: Promise
 
       <div className="grid gap-4 lg:grid-cols-2">
         <section className="panel p-5">
+          <h2 className="font-semibold">Payment</h2>
+          <p className="mt-3 text-sm">{paymentMethodLabel(order.payment_method)}</p>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <StatusBadge value={order.payment_status} />
+            <span className="text-sm text-muted">{paymentStatusLabel(order.payment_status)}</span>
+          </div>
+        </section>
+        <section className="panel p-5">
           <h2 className="font-semibold">Delivery</h2>
           <p className="mt-3 text-sm text-muted">
             {order.delivery_date} · {order.delivery_start.slice(0, 5)}–{order.delivery_end.slice(0, 5)}
@@ -64,7 +75,7 @@ export default async function AdminOrderDetailPage({ params }: { params: Promise
           <p className="mt-2 text-sm">{order.address.formatted_address || `${order.address.line1}, ${order.address.city}`}</p>
           {order.note ? <p className="mt-3 text-sm text-warn">Note: {order.note}</p> : null}
         </section>
-        <section className="panel divide-y divide-line">
+        <section className="panel divide-y divide-line lg:col-span-2">
           {order.lines.map((line) => (
             <div key={`${line.sku}-${line.quantity}`} className="flex justify-between px-5 py-4 text-sm">
               <div>

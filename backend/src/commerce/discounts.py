@@ -9,7 +9,7 @@ from core.money import ZERO, money, money_str
 
 
 def discount_error() -> None:
-    raise ValidationError({"code": "That discount code is not valid."})
+    raise ValidationError({"discount_code": "That discount code is not valid."})
 
 
 def select_discount(*, code: str | None, now=None) -> Discount | None:
@@ -33,17 +33,21 @@ def require_coupon_eligible(*, discount: Discount, subtotal: Decimal, user=None)
     minimum = money(discount.minimum_order) if discount.minimum_order else ZERO
     if minimum > ZERO and subtotal < minimum:
         gap = money(minimum - subtotal)
-        raise ValidationError({"code": f"Add AED {money_str(gap)} more to use this code."})
-    if discount.first_order_only and user is not None:
+        raise ValidationError({"discount_code": f"Add AED {money_str(gap)} more to use this code."})
+    if discount.first_order_only:
+        if user is None:
+            raise ValidationError({"discount_code": "Sign in to use this code."})
         if Order.objects.filter(user=user).exclude(status=OrderStatus.CANCELLED).exists():
-            raise ValidationError({"code": "This code is for first orders only."})
+            raise ValidationError({"discount_code": "This code is for first orders only."})
 
 
 def coupon_eligible(*, discount: Discount, subtotal: Decimal, user=None) -> tuple[bool, Decimal]:
     minimum = money(discount.minimum_order) if discount.minimum_order else ZERO
     if minimum > ZERO and subtotal < minimum:
         return False, money(minimum - subtotal)
-    if discount.first_order_only and user is not None:
+    if discount.first_order_only:
+        if user is None:
+            return False, ZERO
         if Order.objects.filter(user=user).exclude(status=OrderStatus.CANCELLED).exists():
             return False, ZERO
     return True, ZERO

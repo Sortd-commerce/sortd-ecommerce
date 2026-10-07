@@ -1,15 +1,21 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { Elements, PaymentElement, useElements, useStripe } from "@stripe/react-stripe-js";
 import { loadStripe, type Stripe } from "@stripe/stripe-js";
 import { useToast } from "@/components/Toast";
 
-function PayForm({ orderNumber, onCancel }: { orderNumber: string; onCancel: () => void }) {
+function PayForm({
+  preferWallet,
+  onSuccess,
+  onCancel,
+}: {
+  preferWallet: "apple_pay" | "card";
+  onSuccess: (paymentIntentId: string) => void;
+  onCancel: () => void;
+}) {
   const stripe = useStripe();
   const elements = useElements();
-  const router = useRouter();
   const toast = useToast();
   const [pending, setPending] = useState(false);
 
@@ -26,24 +32,26 @@ function PayForm({ orderNumber, onCancel }: { orderNumber: string; onCancel: () 
       setPending(false);
       return;
     }
-    const confirmed = await fetch(`/api/orders/${orderNumber}/confirm-payment`, { method: "POST" }).then((response) =>
-      response.json(),
-    );
-    if (!confirmed.ok) {
-      toast.error(confirmed.message || "Payment is processing. Check your order in a moment.");
-    } else {
-      toast.success("Payment received.");
+    const paymentIntentId = result.paymentIntent?.id;
+    if (!paymentIntentId) {
+      toast.error("Payment is processing. Please try again.");
+      setPending(false);
+      return;
     }
-    router.push(`/orders/${orderNumber}`);
+    onSuccess(paymentIntentId);
   }
 
   return (
     <form onSubmit={onPay} className="stripe-pay-form">
-      <p className="fine-print">Enter your card details to complete payment.</p>
-      <PaymentElement />
+      <p className="fine-print">
+        {preferWallet === "apple_pay"
+          ? "Use Apple Pay, or enter card details below."
+          : "Enter your card details to complete payment."}
+      </p>
+      <PaymentElement options={{ wallets: { applePay: "auto", googlePay: "auto" } }} />
       <div className="stripe-pay-actions">
         <button type="button" className="btn btn-secondary" onClick={onCancel} disabled={pending}>
-          Back
+          Cancel
         </button>
         <button type="submit" className="btn btn-primary" disabled={!stripe || pending}>
           {pending ? "Processing…" : "Pay now"}
@@ -55,11 +63,13 @@ function PayForm({ orderNumber, onCancel }: { orderNumber: string; onCancel: () 
 
 export function StripePaymentForm({
   clientSecret,
-  orderNumber,
+  preferWallet = "card",
+  onSuccess,
   onCancel,
 }: {
   clientSecret: string;
-  orderNumber: string;
+  preferWallet?: "apple_pay" | "card";
+  onSuccess: (paymentIntentId: string) => void;
   onCancel: () => void;
 }) {
   const [stripePromise, setStripePromise] = useState<Promise<Stripe | null> | null>(null);
@@ -81,7 +91,7 @@ export function StripePaymentForm({
 
   return (
     <Elements stripe={stripePromise} options={{ clientSecret }}>
-      <PayForm orderNumber={orderNumber} onCancel={onCancel} />
+      <PayForm preferWallet={preferWallet} onSuccess={onSuccess} onCancel={onCancel} />
     </Elements>
   );
 }

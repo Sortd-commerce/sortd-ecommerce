@@ -3,14 +3,20 @@
 import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import type { ActionState } from "@/lib/action-state";
-import { placeOrderAction, setPrimaryAddressAction } from "@/lib/actions";
+import { CheckoutPaymentModal } from "@/components/CheckoutPaymentModal";
+import {
+  placeOrderAction,
+  placePaidOrderAction,
+  prepareStripePaymentAction,
+  quoteCartAction,
+  setPrimaryAddressAction,
+} from "@/lib/actions";
 import { emptyActionState, SubmitButton } from "@/components/ActionForm";
 import { AddressPicker } from "@/components/AddressPicker";
 import { useToast } from "@/components/Toast";
 import { DeliverySlotPicker } from "@/components/DeliverySlotPicker";
 import { OpenBasketLink } from "@/components/OpenBasketLink";
 import { OrderSummary } from "@/components/OrderSummary";
-import { StripePaymentForm } from "@/components/StripePaymentForm";
 import { OptimizedImage } from "@/components/OptimizedImage";
 import { usePricing } from "@/components/PricingProvider";
 import { useCart } from "@/components/CartProvider";
@@ -52,15 +58,37 @@ function lineTotal(unitPrice: string, quantity: number) {
   return (Number(unitPrice) * quantity).toFixed(2);
 }
 
+const CHECKOUT_PAYMENT_ORDER = ["apple_pay", "card", "cod"] as const;
+
 const PAYMENT_NAME: Record<string, string> = {
+  apple_pay: "Apple Pay",
   cod: "Cash on delivery",
   card: "Credit or debit card",
 };
 
 const PAYMENT_DETAIL: Record<string, string> = {
+  apple_pay: "Pay with Face ID",
   cod: "Pay the rider at your door",
   card: "Visa, Mastercard, Amex",
 };
+
+function checkoutPaymentMethods(methods: CheckoutPaymentMethod[]) {
+  const allowed = new Set<string>(CHECKOUT_PAYMENT_ORDER);
+  const rows = methods.filter((row) => allowed.has(row.code));
+  return CHECKOUT_PAYMENT_ORDER.map((code) => rows.find((row) => row.code === code)).filter(
+    (row): row is CheckoutPaymentMethod => Boolean(row),
+  );
+}
+
+function usesStripePayment(code: string) {
+  return code === "apple_pay" || code === "card";
+}
+
+function defaultPaymentMethod(methods: CheckoutPaymentMethod[]) {
+  const checkout = checkoutPaymentMethods(methods);
+  const active = checkout.filter((row) => row.is_active);
+  return active.find((row) => row.code === "apple_pay")?.code || active[0]?.code || "";
+}
 
 function firstAvailableSlot(slots: CheckoutSlot[]) {
   return slots.find((row) => row.status === "available" && row.remaining > 0) || null;
@@ -128,17 +156,24 @@ export function CheckoutForm({
   const { quote, discountCode, refreshQuote } = usePricing();
   const [settingPrimary, startPrimary] = useTransition();
   const defaultAddress = addresses.find((row) => row.is_default) || addresses[0];
-  const checkoutPayments = paymentMethods.filter((row) => row.code === "cod" || row.code === "card");
-  const activePayments = checkoutPayments.filter((row) => row.is_active);
+  const checkoutPayments = useMemo(() => checkoutPaymentMethods(paymentMethods), [paymentMethods]);
+  const activePayments = useMemo(() => checkoutPayments.filter((row) => row.is_active), [checkoutPayments]);
   const [addressId, setAddressId] = useState<number | "">(defaultAddress?.id || "");
   const [slotId, setSlotId] = useState(() => {
     const first = firstAvailableSlot(slots);
     return first ? slotKey(first) : "";
   });
-  const [paymentMethod, setPaymentMethod] = useState(activePayments[0]?.code || "");
+  const [paymentMethod, setPaymentMethod] = useState(() => defaultPaymentMethod(paymentMethods));
   const [panel, setPanel] = useState<"pick" | "add" | "edit">(addresses.length ? "pick" : "add");
   const [addressOpen, setAddressOpen] = useState(false);
-  const [cardPayment, setCardPayment] = useState<{ clientSecret: string; orderNumber: string } | null>(null);
+  const [payModal, setPayModal] = useState<{
+    clientSecret: string;
+    preferWallet: "apple_pay" | "card";
+    total: string;
+  } | null>(null);
+  const [payPending, setPayPending] = useState(false);
+  const [placingOrder, setPlacingOrder] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
 
   useEffect(() => {
     itemsRef.current = items;
@@ -164,10 +199,13 @@ export function CheckoutForm({
   }, emptyActionState);
 
   useEffect(() => {
-    if (state.ok && state.clientSecret && state.orderNumber) {
-      setCardPayment({ clientSecret: state.clientSecret, orderNumber: state.orderNumber });
-      return;
+    if (!activePayments.some((row) => row.code === paymentMethod)) {
+      const next = activePayments.find((row) => row.code === "apple_pay")?.code || activePayments[0]?.code || "";
+      if (next) setPaymentMethod(next);
     }
+  }, [activePayments, paymentMethod]);
+
+  useEffect(() => {
     if (!state.message || state.ok) return;
     toast.error(state.message);
   }, [state, toast]);
@@ -182,7 +220,70 @@ export function CheckoutForm({
     }
   }, [addresses, addressId, defaultAddress]);
 
-  const canPlace = Boolean(selectedAddress && activeSlot && paymentMethod && items.length && !cardPayment);
+  const paysOnline = usesStripePayment(paymentMethod);
+  const canPlace = Boolean(
+    selectedAddress && activeSlot && paymentMethod && items.length && !payModal && !payPending && !placingOrder,
+  );
+
+  async function latestTotal() {
+    await flush();
+    const quoted = await quoteCartAction(
+      itemsRef.current.map((item) => ({ variant_id: item.variant_id, quantity: item.quantity })),
+      discountCode.trim(),
+    );
+    if (quoted.ok && quoted.data) {
+      await refreshQuote();
+      return quoted.data.total;
+    }
+    return quote.total;
+  }
+
+  async function openPaymentModal() {
+    if (!canPlace) return;
+    setPayPending(true);
+    const expectedTotal = await latestTotal();
+    const result = await prepareStripePaymentAction(expectedTotal, discountCode);
+    setPayPending(false);
+    if (!result.ok || !result.clientSecret) {
+      toast.error(result.message || "Payment could not be started.");
+      return;
+    }
+    setPayModal({
+      clientSecret: result.clientSecret,
+      preferWallet: paymentMethod === "apple_pay" ? "apple_pay" : "card",
+      total: expectedTotal,
+    });
+  }
+
+  async function onPaymentSuccess(paymentIntentId: string) {
+    if (!selectedAddress || !activeSlot) return;
+    setPayModal(null);
+    setPlacingOrder(true);
+    try {
+      const expectedTotal = await latestTotal();
+      const note = formRef.current ? String(new FormData(formRef.current).get("note") || "") : "";
+      const result = await placePaidOrderAction({
+        address_id: selectedAddress.id,
+        delivery_date: activeSlot.date,
+        window_id: activeSlot.window_id,
+        window_source: activeSlot.source,
+        note,
+        expected_total: expectedTotal,
+        payment_method: paymentMethod,
+        discount_code: discountCode.trim() || null,
+        stripe_payment_intent_id: paymentIntentId,
+        cart_json: JSON.stringify(toSyncPayload(itemsRef.current)),
+      });
+      if (!result.ok || !result.orderNumber) {
+        toast.error(result.message || "Order could not be placed after payment.");
+        return;
+      }
+      toast.success("Payment received.");
+      router.push(`/orders/${result.orderNumber}`);
+    } finally {
+      setPlacingOrder(false);
+    }
+  }
 
   function onAddressSaved() {
     setPanel("pick");
@@ -336,35 +437,23 @@ export function CheckoutForm({
         <section className="checkout-block" id="pay">
           <p className="step-index">03</p>
           <h2>Pay with</h2>
-          {cardPayment ? (
-            <StripePaymentForm
-              clientSecret={cardPayment.clientSecret}
-              orderNumber={cardPayment.orderNumber}
-              onCancel={() => {
-                const number = cardPayment.orderNumber;
-                setCardPayment(null);
-                router.push(`/orders/${number}`);
-              }}
-            />
-          ) : (
-            <div className="choice-stack" role="radiogroup" aria-label="Payment methods">
-              {checkoutPayments.map((method) => (
-                <ChoiceCard
-                  key={method.code}
-                  name="saved_payment"
-                  value={method.code}
-                  checked={paymentMethod === method.code}
-                  disabled={!method.is_active}
-                  title={PAYMENT_NAME[method.code] || method.name}
-                  detail={method.is_active ? PAYMENT_DETAIL[method.code] || undefined : "Unavailable"}
-                  onChange={() => {
-                    if (method.is_active) setPaymentMethod(method.code);
-                  }}
-                />
-              ))}
-              {!checkoutPayments.length ? <p className="fine-print">No payment methods are available.</p> : null}
-            </div>
-          )}
+          <div className="choice-stack" role="radiogroup" aria-label="Payment methods">
+            {checkoutPayments.map((method) => (
+              <ChoiceCard
+                key={method.code}
+                name="saved_payment"
+                value={method.code}
+                checked={paymentMethod === method.code}
+                disabled={!method.is_active}
+                title={PAYMENT_NAME[method.code] || method.name}
+                detail={method.is_active ? PAYMENT_DETAIL[method.code] || undefined : "Unavailable"}
+                onChange={() => {
+                  if (method.is_active) setPaymentMethod(method.code);
+                }}
+              />
+            ))}
+            {!checkoutPayments.length ? <p className="fine-print">No payment methods are available.</p> : null}
+          </div>
         </section>
 
         <section className="checkout-block">
@@ -377,7 +466,7 @@ export function CheckoutForm({
         </section>
       </div>
 
-      <form id="place-order" action={formAction} className="order-card">
+      <form id="place-order" ref={formRef} action={formAction} className="order-card">
         <input type="hidden" name="address_id" value={selectedAddress?.id || ""} />
         <input type="hidden" name="delivery_date" value={activeSlot?.date || ""} />
         <input type="hidden" name="window_id" value={activeSlot?.window_id || ""} />
@@ -417,13 +506,34 @@ export function CheckoutForm({
           {!items.length ? <li className="order-empty">Your basket is empty.</li> : null}
         </ul>
         <OrderSummary showPromo className="checkout-summary" />
-        <SubmitButton className="btn btn-primary checkout-submit" pendingLabel="Placing order…" disabled={!canPlace}>
-          <span>Place order</span>
-          <span>AED {quote.total} →</span>
-        </SubmitButton>
+        {paysOnline ? (
+          <button
+            type="button"
+            className="btn btn-primary checkout-submit"
+            disabled={!canPlace}
+            onClick={() => void openPaymentModal()}
+          >
+            <span>{placingOrder ? "Placing order…" : payPending ? "Preparing payment…" : "Pay now"}</span>
+            <span>AED {quote.total} →</span>
+          </button>
+        ) : (
+          <SubmitButton className="btn btn-primary checkout-submit" pendingLabel="Placing order…" disabled={!canPlace}>
+            <span>Place order</span>
+            <span>AED {quote.total} →</span>
+          </SubmitButton>
+        )}
         <p className="fine-print checkout-footnote">Every item in this order passed all four gates. Lab reports are on each product page.</p>
       </form>
     </div>
+      {payModal ? (
+        <CheckoutPaymentModal
+          clientSecret={payModal.clientSecret}
+          preferWallet={payModal.preferWallet}
+          total={payModal.total}
+          onSuccess={(paymentIntentId) => void onPaymentSuccess(paymentIntentId)}
+          onClose={() => setPayModal(null)}
+        />
+      ) : null}
     </>
   );
 }

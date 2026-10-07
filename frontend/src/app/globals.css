@@ -347,6 +347,49 @@ button {
   justify-content: flex-end;
 }
 
+.checkout-pay-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+}
+
+.checkout-pay-scrim {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: rgb(14 26 20 / 0.52);
+  backdrop-filter: blur(3px);
+  cursor: pointer;
+}
+
+.checkout-pay-modal {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: min(calc(100% - 2rem), 32rem);
+  max-height: calc(100dvh - 2rem);
+  overflow-y: auto;
+  transform: translate(-50%, -50%);
+  border-radius: 1.25rem;
+  background: white;
+  padding: 1.75rem 1.5rem 1.5rem;
+  box-shadow: 0 24px 48px rgb(14 26 20 / 0.18);
+}
+
+.checkout-pay-close {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  border: 0;
+  background: transparent;
+  color: var(--text-faint);
+  cursor: pointer;
+}
+
+.checkout-pay-total {
+  margin-bottom: 0.5rem;
+}
+
 .search-form-icon,
 .header-glyph,
 .cart-pill-icon {
@@ -4282,6 +4325,12 @@ button {
   font-weight: 700;
   padding: 0;
   cursor: pointer;
+}
+
+.coupon-hint {
+  margin-top: 0.55rem;
+  color: var(--text-faint);
+  font-size: 0.8125rem;
 }
 
 .coupon-error {
