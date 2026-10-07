@@ -8,7 +8,7 @@ import {
   placeOrderAction,
   placePaidOrderAction,
   prepareStripePaymentAction,
-  quoteCartAction,
+  validateCheckoutAction,
   setPrimaryAddressAction,
 } from "@/lib/actions";
 import { emptyActionState, SubmitButton } from "@/components/ActionForm";
@@ -153,7 +153,7 @@ export function CheckoutForm({
   const toast = useToast();
   const { items, count, flush, ready: cartReady } = useCart();
   const itemsRef = useRef(items);
-  const { quote, discountCode, refreshQuote } = usePricing();
+  const { quote, discountCode, syncQuote } = usePricing();
   const [settingPrimary, startPrimary] = useTransition();
   const defaultAddress = addresses.find((row) => row.is_default) || addresses[0];
   const checkoutPayments = useMemo(() => checkoutPaymentMethods(paymentMethods), [paymentMethods]);
@@ -191,21 +191,49 @@ export function CheckoutForm({
   );
   const activeSlot = selectedSlot?.status === "available" ? selectedSlot : firstAvailableSlot(slots);
 
-  const [state, formAction] = useActionState(async (prev: ActionState, formData: FormData) => {
+  async function prepareCheckout(
+    payload: {
+      address_id: number;
+      delivery_date: string;
+      window_id: number;
+      window_source: string;
+      payment_method: string;
+      discount_code: string;
+    },
+  ) {
     const synced = await flush();
     if (!synced.ok) {
-      return { ok: false, message: synced.message || "Your basket needs updating before checkout." };
+      return { ok: false as const, message: synced.message || "Your basket needs updating before checkout." };
     }
-    const quoted = await quoteCartAction(
-      itemsRef.current.map((item) => ({ variant_id: item.variant_id, quantity: item.quantity })),
-      discountCode.trim(),
-    );
-    if (!quoted.ok || !quoted.data) {
-      return { ok: false, message: quoted.message || "Your basket could not be priced." };
+    const validated = await validateCheckoutAction({
+      address_id: payload.address_id,
+      delivery_date: payload.delivery_date,
+      window_id: payload.window_id,
+      window_source: payload.window_source,
+      payment_method: payload.payment_method,
+      discount_code: payload.discount_code || null,
+    });
+    if (!validated.ok || !validated.data) {
+      return { ok: false as const, message: validated.message || "Checkout could not be completed." };
     }
-    await refreshQuote();
+    syncQuote(validated.data);
+    return { ok: true as const, total: validated.data.total };
+  }
+
+  const [state, formAction] = useActionState(async (prev: ActionState, formData: FormData) => {
+    const prepared = await prepareCheckout({
+      address_id: Number(formData.get("address_id")),
+      delivery_date: String(formData.get("delivery_date") || ""),
+      window_id: Number(formData.get("window_id")),
+      window_source: String(formData.get("window_source") || "weekly"),
+      payment_method: String(formData.get("payment_method") || ""),
+      discount_code: String(formData.get("discount_code") || discountCode.trim()),
+    });
+    if (!prepared.ok) {
+      return { ok: false, message: prepared.message };
+    }
     formData.set("cart_json", JSON.stringify(toSyncPayload(itemsRef.current)));
-    formData.set("expected_total", quoted.data.total);
+    formData.set("expected_total", prepared.total);
     formData.set("discount_code", discountCode.trim());
     return placeOrderAction(prev, formData);
   }, emptyActionState);
@@ -249,34 +277,23 @@ export function CheckoutForm({
     selectedAddress && activeSlot && paymentMethod && items.length && !payModal && !payPending && !placingOrder,
   );
 
-  async function latestTotal() {
-    const quoted = await quoteCartAction(
-      itemsRef.current.map((item) => ({ variant_id: item.variant_id, quantity: item.quantity })),
-      discountCode.trim(),
-    );
-    if (quoted.ok && quoted.data) {
-      await refreshQuote();
-      return quoted.data.total;
-    }
-    return null;
-  }
-
   async function openPaymentModal() {
-    if (!canPlace) return;
+    if (!canPlace || !selectedAddress || !activeSlot) return;
     setPayPending(true);
-    const synced = await flush();
-    if (!synced.ok) {
+    const prepared = await prepareCheckout({
+      address_id: selectedAddress.id,
+      delivery_date: activeSlot.date,
+      window_id: activeSlot.window_id,
+      window_source: activeSlot.source,
+      payment_method: paymentMethod,
+      discount_code: discountCode.trim(),
+    });
+    if (!prepared.ok) {
       setPayPending(false);
-      toast.error(synced.message || "Your basket needs updating before checkout.");
+      toast.error(prepared.message);
       return;
     }
-    const expectedTotal = await latestTotal();
-    if (!expectedTotal) {
-      setPayPending(false);
-      toast.error("One or more items in your basket are no longer available.");
-      return;
-    }
-    const result = await prepareStripePaymentAction(expectedTotal, discountCode);
+    const result = await prepareStripePaymentAction(prepared.total, discountCode);
     setPayPending(false);
     if (!result.ok || !result.clientSecret) {
       toast.error(result.message || "Payment could not be started.");
@@ -285,7 +302,7 @@ export function CheckoutForm({
     setPayModal({
       clientSecret: result.clientSecret,
       preferWallet: paymentMethod === "apple_pay" ? "apple_pay" : "card",
-      total: expectedTotal,
+      total: prepared.total,
     });
   }
 
@@ -294,14 +311,16 @@ export function CheckoutForm({
     setPayModal(null);
     setPlacingOrder(true);
     try {
-      const synced = await flush();
-      if (!synced.ok) {
-        toast.error(synced.message || "Your basket needs updating before checkout.");
-        return;
-      }
-      const expectedTotal = await latestTotal();
-      if (!expectedTotal) {
-        toast.error("One or more items in your basket are no longer available.");
+      const prepared = await prepareCheckout({
+        address_id: selectedAddress.id,
+        delivery_date: activeSlot.date,
+        window_id: activeSlot.window_id,
+        window_source: activeSlot.source,
+        payment_method: paymentMethod,
+        discount_code: discountCode.trim(),
+      });
+      if (!prepared.ok) {
+        toast.error(prepared.message);
         return;
       }
       const note = formRef.current ? String(new FormData(formRef.current).get("note") || "") : "";
@@ -311,7 +330,7 @@ export function CheckoutForm({
         window_id: activeSlot.window_id,
         window_source: activeSlot.source,
         note,
-        expected_total: expectedTotal,
+        expected_total: prepared.total,
         payment_method: paymentMethod,
         discount_code: discountCode.trim() || null,
         stripe_payment_intent_id: paymentIntentId,

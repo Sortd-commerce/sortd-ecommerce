@@ -90,6 +90,31 @@ class StripeIntentIn(Schema):
     discount_code: str | None = None
 
 
+class CheckoutValidateIn(Schema):
+    address_id: int
+    delivery_date: date
+    window_id: int
+    window_source: str = "weekly"
+    expected_total: Decimal | None = None
+    discount_code: str | None = None
+    payment_method: str = "cod"
+
+    @field_validator("payment_method")
+    @classmethod
+    def normalize_payment_method(cls, value: str) -> str:
+        code = value.strip().lower()
+        if not code:
+            raise ValueError("Select a payment method.")
+        return code
+
+    @field_validator("window_source")
+    @classmethod
+    def validate_source(cls, value: str) -> str:
+        if value not in {"weekly", "override"}:
+            raise ValueError("window_source must be weekly or override.")
+        return value
+
+
 class PlaceOrderIn(Schema):
     address_id: int
     delivery_date: date

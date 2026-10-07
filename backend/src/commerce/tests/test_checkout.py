@@ -136,6 +136,39 @@ class CheckoutTests(ApiTestCase):
         self.assertEqual(data["latitude"], "25.080500")
         self.assertEqual(data["longitude"], "55.140300")
 
+    def test_validate_checkout_before_payment(self):
+        self._add_to_cart(1)
+        payload = {
+            "address_id": self.address.id,
+            "delivery_date": self.tomorrow.isoformat(),
+            "window_id": self.window.id,
+            "window_source": "weekly",
+            "payment_method": "cod",
+        }
+        response = post_json(self.client, "/api/v1/orders/validate", payload, **self.auth)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["data"]["total"], "16.90")
+
+    def test_validate_rejects_unserviceable_address(self):
+        self._add_to_cart(1)
+        outside = Address.objects.create(
+            user=self.user,
+            line1="Outside",
+            city="Abu Dhabi",
+            formatted_address="outside",
+            place_id="fixture-abu-dhabi",
+        )
+        payload = {
+            "address_id": outside.id,
+            "delivery_date": self.tomorrow.isoformat(),
+            "window_id": self.window.id,
+            "window_source": "weekly",
+            "payment_method": "card",
+        }
+        response = post_json(self.client, "/api/v1/orders/validate", payload, **self.auth)
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["message"], ErrorMessage.NOT_SERVICEABLE)
+
     def test_cart_sync_skips_unavailable_variants(self):
         response = self.client.put(
             "/api/v1/cart/sync",

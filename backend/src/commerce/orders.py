@@ -13,11 +13,12 @@ import logging
 from catalog.models import ProductStatus, ProductVariant
 from catalog.stock import StockService
 from commerce.cart import CartService, MAX_QUANTITY
-from commerce.delivery import DeliveryService
-from commerce.pricing import quote_lines
+from commerce.delivery import DeliveryService, SlotView
+from commerce.pricing import PriceQuote, quote_lines
 from commerce.geocoding import GeocodeResult
 from commerce.models import (
     Address,
+    Cart,
     DeliveryOverrideWindow,
     DeliveryWindow,
     Order,
@@ -51,6 +52,16 @@ class PlaceOrderCommand:
     stripe_payment_intent_id: str | None = None
 
 
+@dataclass(frozen=True)
+class PreparedCheckout:
+    priced_quote: PriceQuote
+    slot: SlotView
+    address: Address
+    geo: GeocodeResult
+    priced: list[tuple[ProductVariant, int, Decimal]]
+    cart: Cart
+
+
 class OrderService:
     def __init__(self, *, clock, delivery: DeliveryService, stock: StockService, cart: CartService, email_sender=None) -> None:
         self._clock = clock
@@ -59,36 +70,40 @@ class OrderService:
         self._cart = cart
         self._email_sender = email_sender
 
-    def place(self, user, command: PlaceOrderCommand, *, idempotency_key: str, request_hash: str) -> Order:
+    def validate(self, user, command: PlaceOrderCommand, *, match_total: bool = False) -> dict:
+        prepared = self._prepare_priced_checkout(user, command, lock_slot=False, match_total=match_total)
+        return prepared.priced_quote.as_dict()
+
+    def _prepare_priced_checkout(
+        self,
+        user,
+        command: PlaceOrderCommand,
+        *,
+        lock_slot: bool,
+        match_total: bool = True,
+    ) -> PreparedCheckout:
         if not user.is_active or user.email_verified_at is None:
             raise ValidationError({"user": ErrorMessage.EMAIL_NOT_VERIFIED})
-        if not idempotency_key:
-            raise ValidationError({"idempotency_key": "Idempotency-Key is required."})
-        existing = Order.objects.filter(user=user, idempotency_key=idempotency_key).first()
-        if existing is not None:
-            if existing.request_hash != request_hash:
-                raise Conflict("The request could not be completed because of a conflict.")
-            return existing
 
         address = Address.objects.filter(user=user, pk=command.address_id).first()
         if address is None:
             raise NotFound(ErrorMessage.NOT_FOUND)
-        geo = self._delivery.check_address(
+        geo_payload = self._delivery.check_address(
             address=address.formatted_address or None,
             place_id=address.place_id or None,
             latitude=address.latitude,
             longitude=address.longitude,
         )
-        result = GeocodeResult(
-            status=geo["status"],
-            formatted_address=geo["formatted_address"],
-            postal_code=geo["postal_code"],
-            latitude=Decimal(geo["latitude"]) if geo["latitude"] else None,
-            longitude=Decimal(geo["longitude"]) if geo["longitude"] else None,
-            place_id=geo["place_id"],
-            address_components=geo["address_components"],
+        geo = GeocodeResult(
+            status=geo_payload["status"],
+            formatted_address=geo_payload["formatted_address"],
+            postal_code=geo_payload["postal_code"],
+            latitude=Decimal(geo_payload["latitude"]) if geo_payload["latitude"] else None,
+            longitude=Decimal(geo_payload["longitude"]) if geo_payload["longitude"] else None,
+            place_id=geo_payload["place_id"],
+            address_components=geo_payload["address_components"],
         )
-        self._delivery.require_serviceable(result)
+        self._delivery.require_serviceable(geo)
 
         payment = PaymentMethod.objects.filter(code=command.payment_method, is_active=True).first()
         if payment is None:
@@ -107,32 +122,67 @@ class OrderService:
                 raise ValidationError({"quantity": "Quantity must be between 1 and 99."})
             quantities[item.variant_id] = quantities.get(item.variant_id, 0) + item.quantity
 
+        if lock_slot:
+            slot = self._lock_slot(command)
+            variant_query = ProductVariant.objects.select_for_update().select_related("product")
+        else:
+            slot = self._delivery.require_open_slot(
+                delivery_date=command.delivery_date,
+                window_id=command.window_id,
+                source=command.window_source,
+            )
+            variant_query = ProductVariant.objects.select_related("product")
+
+        variants = list(variant_query.filter(pk__in=quantities).order_by("pk"))
+        if len(variants) != len(quantities):
+            raise ValidationError({"stock": ErrorMessage.OUT_OF_STOCK})
+
+        priced = []
+        for variant in variants:
+            qty = quantities[variant.id]
+            if (
+                not variant.is_active
+                or variant.product.status != ProductStatus.ACTIVE
+                or variant.on_hand < qty
+            ):
+                raise ValidationError({"stock": ErrorMessage.OUT_OF_STOCK})
+            line_total = money(variant.price) * qty
+            priced.append((variant, qty, line_total))
+
+        priced_quote = quote_lines(priced, code=command.discount_code, user=user, now=self._clock.now())
+        if match_total and money(command.expected_total) != priced_quote.total:
+            raise Conflict(ErrorMessage.TOTAL_MISMATCH)
+
+        return PreparedCheckout(
+            priced_quote=priced_quote,
+            slot=slot,
+            address=address,
+            geo=geo,
+            priced=priced,
+            cart=cart,
+        )
+
+    def place(self, user, command: PlaceOrderCommand, *, idempotency_key: str, request_hash: str) -> Order:
+        if not idempotency_key:
+            raise ValidationError({"idempotency_key": "Idempotency-Key is required."})
+        existing = Order.objects.filter(user=user, idempotency_key=idempotency_key).first()
+        if existing is not None:
+            if existing.request_hash != request_hash:
+                raise Conflict("The request could not be completed because of a conflict.")
+            return existing
+
         try:
             with transaction.atomic():
-                slot = self._lock_slot(command)
-                variants = list(
-                    ProductVariant.objects.select_for_update()
-                    .select_related("product")
-                    .filter(pk__in=quantities)
-                    .order_by("pk")
-                )
-                if len(variants) != len(quantities):
-                    raise ValidationError({"stock": ErrorMessage.OUT_OF_STOCK})
-                priced = []
-                for variant in variants:
-                    qty = quantities[variant.id]
-                    if (
-                        not variant.is_active
-                        or variant.product.status != ProductStatus.ACTIVE
-                        or variant.on_hand < qty
-                    ):
-                        raise ValidationError({"stock": ErrorMessage.OUT_OF_STOCK})
-                    line_total = money(variant.price) * qty
-                    priced.append((variant, qty, line_total))
-
-                priced_quote = quote_lines(priced, code=command.discount_code, user=user, now=self._clock.now())
-                if money(command.expected_total) != priced_quote.total:
-                    raise Conflict(ErrorMessage.TOTAL_MISMATCH)
+                prepared = self._prepare_priced_checkout(user, command, lock_slot=True)
+                priced_quote = prepared.priced_quote
+                slot = prepared.slot
+                address = prepared.address
+                geo = prepared.geo
+                priced = prepared.priced
+                cart = prepared.cart
+                payment = PaymentMethod.objects.filter(code=command.payment_method, is_active=True).first()
+                if payment is None:
+                    raise ValidationError({"payment_method": "That payment method is not available."})
 
                 stripe_intent_id = ""
                 if uses_stripe_payment(payment.code):
@@ -172,12 +222,12 @@ class OrderService:
                     address_line2=address.line2,
                     address_city=address.city,
                     address_region=address.region,
-                    address_postal_code=result.postal_code or address.postal_code,
+                    address_postal_code=geo.postal_code or address.postal_code,
                     address_country=address.country,
-                    address_formatted=result.formatted_address or address.formatted_address,
-                    address_place_id=result.place_id or address.place_id,
-                    latitude=result.latitude,
-                    longitude=result.longitude,
+                    address_formatted=geo.formatted_address or address.formatted_address,
+                    address_place_id=geo.place_id or address.place_id,
+                    latitude=geo.latitude,
+                    longitude=geo.longitude,
                     idempotency_key=idempotency_key,
                     request_hash=request_hash,
                 )

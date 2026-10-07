@@ -43,6 +43,30 @@ export type CouponOffer = {
   is_best?: boolean;
 };
 
+const PRICING_RULES_KEY = "sortd_pricing_rules_v1";
+
+export function loadCachedPricingRules(): PricingRules | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(PRICING_RULES_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as PricingRules;
+    if (!parsed || typeof parsed.delivery_fee !== "string") return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+export function saveCachedPricingRules(rules: PricingRules) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(PRICING_RULES_KEY, JSON.stringify(rules));
+  } catch {
+    // Ignore quota or privacy mode errors.
+  }
+}
+
 export const EMPTY_QUOTE: PriceQuote = {
   subtotal: "0.00",
   discount_amount: "0.00",

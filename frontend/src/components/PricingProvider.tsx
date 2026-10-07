@@ -6,6 +6,8 @@ import { fetchPricingRulesAction, previewCouponsAction, quoteCartAction } from "
 import {
   buildLocalQuote,
   EMPTY_QUOTE,
+  loadCachedPricingRules,
+  saveCachedPricingRules,
   type CouponOffer,
   type PriceQuote,
   type PricingRules,
@@ -25,6 +27,7 @@ type PricingContextValue = {
   discountCode: string;
   setDiscountCode: (value: string) => void;
   refreshQuote: () => Promise<void>;
+  syncQuote: (quote: PriceQuote) => void;
 };
 
 const PricingContext = createContext<PricingContextValue | null>(null);
@@ -37,7 +40,7 @@ export function PricingProvider({
   initialRules?: PricingRules | null;
 }) {
   const { items } = useCart();
-  const [rules, setRules] = useState<PricingRules | null>(initialRules);
+  const [rules, setRules] = useState<PricingRules | null>(() => initialRules ?? loadCachedPricingRules());
   const [quote, setQuote] = useState<PriceQuote>(EMPTY_QUOTE);
   const [draftCode, setDraftCodeState] = useState("");
   const [appliedCode, setAppliedCode] = useState("");
@@ -51,11 +54,22 @@ export function PricingProvider({
   }, [appliedCode]);
 
   useEffect(() => {
-    if (initialRules) return;
+    if (initialRules) {
+      saveCachedPricingRules(initialRules);
+      setRules(initialRules);
+      return;
+    }
     void fetchPricingRulesAction().then((result) => {
-      if (result.ok && result.data) setRules(result.data);
+      if (result.ok && result.data) {
+        saveCachedPricingRules(result.data);
+        setRules(result.data);
+      }
     });
   }, [initialRules]);
+
+  const syncQuote = useCallback((next: PriceQuote) => {
+    setQuote(next);
+  }, []);
 
   const refreshQuote = useCallback(async () => {
     if (!items.length) {
@@ -157,6 +171,7 @@ export function PricingProvider({
       discountCode: appliedCode,
       setDiscountCode: setDraftCode,
       refreshQuote,
+      syncQuote,
     }),
     [
       rules,
@@ -169,6 +184,7 @@ export function PricingProvider({
       applyCoupon,
       removeCoupon,
       refreshQuote,
+      syncQuote,
     ],
   );
 

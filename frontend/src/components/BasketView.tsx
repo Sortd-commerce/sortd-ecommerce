@@ -61,20 +61,18 @@ export function BasketView({
       </header>
 
       <div className="basket-deliver">
-        <Clock size={18} weight="bold" />
+        <span className="basket-deliver-icon" aria-hidden>
+          <Clock size={18} weight="bold" />
+        </span>
         <p>
           <strong>Delivery in 30 minutes</strong>
           <span>{deliverTo ? `To ${deliverTo}` : "Across Dubai"}</span>
         </p>
       </div>
 
-      {minimum > 0 && items.length ? (
+      {minimum > 0 && remaining > 0 && items.length ? (
         <div className="delivery-progress">
-          {remaining > 0 ? (
-            <p>Add AED {money(quote.amount_until_free_delivery)} more for free delivery</p>
-          ) : (
-            <p>Delivery is free on this order</p>
-          )}
+          <p>Add AED {money(quote.amount_until_free_delivery)} more for free delivery</p>
           <div className="delivery-progress-bar" aria-hidden>
             <span style={{ width: `${progress}%` }} />
           </div>
@@ -114,6 +112,7 @@ export function BasketView({
                   max={max}
                   min={0}
                   size="sm"
+                  tone="inverse"
                   onChange={(next) => {
                     if (next < 1) {
                       removeItem(item.variant_id);
@@ -128,7 +127,10 @@ export function BasketView({
                   }}
                 />
               </div>
-              <p className="basket-price">AED {money(Number(item.unit_price) * item.quantity)}</p>
+              <p className="basket-price">
+                <span className="basket-price-currency">AED</span>{" "}
+                {money(Number(item.unit_price) * item.quantity)}
+              </p>
             </article>
           );
         })}
@@ -144,7 +146,7 @@ export function BasketView({
 
       {items.length ? (
         <>
-          <OrderSummary className="basket-bill-wrap" />
+          <OrderSummary className="basket-bill-wrap" variant="basket" />
           <div className="basket-foot">
             <Link href="/checkout" className="btn btn-primary basket-checkout" onClick={onClose}>
               <span>

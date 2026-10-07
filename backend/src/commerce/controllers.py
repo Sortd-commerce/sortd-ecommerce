@@ -27,6 +27,7 @@ from commerce.schemas import (
     CartItemIn,
     CartMergeIn,
     CartSyncIn,
+    CheckoutValidateIn,
     DeliveryCheckIn,
     PlaceOrderIn,
     PriceQuoteIn,
@@ -297,6 +298,27 @@ class OrderController(ControllerBase):
         )
         page["results"] = [serialize_order(order) for order in page["results"]]
         return success("Orders retrieved.", page)
+
+    @route.post("/validate", response={200: SuccessResponse, **_ERROR_RESPONSES}, summary="Validate checkout before payment")
+    def validate_checkout(self, payload: CheckoutValidateIn):
+        from decimal import Decimal
+
+        command = PlaceOrderCommand(
+            address_id=payload.address_id,
+            delivery_date=payload.delivery_date,
+            window_id=payload.window_id,
+            window_source=payload.window_source,
+            note="",
+            expected_total=payload.expected_total or Decimal("0"),
+            discount_code=payload.discount_code,
+            payment_method=payload.payment_method,
+        )
+        quote = build_order_service().validate(
+            self.context.request.user,
+            command,
+            match_total=payload.expected_total is not None,
+        )
+        return success("Checkout is ready.", quote)
 
     @route.post("", response={201: SuccessResponse, **_ERROR_RESPONSES}, summary="Place an order")
     def create(self, payload: PlaceOrderIn):

@@ -2,7 +2,6 @@
 
 import { useBasket } from "@/components/BasketProvider";
 import { useCart } from "@/components/CartProvider";
-import { usePricing } from "@/components/PricingProvider";
 
 function CartBagIcon() {
   return (
@@ -24,11 +23,10 @@ function money(value: string) {
 }
 
 export function CartLink() {
-  const { count } = useCart();
-  const { quote } = usePricing();
+  const { count, subtotal } = useCart();
   const { openBasket } = useBasket();
-  const total = count ? quote.total : "0.00";
-  const label = count ? `Basket, ${count} items, AED ${money(total)}` : "Basket";
+  const displayAmount = count ? subtotal : "0.00";
+  const label = count ? `Basket, ${count} items, AED ${money(displayAmount)}` : "Basket";
 
   return (
     <button
@@ -43,7 +41,7 @@ export function CartLink() {
         <span className="cart-pill-count">
           {count} {count === 1 ? "ITEM" : "ITEMS"}
         </span>
-        <span className="cart-pill-total">AED {money(total)}</span>
+        <span className="cart-pill-total">AED {money(displayAmount)}</span>
       </span>
     </button>
   );

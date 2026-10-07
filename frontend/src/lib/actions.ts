@@ -184,6 +184,34 @@ export async function prepareStripePaymentAction(
   };
 }
 
+export type CheckoutValidatePayload = {
+  address_id: number;
+  delivery_date: string;
+  window_id: number;
+  window_source: string;
+  payment_method: string;
+  discount_code?: string | null;
+  expected_total?: string | null;
+};
+
+export async function validateCheckoutAction(
+  payload: CheckoutValidatePayload,
+): Promise<{ ok: boolean; data?: PriceQuote; message?: string }> {
+  const result = await apiFetch<PriceQuote>("/orders/validate", {
+    method: "POST",
+    body: {
+      address_id: payload.address_id,
+      delivery_date: payload.delivery_date,
+      window_id: payload.window_id,
+      window_source: payload.window_source,
+      payment_method: payload.payment_method,
+      discount_code: payload.discount_code?.trim() || null,
+      expected_total: payload.expected_total?.trim() || null,
+    },
+  });
+  return { ok: result.ok, data: result.data, message: result.message };
+}
+
 export async function quoteCartAction(
   items: Array<{ variant_id: number; quantity: number }>,
   discountCode?: string,
