@@ -341,6 +341,7 @@ export async function saveAddressAction(_prev: ActionState, formData: FormData):
     : await apiFetch("/addresses", { method: "POST", body: payload });
   if (!result.ok) return { ok: false, message: result.message };
   revalidatePath("/checkout");
+  revalidatePath("/addresses");
   revalidatePath("/", "layout");
   return { ok: true, message: addressId ? "Address updated." : "Address saved." };
 }
@@ -382,6 +383,7 @@ export async function setPrimaryAddressAction(addressId: number): Promise<Action
   });
   if (!result.ok) return { ok: false, message: result.message };
   revalidatePath("/checkout");
+  revalidatePath("/addresses");
   revalidatePath("/", "layout");
   return { ok: true, message: "Primary delivery address updated." };
 }

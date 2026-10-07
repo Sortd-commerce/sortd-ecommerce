@@ -84,15 +84,14 @@ export function AccountMenu({ user }: { user: AuthUser | null }) {
             <strong>{displayName(user)}</strong>
             <span>{user.email}</span>
           </div>
-          <Link href="/orders" className="account-menu-item" role="menuitem" onClick={() => setOpen(false)}>
-            <span>My orders</span>
-            {activeOrders > 0 ? <span className="account-menu-badge">{activeOrders} on the way</span> : null}
-          </Link>
-          <Link href="/account" className="account-menu-item" role="menuitem" onClick={() => setOpen(false)}>
-            Membership
-          </Link>
-          <form action={logoutAction}>
-            <button type="submit" className="account-menu-item account-menu-item--danger" role="menuitem">
+          <div className="account-menu-items">
+            <Link href="/orders" className="account-menu-item" role="menuitem" onClick={() => setOpen(false)}>
+              <span>My orders</span>
+              {activeOrders > 0 ? <span className="account-menu-badge">{activeOrders} on the way</span> : null}
+            </Link>
+          </div>
+          <form action={logoutAction} className="account-menu-logout">
+            <button type="submit" className="account-menu-item account-menu-item--logout" role="menuitem">
               Log out
             </button>
           </form>

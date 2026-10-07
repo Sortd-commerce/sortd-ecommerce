@@ -4929,22 +4929,24 @@ button {
   top: calc(100% + 0.5rem);
   right: 0;
   z-index: 40;
-  width: min(18rem, 88vw);
-  overflow: hidden;
+  display: grid;
+  gap: 0.45rem;
+  width: min(18.5rem, 88vw);
+  padding: 0.75rem;
   border: 1px solid var(--line);
-  border-radius: 1rem;
+  border-radius: 1.25rem;
   background: white;
   box-shadow: 0 16px 40px rgb(14 26 20 / 0.14);
 }
 
 .account-menu-head {
   display: grid;
-  gap: 0.15rem;
-  padding: 0.9rem 1rem;
-  border-bottom: 1px solid var(--line);
+  gap: 0.2rem;
+  padding: 0.35rem 0.75rem 0.15rem;
 }
 
 .account-menu-head strong {
+  color: var(--forest);
   font-size: 0.9375rem;
 }
 
@@ -4953,39 +4955,61 @@ button {
   font-size: 0.8125rem;
 }
 
+.account-menu-items {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.account-menu-logout {
+  margin: 0;
+}
+
 .account-menu-item {
   display: flex;
   width: 100%;
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
-  border: 0;
+  border: 1px solid transparent;
+  border-radius: 999px;
   background: transparent;
   padding: 0.85rem 1rem;
-  color: var(--ink);
+  color: var(--forest);
   font-size: 0.9375rem;
+  font-weight: 600;
   text-align: left;
   text-decoration: none;
   cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease;
 }
 
-.account-menu-item:hover {
+.account-menu-item:hover,
+.account-menu-item:focus-visible {
   background: var(--tint-1);
+  outline: none;
 }
 
-.account-menu-item--danger {
-  color: var(--citrus);
-  border-top: 1px solid var(--line);
+.account-menu-item--logout {
+  border-color: var(--line);
+  background: white;
+  font-weight: 500;
+}
+
+.account-menu-item--logout:hover,
+.account-menu-item--logout:focus-visible {
+  background: var(--tint-1);
 }
 
 .account-menu-badge {
   border-radius: 999px;
-  background: color-mix(in srgb, var(--mint) 50%, white);
+  background: color-mix(in srgb, var(--mint) 46%, white);
   color: var(--forest);
   font-size: 0.6875rem;
   font-weight: 700;
   letter-spacing: 0.02em;
-  padding: 0.2rem 0.45rem;
+  padding: 0.25rem 0.5rem;
   white-space: nowrap;
 }
 

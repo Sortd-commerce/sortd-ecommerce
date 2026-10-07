@@ -18,6 +18,7 @@ export function MobileTabBar({ signedIn }: { signedIn: boolean }) {
   const accountOn =
     pathname.startsWith("/account") ||
     pathname.startsWith("/orders") ||
+    pathname.startsWith("/addresses") ||
     pathname === "/login" ||
     pathname === "/signup";
 
