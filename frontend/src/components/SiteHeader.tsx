@@ -1,14 +1,25 @@
 import { Suspense } from "react";
 import Link from "next/link";
+import { AccountMenu } from "@/components/auth/AccountMenu";
+import { AuthOpenButton } from "@/components/auth/AuthOpenButton";
+import type { AuthUser } from "@/components/auth/AuthProvider";
 import { BrandMark } from "@/components/BrandMark";
 import { CartLink } from "@/components/CartLink";
-import { AccountIcon, CaretDownIcon, DeliverPinIcon } from "@/components/HeaderIcons";
+import { CaretDownIcon, DeliverPinIcon } from "@/components/HeaderIcons";
 import { SearchField } from "@/components/SearchField";
 import { DeliverBarSkeleton, SearchFormSkeleton } from "@/components/loading/StorefrontSkeletons";
 import { fetchCatalogCount, fetchCategories, fetchPricingRules } from "@/lib/catalog";
 import { apiFetch } from "@/lib/api";
 
 type Address = { formatted_address: string; line1: string; city: string; is_default?: boolean };
+
+function DeliverSignInPrompt() {
+  return (
+    <AuthOpenButton mode="login" next="/checkout" className="deliver-signin-link">
+      Sign in to set your address
+    </AuthOpenButton>
+  );
+}
 
 async function DeliverBar({ signedIn }: { signedIn: boolean }) {
   const [addresses, pricing] = await Promise.all([
@@ -36,17 +47,12 @@ async function DeliverBar({ signedIn }: { signedIn: boolean }) {
               <CaretDownIcon />
             </Link>
           ) : signedIn ? (
-            <Link href="/checkout" className="deliver-place deliver-place--cta">
+            <Link href="/addresses" className="deliver-place deliver-place--cta">
               Add your address
               <CaretDownIcon />
             </Link>
           ) : (
-            <p className="deliver-signin-prompt">
-              Not signed in yet?{" "}
-              <Link href="/login?next=/checkout" className="deliver-signin-link">
-                Sign in
-              </Link>
-            </p>
+            <DeliverSignInPrompt />
           )}
         </div>
         <div className="deliver-promise">
@@ -70,7 +76,7 @@ async function HeaderSearch() {
   return <SearchField count={count} hint={hint} categoryCount={categoryCount} />;
 }
 
-export function SiteHeader({ signedIn }: { signedIn: boolean }) {
+export function SiteHeader({ signedIn, user }: { signedIn: boolean; user: AuthUser | null }) {
   return (
     <header className="site-header">
       <Suspense fallback={<DeliverBarSkeleton />}>
@@ -83,17 +89,17 @@ export function SiteHeader({ signedIn }: { signedIn: boolean }) {
             <HeaderSearch />
           </Suspense>
           <nav className="header-nav" aria-label="Account">
-            <Link href={signedIn ? "/account" : "/login?next=/account"} className="header-link">
-              Membership
-            </Link>
+            {signedIn ? (
+              <Link href="/account" className="header-link">
+                Membership
+              </Link>
+            ) : (
+              <AuthOpenButton mode="login" next="/account" className="header-link">
+                Membership
+              </AuthOpenButton>
+            )}
             <span className="header-link header-link-static">What we reject</span>
-            <Link
-              href={signedIn ? "/account" : "/login?next=/account"}
-              className="header-account"
-              aria-label="Account"
-            >
-              <AccountIcon />
-            </Link>
+            <AccountMenu user={user} />
             <CartLink />
           </nav>
         </div>

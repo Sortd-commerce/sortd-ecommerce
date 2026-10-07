@@ -24,7 +24,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ nu
   const order = result.data;
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6 pt-4">
+    <div className="orders-page space-y-6">
       <OrderCartClear />
       <Link href="/orders" className="text-sm text-leaf">
         ← Orders

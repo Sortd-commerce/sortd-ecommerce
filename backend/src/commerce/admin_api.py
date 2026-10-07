@@ -251,13 +251,19 @@ class PricingSettingsIn(Schema):
 
 class DiscountIn(Schema):
     name: str
+    headline: str = ""
+    detail: str = ""
     kind: str
+    benefit: str = "merchandise"
     value: Decimal = Field(gt=0)
     code: str | None = None
     scope: str = "all"
     product_id: int | None = None
     variant_id: int | None = None
     category_id: int | None = None
+    minimum_order: Decimal | None = Field(default=None, ge=0)
+    max_discount: Decimal | None = Field(default=None, ge=0)
+    first_order_only: bool = False
     starts_at: str | None = None
     ends_at: str | None = None
     is_active: bool = True
@@ -267,6 +273,13 @@ class DiscountIn(Schema):
     def validate_kind(cls, value: str) -> str:
         if value not in {Discount.Kind.PERCENT, Discount.Kind.FIXED}:
             raise ValueError("Invalid discount kind.")
+        return value
+
+    @field_validator("benefit")
+    @classmethod
+    def validate_benefit(cls, value: str) -> str:
+        if value not in {Discount.Benefit.MERCHANDISE, Discount.Benefit.FREE_DELIVERY}:
+            raise ValueError("Invalid discount benefit.")
         return value
 
     @field_validator("scope")
@@ -284,13 +297,19 @@ class DiscountIn(Schema):
 
 class DiscountPatchIn(Schema):
     name: str | None = None
+    headline: str | None = None
+    detail: str | None = None
     kind: str | None = None
+    benefit: str | None = None
     value: Decimal | None = Field(default=None, gt=0)
     code: str | None = None
     scope: str | None = None
     product_id: int | None = None
     variant_id: int | None = None
     category_id: int | None = None
+    minimum_order: Decimal | None = Field(default=None, ge=0)
+    max_discount: Decimal | None = Field(default=None, ge=0)
+    first_order_only: bool | None = None
     starts_at: str | None = None
     ends_at: str | None = None
     is_active: bool | None = None
@@ -302,6 +321,15 @@ class DiscountPatchIn(Schema):
             return value
         if value not in {Discount.Kind.PERCENT, Discount.Kind.FIXED}:
             raise ValueError("Invalid discount kind.")
+        return value
+
+    @field_validator("benefit")
+    @classmethod
+    def validate_benefit(cls, value: str | None) -> str | None:
+        if value is None:
+            return value
+        if value not in {Discount.Benefit.MERCHANDISE, Discount.Benefit.FREE_DELIVERY}:
+            raise ValueError("Invalid discount benefit.")
         return value
 
     @field_validator("scope")
@@ -509,7 +537,10 @@ def _serialize_discount(row: Discount) -> dict:
     return {
         "id": row.id,
         "name": row.name,
+        "headline": row.headline,
+        "detail": row.detail,
         "kind": row.kind,
+        "benefit": row.benefit,
         "value": money_str(row.value),
         "code": row.code or "",
         "scope": row.scope,
@@ -519,6 +550,9 @@ def _serialize_discount(row: Discount) -> dict:
         "variant_title": row.variant.title if row.variant_id else "",
         "category_id": row.category_id,
         "category_name": row.category.name if row.category_id else "",
+        "minimum_order": money_str(row.minimum_order) if row.minimum_order else "",
+        "max_discount": money_str(row.max_discount) if row.max_discount else "",
+        "first_order_only": row.first_order_only,
         "starts_at": row.starts_at.isoformat() if row.starts_at else "",
         "ends_at": row.ends_at.isoformat() if row.ends_at else "",
         "is_active": row.is_active,
@@ -1323,10 +1357,16 @@ class AdminController(ControllerBase):
             raise ValidationError({"code": "That discount code already exists."})
         row = Discount(
             name=payload.name.strip(),
+            headline=(payload.headline or "").strip(),
+            detail=(payload.detail or "").strip(),
             kind=payload.kind,
+            benefit=payload.benefit,
             value=money(payload.value),
             code=code,
             scope=payload.scope,
+            minimum_order=money(payload.minimum_order) if payload.minimum_order is not None else None,
+            max_discount=money(payload.max_discount) if payload.max_discount is not None else None,
+            first_order_only=payload.first_order_only,
             starts_at=_parse_optional_datetime(payload.starts_at),
             ends_at=_parse_optional_datetime(payload.ends_at),
             is_active=payload.is_active,
@@ -1343,10 +1383,22 @@ class AdminController(ControllerBase):
             raise NotFound("Discount not found.")
         if payload.name is not None:
             row.name = payload.name.strip()
+        if payload.headline is not None:
+            row.headline = payload.headline.strip()
+        if payload.detail is not None:
+            row.detail = payload.detail.strip()
         if payload.kind is not None:
             row.kind = payload.kind
+        if payload.benefit is not None:
+            row.benefit = payload.benefit
         if payload.value is not None:
             row.value = money(payload.value)
+        if payload.minimum_order is not None:
+            row.minimum_order = money(payload.minimum_order)
+        if payload.max_discount is not None:
+            row.max_discount = money(payload.max_discount)
+        if payload.first_order_only is not None:
+            row.first_order_only = payload.first_order_only
         if payload.code is not None:
             code = payload.code.strip() or None
             if code and Discount.objects.filter(code__iexact=code).exclude(pk=row.pk).exists():

@@ -21,6 +21,7 @@ type Slot = {
   remaining: number;
   window_id: number;
   source: string;
+  status: "available" | "passed" | "full";
 };
 
 type PaymentMethod = {
@@ -41,7 +42,7 @@ export default async function CheckoutPage() {
   }
 
   const addressList = addresses.data || [];
-  const slots = (windows.data || []).filter((slot) => slot.remaining > 0);
+  const slots = windows.data || [];
   const methods = payments.data || [];
 
   return (

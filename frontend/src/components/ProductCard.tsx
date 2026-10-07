@@ -18,10 +18,18 @@ export function ProductCard({ product }: { product: CardProduct }) {
   const soldOut = stock != null && stock < 1 && qty < 1;
   const price = variant?.price || product.from_price;
   const tint = cardTint(product.id);
+  const badges = (product.tags || []).slice(0, 2);
 
   return (
     <article className="product-card">
       <Link href={`/products/${product.slug}`} className="product-card-media" style={{ background: tint }}>
+        {badges.length ? (
+          <div className="product-card-badges">
+            {badges.map((tag) => (
+              <span key={tag}>{tag}</span>
+            ))}
+          </div>
+        ) : null}
         {product.primary_image?.url ? (
           <OptimizedImage
             src={product.primary_image.url}
@@ -35,7 +43,7 @@ export function ProductCard({ product }: { product: CardProduct }) {
         )}
       </Link>
       <div className="product-card-body">
-        <p className="product-card-brand">{product.category.name}</p>
+        <p className="product-card-brand">{product.brand || product.category.name}</p>
         <Link href={`/products/${product.slug}`} className="product-card-title">
           {product.title}
         </Link>
@@ -54,6 +62,7 @@ export function ProductCard({ product }: { product: CardProduct }) {
                   const result = addItem({
                     variant_id: variant.id,
                     title: product.title,
+                    brand: product.brand || product.category.name,
                     sku: variant.sku,
                     unit_price: variant.price,
                     slug: product.slug,

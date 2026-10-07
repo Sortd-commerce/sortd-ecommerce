@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { House, MagnifyingGlass, ShoppingBag, User } from "@phosphor-icons/react";
 import { usePathname } from "next/navigation";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { useBasket } from "@/components/BasketProvider";
 import { useCart } from "@/components/CartProvider";
 
@@ -10,13 +11,14 @@ export function MobileTabBar({ signedIn }: { signedIn: boolean }) {
   const pathname = usePathname();
   const { count } = useCart();
   const { open, openBasket } = useBasket();
+  const { openAuth } = useAuth();
   if (pathname.startsWith("/checkout")) return null;
 
   const shopOn = pathname === "/" && !open;
-  const accountHref = signedIn ? "/account" : "/login?next=/account";
   const accountOn =
     pathname.startsWith("/account") ||
     pathname.startsWith("/orders") ||
+    pathname.startsWith("/addresses") ||
     pathname === "/login" ||
     pathname === "/signup";
 
@@ -48,10 +50,21 @@ export function MobileTabBar({ signedIn }: { signedIn: boolean }) {
         </span>
         <span>Basket</span>
       </button>
-      <Link href={accountHref} className={accountOn ? "tab-on" : ""} aria-current={accountOn ? "page" : undefined}>
-        <User size={22} weight={accountOn ? "fill" : "bold"} />
-        <span>Account</span>
-      </Link>
+      {signedIn ? (
+        <Link href="/account" className={accountOn ? "tab-on" : ""} aria-current={accountOn ? "page" : undefined}>
+          <User size={22} weight={accountOn ? "fill" : "bold"} />
+          <span>Account</span>
+        </Link>
+      ) : (
+        <button
+          type="button"
+          className={accountOn ? "tab-on" : ""}
+          onClick={() => openAuth("login", "/account")}
+        >
+          <User size={22} weight={accountOn ? "fill" : "bold"} />
+          <span>Account</span>
+        </button>
+      )}
     </nav>
   );
 }

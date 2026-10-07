@@ -6,7 +6,6 @@ from typing import Protocol
 @dataclass(frozen=True)
 class SignupCommand:
     email: str
-    password: str
     first_name: str
     last_name: str
     phone: str
@@ -59,6 +58,8 @@ class AuthResult:
 
 class EmailSender(Protocol):
     def send_verification(self, *, to: str, link: str, first_name: str = "") -> None: ...
+
+    def send_auth_code(self, *, to: str, code: str, first_name: str = "", purpose: str = "signup") -> None: ...
 
     def send_password_reset(self, *, to: str, link: str, first_name: str = "") -> None: ...
 

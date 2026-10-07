@@ -9,36 +9,33 @@ export default async function OrdersPage() {
   const orders = await apiFetch<Orders>("/orders");
   if (orders.status === 401) {
     return (
-      <div className="pt-8">
-        <Link href="/login" className="text-citrus">
-          Log in
-        </Link>{" "}
-        to see orders.
+      <div className="orders-page">
+        <p className="orders-guest">
+          <Link href="/?auth=login&next=/orders" className="text-action">
+            Sign in
+          </Link>{" "}
+          to see orders.
+        </p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6 pt-4">
-      <div className="flex items-end justify-between gap-3">
-        <h1 className="font-[family-name:var(--font-display)] text-4xl text-forest">Your orders</h1>
-        <Link href="/account" className="link-quiet">
-          Account
-        </Link>
-      </div>
-      <div className="card-quiet divide-y divide-line rounded-[1.8rem]">
+    <div className="orders-page">
+      <h1 className="orders-title">Your orders</h1>
+      <div className="orders-list card-quiet">
         {(orders.data?.results || []).map((order) => (
-          <Link key={order.number} href={`/orders/${order.number}`} className="flex items-center justify-between px-6 py-5">
+          <Link key={order.number} href={`/orders/${order.number}`} className="orders-row">
             <div>
-              <p className="font-semibold">{order.number}</p>
-              <p className="text-sm text-ink/60">
+              <p className="orders-row-number">{order.number}</p>
+              <p className="orders-row-meta">
                 {order.status} · {order.delivery_date}
               </p>
             </div>
-            <p className="font-semibold text-forest">AED {order.total}</p>
+            <p className="orders-row-total">AED {order.total}</p>
           </Link>
         ))}
-        {!orders.data?.results?.length ? <p className="px-6 py-8 text-ink/60">No orders yet.</p> : null}
+        {!orders.data?.results?.length ? <p className="orders-empty">No orders yet.</p> : null}
       </div>
     </div>
   );

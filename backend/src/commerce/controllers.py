@@ -8,7 +8,16 @@ from commerce.cart import CartLineCommand
 from commerce.factory import build_cart_service, build_delivery_service, build_order_service
 from commerce.models import Address, PaymentMethod, normalize_postal_code
 from commerce.orders import PlaceOrderCommand, request_hash_for, serialize_order
-from commerce.pricing import quote_variants, serialize_offer_rules
+from commerce.stripe_payments import (
+    StripeNotConfigured,
+    mark_order_paid,
+    retrieve_payment_intent,
+    stripe_enabled,
+    stripe_publishable_key,
+    sync_order_from_intent,
+    verify_webhook,
+)
+from commerce.pricing import preview_coupons, quote_variants, serialize_offer_rules
 from commerce.schemas import (
     AddressIn,
     AutocompleteIn,
@@ -20,6 +29,7 @@ from commerce.schemas import (
     PriceQuoteIn,
 )
 from core.messages import ErrorMessage
+from core.money import money
 from core.pagination import PageQuery, paginate_queryset
 from core.responses import ErrorResponse, SuccessResponse, success
 from core.throttling import PlacesThrottle
@@ -78,6 +88,7 @@ class DeliveryController(ControllerBase):
                 "remaining": slot.remaining,
                 "window_id": slot.window_id,
                 "source": slot.source,
+                "status": slot.status,
             }
             for slot in slots
         ]
@@ -92,22 +103,70 @@ class PricingController(ControllerBase):
 
     @route.post("/quote", response={200: SuccessResponse, **_ERROR_RESPONSES}, summary="Quote a basket")
     def quote(self, payload: PriceQuoteIn):
+        user = getattr(self.context.request, "user", None)
+        user = user if getattr(user, "is_authenticated", False) else None
         quoted = quote_variants(
             [(item.variant_id, item.quantity) for item in payload.items],
             code=payload.discount_code,
+            user=user,
         )
         return success("Quote ready.", quoted.as_dict())
+
+    @route.post("/coupons/preview", response={200: SuccessResponse, **_ERROR_RESPONSES}, summary="Preview coupon eligibility")
+    def coupon_preview(self, payload: PriceQuoteIn):
+        from catalog.models import ProductVariant
+
+        user = getattr(self.context.request, "user", None)
+        user = user if getattr(user, "is_authenticated", False) else None
+        wanted = {item.variant_id: item.quantity for item in payload.items if item.quantity > 0}
+        variants = ProductVariant.objects.select_related("product").filter(pk__in=wanted)
+        lines = []
+        for variant in variants:
+            quantity = wanted[variant.id]
+            lines.append((variant, quantity, money(variant.price) * quantity))
+        rows = preview_coupons(lines, user=user)
+        return success("Coupon preview ready.", rows)
 
 
 @api_controller("/payments", tags=["Payments"], auth=None, permissions=[AllowAny], use_unique_op_id=False)
 class PaymentController(ControllerBase):
     @route.get("/methods", response={200: SuccessResponse, **_ERROR_RESPONSES}, summary="List payment methods")
     def methods(self):
-        rows = [
-            {"code": method.code, "name": method.name, "is_active": method.is_active}
-            for method in PaymentMethod.objects.order_by("-is_active", "name")
-        ]
+        rows = []
+        for method in PaymentMethod.objects.order_by("-is_active", "name"):
+            is_active = method.is_active
+            if method.code == "card" and not stripe_enabled():
+                is_active = False
+            rows.append({"code": method.code, "name": method.name, "is_active": is_active})
         return success("Payment methods retrieved.", rows)
+
+    @route.get("/stripe/config", response={200: SuccessResponse, **_ERROR_RESPONSES}, summary="Stripe publishable key")
+    def stripe_config(self):
+        key = stripe_publishable_key()
+        if not key:
+            raise NotFound(ErrorMessage.NOT_FOUND)
+        return success("Stripe config retrieved.", {"publishable_key": key})
+
+    @route.post("/stripe/webhook", auth=None, permissions=[AllowAny], summary="Stripe webhook")
+    def stripe_webhook(self):
+        from commerce.models import Order
+
+        request = self.context.request
+        try:
+            event = verify_webhook(request.body, request.headers.get("Stripe-Signature"))
+        except StripeNotConfigured:
+            raise NotFound(ErrorMessage.NOT_FOUND)
+        except Exception:
+            raise ValidationError({"stripe": "Invalid webhook signature."})
+
+        if event.type == "payment_intent.succeeded":
+            intent = event.data.object
+            order_number = (intent.metadata or {}).get("order_number")
+            if order_number:
+                order = Order.objects.filter(number=order_number).first()
+                if order is not None:
+                    mark_order_paid(order, payment_intent_id=intent.id)
+        return success("Webhook received.", {"received": True})
 
 
 @api_controller("/addresses", tags=["Addresses"], auth=SessionJWTAuth(), permissions=[IsAuthenticated], use_unique_op_id=False)
@@ -202,12 +261,35 @@ class OrderController(ControllerBase):
             idempotency_key=key,
             request_hash=request_hash_for(body),
         )
-        return status.HTTP_201_CREATED, success("Order placed.", serialize_order(order))
+        client_secret = None
+        if order.payment_method == "card" and order.stripe_payment_intent_id:
+            intent = retrieve_payment_intent(order.stripe_payment_intent_id)
+            client_secret = intent.client_secret
+        return status.HTTP_201_CREATED, success("Order placed.", serialize_order(order, client_secret=client_secret))
 
     @route.get("/{number}", response={200: SuccessResponse, **_ERROR_RESPONSES}, summary="Get an order")
     def retrieve(self, number: str):
         order = build_order_service().get_for(self.context.request.user, number=number)
         return success("Order retrieved.", serialize_order(order))
+
+    @route.post(
+        "/{number}/confirm-payment",
+        response={200: SuccessResponse, **_ERROR_RESPONSES},
+        summary="Confirm card payment for an order",
+    )
+    def confirm_payment(self, number: str):
+        from commerce.models import Order, PaymentStatus
+
+        order = build_order_service().get_for(self.context.request.user, number=number)
+        if order.payment_method != "card" or not order.stripe_payment_intent_id:
+            raise ValidationError({"payment": "This order does not require card payment."})
+        if order.payment_status == PaymentStatus.PAID:
+            return success("Payment already confirmed.", serialize_order(order))
+        intent = retrieve_payment_intent(order.stripe_payment_intent_id)
+        order = sync_order_from_intent(order, intent)
+        if order.payment_status != PaymentStatus.PAID:
+            raise ValidationError({"payment": "Payment has not completed yet."})
+        return success("Payment confirmed.", serialize_order(order))
 
     @route.post("/{number}/cancel", response={200: SuccessResponse, **_ERROR_RESPONSES}, summary="Cancel an order")
     def cancel(self, number: str):

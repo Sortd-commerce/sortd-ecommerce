@@ -9,6 +9,7 @@ import { useToast } from "@/components/Toast";
 export function AddToCartButton({
   variantId,
   title,
+  brand,
   sku,
   unitPrice,
   slug,
@@ -21,6 +22,7 @@ export function AddToCartButton({
 }: {
   variantId: number;
   title: string;
+  brand?: string;
   sku: string;
   unitPrice: string;
   slug?: string;
@@ -99,6 +101,7 @@ export function AddToCartButton({
         const result = addItem({
           variant_id: variantId,
           title,
+          brand,
           sku,
           unit_price: unitPrice,
           slug,
@@ -108,14 +111,14 @@ export function AddToCartButton({
           quantity: Math.max(1, addQuantity),
         });
         if (!result.ok) {
-          toast.error(result.message || "Could not add to cart.");
+          toast.error(result.message || "Could not add to basket.");
           return;
         }
         if (result.capped) {
           toast.error(result.message || "Stock limit reached.");
           return;
         }
-        toast.success("Added to cart");
+        toast.success("Added to basket");
       }}
     >
       Add to basket

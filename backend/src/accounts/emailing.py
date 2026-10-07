@@ -122,6 +122,31 @@ class DjangoEmailSender:
         )
         self._send(to=to, subject=subject, body=body, html=html)
 
+    def send_auth_code(self, *, to: str, code: str, first_name: str = "", purpose: str = "signup") -> None:
+        name = first_name.strip() or "there"
+        if purpose == "login":
+            subject = "Your Sortd login code"
+            preview = "Use this code to sign in to Sortd."
+            heading = "Your login code"
+            intro = f"Hi {name}, enter this code on Sortd to sign in. It expires in 10 minutes."
+        else:
+            subject = "Your Sortd verification code"
+            preview = "Use this code to finish creating your Sortd account."
+            heading = "Your verification code"
+            intro = f"Hi {name}, enter this code on Sortd to verify your email and create your account. It expires in 10 minutes."
+        code_html = (
+            f'<p style="margin:24px 0 0;font-family:Arial,sans-serif;font-size:32px;letter-spacing:0.35em;'
+            f'font-weight:700;color:{FOREST};">{escape(code)}</p>'
+        )
+        body = f"Hi {name},\n\nYour Sortd code is {code}.\n\nIt expires in 10 minutes.\n"
+        html = _branded_html(
+            preview=preview,
+            heading=heading,
+            intro=intro,
+            extra_html=code_html,
+        )
+        self._send(to=to, subject=subject, body=body, html=html)
+
     def send_password_reset(self, *, to: str, link: str, first_name: str = "") -> None:
         name = first_name.strip() or "there"
         subject = "Reset your Sortd password"
@@ -247,15 +272,12 @@ class DjangoEmailSender:
         body = (
             f"Hi {name},\n\n"
             f"Your Sortd account was just used on {where}{ip_bit}.\n"
-            "You can stay signed in on two devices at once. If this was not you, reset your password.\n"
-            f"{_shop_url()}/forgot-password"
+            "You can stay signed in on two devices at once. If this was not you, contact us."
         )
         html = _branded_html(
             preview=f"New sign-in from {where}.",
             heading="New device signed in",
-            intro=f"Hi {name}, someone just signed in to your Sortd account from {where}{ip_bit}. Two devices can stay signed in at the same time. If this was not you, reset your password.",
-            cta_label="Reset password",
-            cta_url=f"{_shop_url()}/forgot-password",
+            intro=f"Hi {name}, someone just signed in to your Sortd account from {where}{ip_bit}. Two devices can stay signed in at the same time. If this was not you, contact us.",
         )
         self._send(to=to, subject=subject, body=body, html=html)
 

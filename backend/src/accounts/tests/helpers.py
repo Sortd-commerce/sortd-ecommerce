@@ -10,6 +10,7 @@ from django.test import Client, TestCase, override_settings
 PASSWORD = "Str0ng-pass-99"
 NEW_PASSWORD = "N3w-pass-88"
 PHONE = "+971501234567"
+FULL_NAME = "Ada Lovelace"
 _TEST_STORAGES = {
     "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
     "private": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
@@ -67,9 +68,7 @@ def post_json(client, path, payload, **extra):
 def signup(
     client,
     email="ada@example.com",
-    password=PASSWORD,
-    first_name="Ada",
-    last_name="Lovelace",
+    full_name=FULL_NAME,
     phone=PHONE,
 ):
     return post_json(
@@ -77,32 +76,46 @@ def signup(
         "/api/v1/auth/signup",
         {
             "email": email,
-            "password": password,
-            "first_name": first_name,
-            "last_name": last_name,
+            "full_name": full_name,
             "phone": phone,
         },
     )
 
 
-def verification_token_from_mailbox() -> str:
+def verification_code_from_mailbox() -> str:
     body = mail.outbox[-1].body
-    match = re.search(r"token=([A-Za-z0-9_\-]+)", body)
+    match = re.search(r"\b(\d{6})\b", body)
     if match is None:
-        raise AssertionError("Verification token missing from email.")
+        raise AssertionError("Verification code missing from email.")
     return match.group(1)
 
 
-def verify_email(client, token: str | None = None):
-    raw = token or verification_token_from_mailbox()
-    return post_json(client, "/api/v1/auth/verify-email", {"token": raw})
+def verify_signup(client, email="ada@example.com", code: str | None = None):
+    raw = code or verification_code_from_mailbox()
+    return post_json(client, "/api/v1/auth/signup/verify", {"email": email, "code": raw})
 
 
 def signup_and_verify(client, **kwargs):
     created = signup(client, **kwargs)
     if created.status_code != 201:
         return created
-    return verify_email(client)
+    return verify_signup(client, email=kwargs.get("email", "ada@example.com"))
+
+
+def request_login_code(client, email="ada@example.com"):
+    return post_json(client, "/api/v1/auth/login/code", {"email": email})
+
+
+def verify_login(client, email="ada@example.com", code: str | None = None, device_id=""):
+    payload = {"email": email, "code": code or verification_code_from_mailbox()}
+    if device_id:
+        payload["device_id"] = device_id
+    return post_json(client, "/api/v1/auth/login/verify", payload)
+
+
+def login_with_code(client, email="ada@example.com", device_id=""):
+    request_login_code(client, email=email)
+    return verify_login(client, email=email, device_id=device_id)
 
 
 def login(client, email="ada@example.com", password=PASSWORD, device_id=""):

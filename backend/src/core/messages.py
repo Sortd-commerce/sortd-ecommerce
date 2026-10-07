@@ -13,6 +13,8 @@ class ErrorMessage:
     EMAIL_NOT_VERIFIED = "Verify your email before logging in."
     EMAIL_UNAVAILABLE = "Unable to send email. Please try again."
     INVALID_VERIFICATION = "The verification link is invalid or has expired."
+    INVALID_CODE = "That code doesn't match. Check the newest email from Sortd."
+    CODE_EXPIRED = "That code has expired. Request a new one."
     OUT_OF_STOCK = "One or more items are no longer available in that quantity."
     NOT_SERVICEABLE = "We do not deliver to this address."
     SLOT_UNAVAILABLE = "That delivery window is no longer available."

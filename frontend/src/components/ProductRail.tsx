@@ -20,6 +20,9 @@ export function ProductRail({
       <div className="aisle-head">
         <h2>{title}</h2>
         <div className="aisle-meta">
+          <span className="aisle-count">
+            {count} {count === 1 ? "product" : "products"}
+          </span>
           <a href={`#${id}`} className="aisle-see-all">
             See all →
           </a>
@@ -39,9 +42,6 @@ export function ProductRail({
           >
             →
           </button>
-          <span className="sr-only">
-            {count} {count === 1 ? "product" : "products"}
-          </span>
         </div>
       </div>
       <div ref={scroller} className="product-rail">

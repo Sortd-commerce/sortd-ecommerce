@@ -27,6 +27,9 @@ export function Manifesto() {
             <div className="manifesto-foot">
               <nav className="manifesto-links manifesto-links--mobile" aria-label="Footer">
                 <Link href="/">Home</Link>
+                <a href="https://sortd.com/about" target="_blank" rel="noreferrer">
+                  About Us
+                </a>
                 <Link href="/#catalog">Products</Link>
               </nav>
               <div className="manifesto-meta manifesto-meta--mobile">
@@ -37,6 +40,9 @@ export function Manifesto() {
                 <p className="manifesto-tagline">Only what passes.</p>
                 <nav className="manifesto-links" aria-label="Footer">
                   <Link href="/">Home</Link>
+                  <a href="https://sortd.com/about" target="_blank" rel="noreferrer">
+                    About Us
+                  </a>
                   <Link href="/#catalog">Products</Link>
                   <span className="manifesto-copy">© 2026 SORTD</span>
                 </nav>

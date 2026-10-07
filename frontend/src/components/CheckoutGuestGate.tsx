@@ -1,5 +1,7 @@
-import Link from "next/link";
+"use client";
+
 import { OpenBasketLink } from "@/components/OpenBasketLink";
+import { AuthOpenButton } from "@/components/auth/AuthOpenButton";
 
 export function CheckoutGuestGate() {
   return (
@@ -8,16 +10,15 @@ export function CheckoutGuestGate() {
         <p className="checkout-guest-kicker">Almost there</p>
         <h1>Sign in to checkout</h1>
         <p className="checkout-guest-copy">
-          Your basket stays in this browser. Sign in or create an account to add your delivery address and place your
-          order.
+          Sign in or create an account to add your delivery address and place your order.
         </p>
         <div className="checkout-guest-actions">
-          <Link href="/login?next=/checkout" className="btn btn-primary">
+          <AuthOpenButton mode="login" next="/checkout" className="btn btn-primary">
             Sign in
-          </Link>
-          <Link href="/signup?next=/checkout" className="btn btn-secondary">
+          </AuthOpenButton>
+          <AuthOpenButton mode="signup" next="/checkout" className="btn btn-secondary">
             Create account
-          </Link>
+          </AuthOpenButton>
         </div>
         <OpenBasketLink className="checkout-guest-basket">Review basket</OpenBasketLink>
       </section>

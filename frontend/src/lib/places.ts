@@ -49,7 +49,7 @@ export async function checkDeliveryPlace(input: {
     body,
   });
   if (!result.ok || !result.data) {
-    return { ok: false, message: result.message || "Could not check delivery for that place." };
+    return { ok: false, message: result.message || "Could not verify that address." };
   }
   return { ok: true, message: result.message, data: result.data };
 }

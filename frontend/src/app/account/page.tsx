@@ -42,14 +42,12 @@ export default async function AccountPage() {
         <section className="account-guest">
           <p className="account-kicker">Account</p>
           <h1>Sign in to your account</h1>
-          <p className="account-copy">
-            View orders, save delivery addresses, and checkout faster. Your basket stays in this browser.
-          </p>
+          <p className="account-copy">View orders, save delivery addresses, and checkout faster.</p>
           <div className="account-guest-actions">
-            <Link href="/login?next=/account" className="btn btn-primary">
+            <Link href="/?auth=login&next=/account" className="btn btn-primary">
               Sign in
             </Link>
-            <Link href="/signup?next=/account" className="btn btn-secondary">
+            <Link href="/?auth=signup&next=/account" className="btn btn-secondary">
               Create account
             </Link>
           </div>
@@ -83,7 +81,7 @@ export default async function AccountPage() {
       </section>
 
       <section className="account-grid" aria-label="Account shortcuts">
-        <Link href="/checkout" className="account-card">
+        <Link href="/addresses" className="account-card">
           <span className="account-card-label">Delivery</span>
           <strong>{primary ? "Primary address" : "Add your address"}</strong>
           <p>{primary ? formatAddress(primary) : "Set where we deliver in Dubai"}</p>

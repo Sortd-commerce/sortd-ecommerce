@@ -39,7 +39,7 @@ export default async function DeliveryAdminPage() {
     <div className="space-y-8">
       <PageHeader
         title="Delivery & pricing"
-        description="Delivery windows, free-delivery threshold, and automatic or code-based discounts."
+        description="Delivery windows, free-delivery threshold, and automatic discounts. Promo codes live under Coupons."
       />
 
       <section className="panel overflow-hidden">
@@ -71,20 +71,29 @@ export default async function DeliveryAdminPage() {
 
       <section className="panel overflow-hidden">
         <div className="border-b border-line px-4 py-4">
-          <h2 className="font-semibold">Discounts</h2>
+          <h2 className="font-semibold">Automatic discounts</h2>
           <p className="mt-1 text-sm text-muted">
-            Leave the promo code blank for automatic savings. Global discounts apply when no product-specific discount matches.
+            Leave the promo code blank. These apply without a code at checkout. For WELCOME10-style offers, use{" "}
+            <a href="/coupons" className="text-accent underline underline-offset-2">
+              Coupons
+            </a>
+            .
           </p>
         </div>
         <ul>
-          {(discounts.data || []).map((row) => (
-            <DiscountEditor key={row.id} discount={row} products={productOptions} />
-          ))}
-          {!discounts.data?.length ? <li className="px-4 py-8 text-sm text-muted">No discounts yet.</li> : null}
+          {(discounts.data || [])
+            .filter((row) => !row.code)
+            .map((row) => (
+              <DiscountEditor key={row.id} discount={row} products={productOptions} />
+            ))}
+          {!discounts.data?.filter((row) => !row.code).length ? (
+            <li className="px-4 py-8 text-sm text-muted">No automatic discounts yet.</li>
+          ) : null}
         </ul>
         <div className="border-t border-line p-4">
-          <h3 className="text-sm font-medium">Add discount</h3>
+          <h3 className="text-sm font-medium">Add automatic discount</h3>
           <ActionForm action={createDiscountAction} className="mt-3 grid gap-3 md:grid-cols-2" successLabel="Discount added.">
+            <input type="hidden" name="redirect_to" value="/delivery" />
             <label className="field">
               <span>Name</span>
               <input name="name" placeholder="Summer sale" required />

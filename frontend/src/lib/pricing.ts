@@ -2,6 +2,7 @@ export type PriceQuote = {
   subtotal: string;
   discount_amount: string;
   discount_code: string;
+  discount_name: string;
   delivery_fee: string;
   configured_delivery_fee: string;
   free_delivery_minimum: string;
@@ -20,12 +21,32 @@ export type PricingRules = {
     scope: string;
     product_title: string;
   }>;
+  coupons?: CouponOffer[];
+};
+
+export type CouponOffer = {
+  code: string;
+  name: string;
+  kind: string;
+  benefit: string;
+  value: string;
+  scope: string;
+  headline: string;
+  detail: string;
+  minimum_order: string;
+  max_discount: string;
+  first_order_only: boolean;
+  eligible?: boolean;
+  amount_needed?: string;
+  estimated_savings?: string;
+  is_best?: boolean;
 };
 
 export const EMPTY_QUOTE: PriceQuote = {
   subtotal: "0.00",
   discount_amount: "0.00",
   discount_code: "",
+  discount_name: "",
   delivery_fee: "0.00",
   configured_delivery_fee: "0.00",
   free_delivery_minimum: "0.00",
@@ -57,6 +78,7 @@ export function buildLocalQuote(items: QuoteLine[], rules: PricingRules | null):
     subtotal: money(subtotalNum),
     discount_amount: "0.00",
     discount_code: "",
+    discount_name: "",
     delivery_fee: money(deliveryFee),
     configured_delivery_fee: money(configuredFee),
     free_delivery_minimum: money(minimum),

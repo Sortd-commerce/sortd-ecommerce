@@ -4,8 +4,8 @@ from django.utils import timezone
 from ninja_extra.exceptions import ValidationError
 
 from catalog.models import ProductVariant
-from commerce.models import Discount
-from core.money import ZERO, money
+from commerce.models import Discount, Order, OrderStatus
+from core.money import ZERO, money, money_str
 
 
 def discount_error() -> None:
@@ -29,8 +29,30 @@ def select_discount(*, code: str | None, now=None) -> Discount | None:
     return max(candidates, key=lambda row: row.value)
 
 
+def require_coupon_eligible(*, discount: Discount, subtotal: Decimal, user=None) -> None:
+    minimum = money(discount.minimum_order) if discount.minimum_order else ZERO
+    if minimum > ZERO and subtotal < minimum:
+        gap = money(minimum - subtotal)
+        raise ValidationError({"code": f"Add AED {money_str(gap)} more to use this code."})
+    if discount.first_order_only and user is not None:
+        if Order.objects.filter(user=user).exclude(status=OrderStatus.CANCELLED).exists():
+            raise ValidationError({"code": "This code is for first orders only."})
+
+
+def coupon_eligible(*, discount: Discount, subtotal: Decimal, user=None) -> tuple[bool, Decimal]:
+    minimum = money(discount.minimum_order) if discount.minimum_order else ZERO
+    if minimum > ZERO and subtotal < minimum:
+        return False, money(minimum - subtotal)
+    if discount.first_order_only and user is not None:
+        if Order.objects.filter(user=user).exclude(status=OrderStatus.CANCELLED).exists():
+            return False, ZERO
+    return True, ZERO
+
+
 def amount_for(*, discount: Discount | None, lines: list[tuple[ProductVariant, int, Decimal]]) -> Decimal:
     if discount is None:
+        return ZERO
+    if discount.benefit == Discount.Benefit.FREE_DELIVERY:
         return ZERO
     eligible = ZERO
     for variant, quantity, line_total in lines:
@@ -40,8 +62,12 @@ def amount_for(*, discount: Discount | None, lines: list[tuple[ProductVariant, i
         return ZERO
     if discount.kind == Discount.Kind.PERCENT:
         percent = min(discount.value, Decimal("100"))
-        return money(eligible * percent / Decimal("100"))
-    return min(money(discount.value), eligible)
+        amount = money(eligible * percent / Decimal("100"))
+    else:
+        amount = min(money(discount.value), eligible)
+    if discount.max_discount:
+        amount = min(amount, money(discount.max_discount))
+    return amount
 
 
 def _in_window(discount: Discount, moment) -> bool:

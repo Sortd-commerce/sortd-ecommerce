@@ -2,7 +2,15 @@ from django.contrib.auth import get_user_model
 from django.core import mail
 from django.test import Client
 
-from accounts.tests.helpers import PASSWORD, PHONE, ApiTestCase, login, make_service_token, signup, signup_and_verify, verification_token_from_mailbox, verify_email
+from accounts.tests.helpers import (
+    PHONE,
+    ApiTestCase,
+    make_service_token,
+    signup,
+    signup_and_verify,
+    verification_code_from_mailbox,
+    verify_signup,
+)
 from core.messages import ErrorMessage
 
 User = get_user_model()
@@ -15,7 +23,7 @@ class SignupTests(ApiTestCase):
         self.assertEqual(response.status_code, 201)
         body = response.json()
         self.assertEqual(body["status"], "success")
-        self.assertEqual(body["message"], "Account created.")
+        self.assertEqual(body["message"], "Check your email for a code.")
         self.assertEqual(body["data"]["email"], "ada@example.com")
         self.assertEqual(body["data"]["first_name"], "Ada")
         self.assertEqual(body["data"]["phone"], PHONE)
@@ -23,26 +31,10 @@ class SignupTests(ApiTestCase):
         self.assertNotIn("tokens", body["data"])
         self.assertTrue(User.objects.filter(email="ada@example.com", email_verified_at__isnull=True).exists())
         self.assertEqual(len(mail.outbox), 1)
-        self.assertIn("token=", mail.outbox[0].body)
-        html = mail.outbox[0].alternatives[0][0]
-        self.assertIn("token=", html)
-        self.assertEqual(mail.outbox[0].alternatives[0][1], "text/html")
-        serialized = mail.outbox[0].message().as_string()
-        self.assertNotIn("token=3D", serialized)
-        self.assertIn("token=", mail.outbox[0].body)
-
-    def test_quoted_printable_token_still_verifies(self):
-        signup(self.client)
-        token = verification_token_from_mailbox()
-        mangled = (
-            f"http://localhost:3000/verify-email?token=3D{token[:20]}=\n{token[20:]}"
-        )
-        response = verify_email(self.client, mangled)
-
-        self.assertEqual(response.status_code, 200)
+        self.assertRegex(mail.outbox[0].body, r"\b\d{6}\b")
 
     def test_signup_strips_surrounding_whitespace_from_names(self):
-        response = signup(self.client, first_name="  Ada  ", last_name="  Lovelace  ")
+        response = signup(self.client, full_name="  Ada   Lovelace  ")
 
         self.assertEqual(response.status_code, 201)
         user = response.json()["data"]
@@ -50,8 +42,8 @@ class SignupTests(ApiTestCase):
         self.assertEqual(user["last_name"], "Lovelace")
 
     def test_unverified_email_can_be_signed_up_again(self):
-        signup(self.client, first_name="Ada")
-        response = signup(self.client, first_name="Augusta")
+        signup(self.client, full_name="Ada Lovelace")
+        response = signup(self.client, full_name="Augusta Ada")
 
         self.assertEqual(response.status_code, 201)
         self.assertEqual(User.objects.filter(email="ada@example.com").count(), 1)
@@ -73,23 +65,10 @@ class SignupTests(ApiTestCase):
         self.assertEqual(response.status_code, 422)
         self.assertEqual(response.json()["errors"][0]["field"], "email")
 
-    def test_short_password_is_rejected(self):
-        response = signup(self.client, password="short")
-
-        self.assertEqual(response.status_code, 422)
-        self.assertEqual(response.json()["errors"][0]["field"], "password")
-        self.assertFalse(User.objects.exists())
-
-    def test_common_password_is_rejected(self):
-        response = signup(self.client, password="password123")
-
-        self.assertIn(response.status_code, {400, 422})
-        self.assertFalse(User.objects.exists())
-
-    def test_missing_password_is_rejected(self):
+    def test_missing_full_name_is_rejected(self):
         response = self.client.post(
             "/api/v1/auth/signup",
-            data={"email": "ada@example.com", "first_name": "Ada", "last_name": "Lovelace", "phone": PHONE},
+            data={"email": "ada@example.com", "phone": PHONE},
             content_type="application/json",
         )
 
@@ -101,38 +80,31 @@ class SignupTests(ApiTestCase):
         self.assertEqual(response.status_code, 422)
         self.assertEqual(response.json()["errors"][0]["field"], "phone")
 
-    def test_verify_email_returns_tokens(self):
+    def test_verify_signup_code_returns_tokens(self):
         signup(self.client)
-        response = verify_email(self.client)
+        response = verify_signup(self.client)
 
         self.assertEqual(response.status_code, 200)
         body = response.json()
         self.assertIn("access", body["data"]["tokens"])
         self.assertIsNotNone(User.objects.get(email="ada@example.com").email_verified_at)
 
-    def test_magic_link_cannot_be_reused(self):
+    def test_signup_code_cannot_be_reused(self):
         signup(self.client)
-        token = verification_token_from_mailbox()
-        first = verify_email(self.client, token)
-        second = verify_email(self.client, token)
+        code = verification_code_from_mailbox()
+        first = verify_signup(self.client, code=code)
+        second = verify_signup(self.client, code=code)
 
         self.assertEqual(first.status_code, 200)
         self.assertEqual(second.status_code, 401)
-        self.assertEqual(second.json()["message"], ErrorMessage.INVALID_VERIFICATION)
+        self.assertIn("code", second.json()["message"].lower())
 
-    def test_get_does_not_verify_email(self):
+    def test_wrong_signup_code_reports_tries_left(self):
         signup(self.client)
-        token = verification_token_from_mailbox()
+        response = verify_signup(self.client, code="000000")
 
-        response = self.client.get(f"/api/v1/auth/verify-email?token={token}")
-
-        self.assertEqual(response.status_code, 405)
-        self.assertIsNone(User.objects.get(email="ada@example.com").email_verified_at)
-
-    def test_password_is_not_returned(self):
-        response = signup(self.client)
-
-        self.assertNotIn(PASSWORD, response.content.decode())
+        self.assertEqual(response.status_code, 401)
+        self.assertIn("left", response.json()["message"].lower())
 
     def test_signup_requires_a_service_token(self):
         raw = Client()
@@ -140,9 +112,7 @@ class SignupTests(ApiTestCase):
             "/api/v1/auth/signup",
             data={
                 "email": "ada@example.com",
-                "password": PASSWORD,
-                "first_name": "Ada",
-                "last_name": "Lovelace",
+                "full_name": "Ada Lovelace",
                 "phone": PHONE,
             },
             content_type="application/json",
@@ -155,8 +125,8 @@ class SignupTests(ApiTestCase):
 
         raw = Client()
         response = raw.post(
-            "/api/v1/auth/login",
-            data={"email": "ada@example.com", "password": PASSWORD},
+            "/api/v1/auth/login/code",
+            data={"email": "ada@example.com"},
             content_type="application/json",
             HTTP_X_SERVICE_TOKEN=make_service_token(signing_key=dj_settings.JWT_SIGNING_KEY),
         )
@@ -165,8 +135,8 @@ class SignupTests(ApiTestCase):
     def test_long_lived_service_token_is_rejected(self):
         raw = Client()
         response = raw.post(
-            "/api/v1/auth/login",
-            data={"email": "ada@example.com", "password": PASSWORD},
+            "/api/v1/auth/login/code",
+            data={"email": "ada@example.com"},
             content_type="application/json",
             HTTP_X_SERVICE_TOKEN=make_service_token(lifetime_seconds=600),
         )

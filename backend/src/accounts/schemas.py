@@ -1,5 +1,6 @@
 import re
 from datetime import datetime
+from typing import Literal
 
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
@@ -8,13 +9,21 @@ from ninja import Schema
 from pydantic import Field, field_validator
 
 E164 = re.compile(r"^\+[1-9]\d{7,14}$")
+CODE_RE = re.compile(r"^\d{6}$")
+
+
+def split_full_name(value: str) -> tuple[str, str]:
+    parts = value.strip().split(None, 1)
+    if not parts:
+        raise ValueError("This field may not be blank.")
+    first = parts[0]
+    last = parts[1].strip() if len(parts) > 1 else ""
+    return first, last
 
 
 class SignupIn(Schema):
     email: str = Field(max_length=254)
-    password: str = Field(min_length=8, max_length=128)
-    first_name: str = Field(min_length=1, max_length=150)
-    last_name: str = Field(min_length=1, max_length=150)
+    full_name: str = Field(min_length=1, max_length=301)
     phone: str = Field(min_length=8, max_length=16)
 
     @field_validator("email")
@@ -27,19 +36,10 @@ class SignupIn(Schema):
             raise ValueError(exc.messages[0]) from exc
         return email
 
-    @field_validator("password")
+    @field_validator("full_name")
     @classmethod
-    def validate_password_strength(cls, value: str) -> str:
-        try:
-            validate_password(value)
-        except DjangoValidationError as exc:
-            raise ValueError(" ".join(exc.messages)) from exc
-        return value
-
-    @field_validator("first_name", "last_name")
-    @classmethod
-    def strip_name(cls, value: str) -> str:
-        name = value.strip()
+    def strip_full_name(cls, value: str) -> str:
+        name = " ".join(value.split())
         if not name:
             raise ValueError("This field may not be blank.")
         return name
@@ -51,6 +51,44 @@ class SignupIn(Schema):
         if not E164.match(phone):
             raise ValueError("Enter a phone number in E.164 format.")
         return phone
+
+
+class VerifyCodeIn(Schema):
+    email: str = Field(max_length=254)
+    code: str = Field(min_length=6, max_length=6)
+    device_id: str = Field(default="", max_length=64)
+
+    @field_validator("email")
+    @classmethod
+    def normalize_email(cls, value: str) -> str:
+        return value.strip().lower()
+
+    @field_validator("code")
+    @classmethod
+    def normalize_code(cls, value: str) -> str:
+        code = value.strip()
+        if not CODE_RE.match(code):
+            raise ValueError("Enter the 6-digit code from your email.")
+        return code
+
+
+class RequestLoginCodeIn(Schema):
+    email: str = Field(max_length=254)
+
+    @field_validator("email")
+    @classmethod
+    def normalize_email(cls, value: str) -> str:
+        return value.strip().lower()
+
+
+class ResendCodeIn(Schema):
+    email: str = Field(max_length=254)
+    purpose: Literal["signup", "login"] = "signup"
+
+    @field_validator("email")
+    @classmethod
+    def normalize_email(cls, value: str) -> str:
+        return value.strip().lower()
 
 
 class LoginIn(Schema):

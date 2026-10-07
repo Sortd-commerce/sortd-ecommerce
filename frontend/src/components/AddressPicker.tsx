@@ -83,7 +83,7 @@ export function AddressPicker({
 
   const [state, formAction] = useActionState(async (prev: ActionState, formData: FormData) => {
     if (!selected) {
-      toast.error("Pick an address from the suggestions, or use your location.");
+      toast.error("Select an address from the list, or use your location.");
       return prev;
     }
     if (!selected.serviceable) {
@@ -158,7 +158,7 @@ export function AddressPicker({
 
   function useMyLocation() {
     if (!navigator.geolocation) {
-      toast.error("Location is not available in this browser.");
+      toast.error("Location is not available on this device.");
       return;
     }
     setLocating(true);
@@ -175,7 +175,7 @@ export function AddressPicker({
       },
       () => {
         setLocating(false);
-        toast.error("Could not access your location. Check browser permissions.");
+        toast.error("Could not access your location.");
       },
       { enableHighAccuracy: true, timeout: 12000 },
     );
@@ -197,7 +197,7 @@ export function AddressPicker({
               setSelected(null);
             }}
             onFocus={() => suggestions.length && setOpen(true)}
-            placeholder="Search any city to test pin codes"
+            placeholder="Search for your building or area"
             autoComplete="off"
             role="combobox"
             aria-expanded={open}
@@ -218,7 +218,7 @@ export function AddressPicker({
           </button>
         </span>
         {validity === "valid" ? (
-          <p className="text-sm font-medium text-leaf">Deliverable address confirmed.</p>
+          <p className="text-sm font-medium text-leaf">We deliver to this address.</p>
         ) : null}
         {validity === "invalid" ? (
           <p className="text-sm font-medium text-citrus">We do not deliver to this address yet.</p>
@@ -270,7 +270,7 @@ export function AddressPicker({
           {submitLabel}
         </SubmitButton>
         {!selected && query.trim() ? (
-          <p className="text-sm text-ink/55">Choose a suggestion from the list to confirm the place.</p>
+          <p className="text-sm text-ink/55">Select an address from the list.</p>
         ) : null}
       </form>
     </div>

@@ -26,6 +26,7 @@ from commerce.models import (
     PaymentMethod,
     PaymentStatus,
 )
+from commerce.stripe_payments import create_payment_intent, require_card_available, stripe_enabled
 from core.exceptions import Conflict
 from core.messages import ErrorMessage
 from core.money import money, money_str
@@ -87,6 +88,8 @@ class OrderService:
         payment = PaymentMethod.objects.filter(code=command.payment_method, is_active=True).first()
         if payment is None:
             raise ValidationError({"payment_method": "That payment method is not available."})
+        if payment.code == "card":
+            require_card_available()
 
         cart = self._cart.get_or_create(user)
         items = list(cart.items.select_related("variant", "variant__product").all())
@@ -122,7 +125,7 @@ class OrderService:
                     line_total = money(variant.price) * qty
                     priced.append((variant, qty, line_total))
 
-                priced_quote = quote_lines(priced, code=command.discount_code, now=self._clock.now())
+                priced_quote = quote_lines(priced, code=command.discount_code, user=user, now=self._clock.now())
                 if money(command.expected_total) != priced_quote.total:
                     raise Conflict(ErrorMessage.TOTAL_MISMATCH)
 
@@ -173,6 +176,12 @@ class OrderService:
             if existing and existing.request_hash == request_hash:
                 return existing
             raise Conflict("The request could not be completed because of a conflict.") from None
+
+        if payment.code == "card" and stripe_enabled():
+            intent = create_payment_intent(order)
+            order.stripe_payment_intent_id = intent.id
+            order.save(update_fields=["stripe_payment_intent_id"])
+
         self._notify_placed(user, order)
         return order
 
@@ -264,8 +273,8 @@ def request_hash_for(payload: dict) -> str:
     return sha256(encoded.encode("utf-8")).hexdigest()
 
 
-def serialize_order(order: Order) -> dict:
-    return {
+def serialize_order(order: Order, *, client_secret: str | None = None) -> dict:
+    payload = {
         "id": order.id,
         "number": order.number,
         "status": order.status,
@@ -302,3 +311,6 @@ def serialize_order(order: Order) -> dict:
         ],
         "created_at": order.created_at.isoformat(),
     }
+    if client_secret:
+        payload["client_secret"] = client_secret
+    return payload

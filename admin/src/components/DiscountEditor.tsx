@@ -6,12 +6,18 @@ import { ActionForm, SubmitButton } from "@/components/ActionForm";
 export type DiscountRow = {
   id: number;
   name: string;
+  headline: string;
+  detail: string;
   kind: string;
+  benefit: string;
   value: string;
   code: string;
   scope: string;
   product_id: number | null;
   product_title: string;
+  minimum_order: string;
+  max_discount: string;
+  first_order_only: boolean;
   is_active: boolean;
 };
 
@@ -45,6 +51,7 @@ export function DiscountEditor({
       </div>
       <ActionForm action={updateDiscountAction} className="mt-3 grid gap-3 md:grid-cols-2">
         <input type="hidden" name="discount_id" value={discount.id} />
+        <input type="hidden" name="redirect_to" value="/delivery" />
         <label className="field">
           <span>Name</span>
           <input name="name" defaultValue={discount.name} required />
@@ -91,6 +98,7 @@ export function DiscountEditor({
       </ActionForm>
       <form action={deleteDiscountAction} className="mt-2">
         <input type="hidden" name="discount_id" value={discount.id} />
+        <input type="hidden" name="redirect_to" value="/delivery" />
         <button type="submit" className="text-sm font-semibold text-citrus">
           Remove
         </button>

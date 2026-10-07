@@ -16,22 +16,92 @@ type AuthPayload = {
 };
 
 export async function signupAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
-  const email = String(formData.get("email") || "");
+  const email = String(formData.get("email") || "").trim().toLowerCase();
   const result = await apiFetch("/auth/signup", {
     method: "POST",
     auth: false,
     body: {
       email,
-      password: String(formData.get("password") || ""),
-      first_name: String(formData.get("first_name") || ""),
-      last_name: String(formData.get("last_name") || ""),
+      full_name: String(formData.get("full_name") || ""),
       phone: String(formData.get("phone") || ""),
     },
   });
   if (!result.ok) return { ok: false, message: result.message };
-  redirect(`/verify-email?email=${encodeURIComponent(email)}`);
+  return { ok: true, message: "Code sent.", email, purpose: "signup" };
 }
 
+export async function requestLoginCodeAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const email = String(formData.get("email") || "").trim().toLowerCase();
+  const result = await apiFetch("/auth/login/code", {
+    method: "POST",
+    auth: false,
+    body: { email },
+  });
+  if (!result.ok) return { ok: false, message: result.message };
+  return { ok: true, message: "Code sent.", email, purpose: "login" };
+}
+
+export async function verifySignupCodeAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const email = String(formData.get("email") || "").trim().toLowerCase();
+  const result = await apiFetch<AuthPayload>("/auth/signup/verify", {
+    method: "POST",
+    auth: false,
+    body: {
+      email,
+      code: String(formData.get("code") || ""),
+      device_id: String(formData.get("device_id") || ""),
+    },
+  });
+  if (!result.ok || !result.data) return { ok: false, message: result.message, email, purpose: "signup" };
+  await setAuthCookies(result.data.tokens.access, result.data.tokens.refresh);
+  revalidatePath("/", "layout");
+  const next = safeRedirectPath(String(formData.get("next") || ""));
+  if (next && next !== "/") redirect(next);
+  return {
+    ok: true,
+    message: "Account created.",
+    firstName: result.data.user.first_name,
+    email,
+    purpose: "signup",
+  };
+}
+
+export async function verifyLoginCodeAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const email = String(formData.get("email") || "").trim().toLowerCase();
+  const result = await apiFetch<AuthPayload>("/auth/login/verify", {
+    method: "POST",
+    auth: false,
+    body: {
+      email,
+      code: String(formData.get("code") || ""),
+      device_id: String(formData.get("device_id") || ""),
+    },
+  });
+  if (!result.ok || !result.data) return { ok: false, message: result.message, email, purpose: "login" };
+  await setAuthCookies(result.data.tokens.access, result.data.tokens.refresh);
+  revalidatePath("/", "layout");
+  return {
+    ok: true,
+    message: "Logged in.",
+    firstName: result.data.user.first_name,
+    email,
+    purpose: "login",
+  };
+}
+
+export async function resendCodeAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const email = String(formData.get("email") || "").trim().toLowerCase();
+  const purpose = String(formData.get("purpose") || "signup") as "signup" | "login";
+  const result = await apiFetch("/auth/resend-code", {
+    method: "POST",
+    auth: false,
+    body: { email, purpose },
+  });
+  if (!result.ok) return { ok: false, message: result.message, email, purpose };
+  return { ok: true, message: "New code sent.", email, purpose };
+}
+
+/** Staff/admin password login — storefront uses email codes instead. */
 export async function loginAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const result = await apiFetch<AuthPayload>("/auth/login", {
     method: "POST",
@@ -58,41 +128,7 @@ export async function verifyEmailAction(_prev: ActionState, formData: FormData):
   redirect("/");
 }
 
-export async function resendVerificationAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
-  const email = String(formData.get("email") || "").trim();
-  const result = await apiFetch("/auth/resend-verification", {
-    method: "POST",
-    auth: false,
-    body: { email },
-  });
-  if (!result.ok) return { ok: false, message: result.message };
-  return { ok: true, message: "If that account still needs verifying, we sent a new link." };
-}
-
-export async function forgotPasswordAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
-  const result = await apiFetch("/auth/forgot-password", {
-    method: "POST",
-    auth: false,
-    body: { email: String(formData.get("email") || "").trim() },
-  });
-  if (!result.ok) return { ok: false, message: result.message };
-  return { ok: true, message: "If that account exists, we sent a reset link." };
-}
-
-export async function resetPasswordAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
-  const result = await apiFetch("/auth/reset-password", {
-    method: "POST",
-    auth: false,
-    body: {
-      token: unwrapVerificationToken(String(formData.get("token") || "")),
-      password: String(formData.get("password") || ""),
-    },
-  });
-  if (!result.ok) return { ok: false, message: result.message };
-  redirect("/login");
-}
-
-export async function logoutAction() {
+export async function logoutAction(formData?: FormData) {
   const refresh = await getRefreshToken();
   if (refresh) {
     try {
@@ -102,7 +138,9 @@ export async function logoutAction() {
     }
   }
   await clearAuthCookies();
-  redirect("/login");
+  revalidatePath("/", "layout");
+  const next = safeRedirectPath(String(formData?.get("next") || ""));
+  redirect(next || "/");
 }
 
 export async function fetchCartAction(): Promise<{ ok: boolean; status: number; data?: RemoteCart }> {
@@ -115,10 +153,20 @@ export async function fetchPricingRulesAction(): Promise<{ ok: boolean; data?: P
   return { ok: result.ok, data: result.data };
 }
 
+export async function previewCouponsAction(
+  items: Array<{ variant_id: number; quantity: number }>,
+): Promise<{ ok: boolean; data?: import("@/lib/pricing").CouponOffer[]; message?: string }> {
+  const result = await apiFetch<import("@/lib/pricing").CouponOffer[]>("/pricing/coupons/preview", {
+    method: "POST",
+    body: { items, discount_code: null },
+  });
+  return { ok: result.ok, data: result.data, message: result.message };
+}
+
 export async function quoteCartAction(
   items: Array<{ variant_id: number; quantity: number }>,
   discountCode?: string,
-): Promise<{ ok: boolean; data?: PriceQuote }> {
+): Promise<{ ok: boolean; data?: PriceQuote; message?: string }> {
   const result = await apiFetch<PriceQuote>("/pricing/quote", {
     method: "POST",
     auth: false,
@@ -127,7 +175,17 @@ export async function quoteCartAction(
       discount_code: discountCode?.trim() || null,
     },
   });
-  return { ok: result.ok, data: result.data };
+  return { ok: result.ok, data: result.data, message: result.message };
+}
+
+export async function fetchDefaultAddressAction(): Promise<{ ok: boolean; deliverTo?: string }> {
+  const result = await apiFetch<
+    Array<{ line1: string; city: string; formatted_address: string; is_default?: boolean }>
+  >("/addresses");
+  if (!result.ok || !result.data?.length) return { ok: false };
+  const saved = result.data.find((row) => row.is_default) || result.data[0];
+  const deliverTo = saved.line1 || saved.city || saved.formatted_address;
+  return { ok: true, deliverTo };
 }
 
 export async function syncCartAction(
@@ -149,7 +207,7 @@ export async function placeOrderAction(_prev: ActionState, formData: FormData): 
       const synced = await apiFetch("/cart/sync", { method: "PUT", body: { items } });
       if (!synced.ok) return { ok: false, message: synced.message };
     } catch {
-      return { ok: false, message: "Cart could not be synced. Refresh and try again." };
+      return { ok: false, message: "Something went wrong with your basket. Please try again." };
     }
   }
   const payload = {
@@ -169,8 +227,16 @@ export async function placeOrderAction(_prev: ActionState, formData: FormData): 
     headers: { "Idempotency-Key": key },
   });
   if (!result.ok || !result.data) return { ok: false, message: result.message };
-  const number = (result.data as { number: string }).number;
-  redirect(`/orders/${number}`);
+  const order = result.data as { number: string; client_secret?: string; payment_method?: string };
+  if (order.client_secret) {
+    return {
+      ok: true,
+      message: "",
+      orderNumber: order.number,
+      clientSecret: order.client_secret,
+    };
+  }
+  redirect(`/orders/${order.number}`);
 }
 
 export async function saveAddressAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
@@ -195,6 +261,7 @@ export async function saveAddressAction(_prev: ActionState, formData: FormData):
     : await apiFetch("/addresses", { method: "POST", body: payload });
   if (!result.ok) return { ok: false, message: result.message };
   revalidatePath("/checkout");
+  revalidatePath("/addresses");
   revalidatePath("/", "layout");
   return { ok: true, message: addressId ? "Address updated." : "Address saved." };
 }
@@ -236,6 +303,7 @@ export async function setPrimaryAddressAction(addressId: number): Promise<Action
   });
   if (!result.ok) return { ok: false, message: result.message };
   revalidatePath("/checkout");
+  revalidatePath("/addresses");
   revalidatePath("/", "layout");
   return { ok: true, message: "Primary delivery address updated." };
 }

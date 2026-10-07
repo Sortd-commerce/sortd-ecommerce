@@ -23,7 +23,7 @@ export function Chrome({
       <main id="main" className={`store-main ${checkout ? "store-checkout" : ""}`}>
         {children}
       </main>
-      <CartDrawer />
+      <CartDrawer signedIn={signedIn} />
       <MobileTabBar signedIn={signedIn} />
     </>
   );

@@ -58,11 +58,13 @@ class User(AbstractBaseUser, PermissionsMixin):
 class EmailVerification(models.Model):
     class Kind(models.TextChoices):
         VERIFY = "verify", "Verify email"
+        LOGIN = "login", "Login code"
         RESET = "reset", "Reset password"
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="email_verifications")
     kind = models.CharField(max_length=16, choices=Kind.choices, default=Kind.VERIFY)
     token_hash = models.CharField(max_length=64, unique=True)
+    attempts = models.PositiveSmallIntegerField(default=0)
     expires_at = models.DateTimeField()
     used_at = models.DateTimeField(blank=True, null=True)
     revoked_at = models.DateTimeField(blank=True, null=True)

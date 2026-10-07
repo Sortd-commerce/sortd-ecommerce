@@ -10,6 +10,26 @@ import { aisleTint } from "@/lib/tints";
 
 type ProductList = { results: CardProduct[]; count: number };
 type Category = { name: string; slug: string; image_url?: string | null };
+type BrandGroup = { brand: string; count: number; image_url?: string | null };
+
+function buildBrandGroups(products: CardProduct[]): BrandGroup[] {
+  const map = new Map<string, BrandGroup>();
+  for (const product of products) {
+    const brand = product.brand?.trim();
+    if (!brand) continue;
+    const current = map.get(brand) || {
+      brand,
+      count: 0,
+      image_url: product.primary_image?.url || null,
+    };
+    current.count += 1;
+    if (!current.image_url && product.primary_image?.url) {
+      current.image_url = product.primary_image.url;
+    }
+    map.set(brand, current);
+  }
+  return [...map.values()].sort((a, b) => b.count - a.count);
+}
 
 function findGroup(groups: Array<Category & { products: CardProduct[] }>, needles: string[]) {
   return groups.find((group) =>
@@ -58,6 +78,7 @@ export default async function HomePage({
     chocolateMatch && chocolateMatch.slug !== breakfast?.slug
       ? chocolateMatch
       : promoSource.find((group) => group.slug !== breakfast?.slug);
+  const brandGroups = buildBrandGroups(results);
   const showLanding = !query && !aisle;
 
   return (
@@ -75,7 +96,6 @@ export default async function HomePage({
           <div className="home-inner aisle-picker">
             <div className="aisle-head">
               <h2>Shop by aisle</h2>
-              <p className="aisle-all">All {aisleGroups.length} categories →</p>
             </div>
             <div className="aisle-row">
               {aisleGroups.map((category, index) => (
@@ -128,12 +148,47 @@ export default async function HomePage({
         </section>
       ) : null}
 
+      {showLanding && brandGroups.length ? (
+        <section className="home-section home-section--brands" aria-label="Shop by brand">
+          <div className="home-inner brand-picker">
+            <div className="aisle-head">
+              <h2>Shop by brand</h2>
+            </div>
+            <div className="brand-row">
+              {brandGroups.map((group, index) => (
+                <Link key={group.brand} href={`/?q=${encodeURIComponent(group.brand)}`} className="brand-tile">
+                  <span className="brand-photo" style={{ background: aisleTint(index + 2) }}>
+                    {group.image_url ? (
+                      <OptimizedImage
+                        src={group.image_url}
+                        alt=""
+                        fill
+                        sizes="120px"
+                        className="object-contain"
+                      />
+                    ) : (
+                      <span>{group.brand.slice(0, 1)}</span>
+                    )}
+                  </span>
+                  <strong>{group.brand}</strong>
+                  <small>
+                    {group.count} {group.count === 1 ? "product" : "products"}
+                  </small>
+                </Link>
+              ))}
+            </div>
+          </div>
+        </section>
+      ) : null}
+
       {(query || aisle) && (
         <div className="home-section">
           <div className="home-inner">
             <p className="filter-note">
-              {query ? `Results for “${q.trim()}”` : `Aisle`}
-              {aisle ? ` · ${aisleGroups.find((row) => row.slug === aisle)?.name || aisle}` : ""}
+              {query
+                ? `Results for “${q.trim()}”`
+                : aisleGroups.find((row) => row.slug === aisle)?.name || "Filtered results"}
+              {query && aisle ? ` · ${aisleGroups.find((row) => row.slug === aisle)?.name || aisle}` : ""}
               {" · "}
               <Link href="/">Clear</Link>
             </p>
@@ -150,7 +205,7 @@ export default async function HomePage({
               ))}
             </ProductRail>
           ))}
-          {products.ok && !results.length ? <p className="empty-catalog">No active products yet.</p> : null}
+          {products.ok && !results.length ? <p className="empty-catalog">Nothing here yet.</p> : null}
           {products.ok && results.length > 0 && !groups.length ? (
             <p className="empty-catalog">Nothing matched that search.</p>
           ) : null}

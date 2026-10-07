@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 
 from catalog.models import ProductVariant
-from commerce.discounts import amount_for, select_discount
+from commerce.discounts import amount_for, coupon_eligible, require_coupon_eligible, select_discount
 from commerce.models import CommerceSettings, Discount
 from core.money import ZERO, money, money_str
 
@@ -12,6 +12,7 @@ class PriceQuote:
     subtotal: Decimal
     discount_amount: Decimal
     discount_code: str
+    discount_name: str
     delivery_fee: Decimal
     configured_delivery_fee: Decimal
     free_delivery_minimum: Decimal
@@ -23,6 +24,7 @@ class PriceQuote:
             "subtotal": money_str(self.subtotal),
             "discount_amount": money_str(self.discount_amount),
             "discount_code": self.discount_code,
+            "discount_name": self.discount_name,
             "delivery_fee": money_str(self.delivery_fee),
             "configured_delivery_fee": money_str(self.configured_delivery_fee),
             "free_delivery_minimum": money_str(self.free_delivery_minimum),
@@ -31,7 +33,13 @@ class PriceQuote:
         }
 
 
-def quote_variants(items: list[tuple[int, int]], *, code: str | None = None, now=None) -> PriceQuote:
+def quote_variants(
+    items: list[tuple[int, int]],
+    *,
+    code: str | None = None,
+    user=None,
+    now=None,
+) -> PriceQuote:
     wanted = {variant_id: quantity for variant_id, quantity in items if quantity > 0}
     variants = ProductVariant.objects.select_related("product").filter(pk__in=wanted)
     lines = []
@@ -39,36 +47,98 @@ def quote_variants(items: list[tuple[int, int]], *, code: str | None = None, now
         quantity = wanted[variant.id]
         line_total = money(variant.price) * quantity
         lines.append((variant, quantity, line_total))
-    return quote_lines(lines, code=code, now=now)
+    return quote_lines(lines, code=code, user=user, now=now)
 
 
-def quote_lines(lines: list[tuple[ProductVariant, int, Decimal]], *, code: str | None = None, now=None) -> PriceQuote:
+def quote_lines(
+    lines: list[tuple[ProductVariant, int, Decimal]],
+    *,
+    code: str | None = None,
+    user=None,
+    now=None,
+) -> PriceQuote:
     settings_row = CommerceSettings.load()
     configured_fee = money(settings_row.delivery_fee)
     minimum = money(settings_row.free_delivery_minimum)
     subtotal = money(sum((line_total for _, _, line_total in lines), ZERO))
     discount_code = ""
+    discount_name = ""
+    free_delivery_coupon = False
     if code and code.strip():
         discount = select_discount(code=code, now=now)
-        discount_amount = amount_for(discount=discount, lines=lines)
-        discount_code = (discount.code or "") if discount else ""
+        require_coupon_eligible(discount=discount, subtotal=subtotal, user=user)
+        discount_code = discount.code or ""
+        discount_name = discount.headline or discount.name
+        if discount.benefit == Discount.Benefit.FREE_DELIVERY:
+            free_delivery_coupon = True
+            discount_amount = ZERO
+        else:
+            discount_amount = amount_for(discount=discount, lines=lines)
     else:
         discount_amount = _automatic_savings(lines, now)
     if discount_amount > subtotal:
         discount_amount = subtotal
     discount_amount = money(discount_amount)
     merchandise = money(subtotal - discount_amount)
-    delivery_fee, remaining = _delivery_charge(merchandise, configured_fee, minimum)
+    if free_delivery_coupon:
+        delivery_fee = ZERO
+        remaining = ZERO
+    else:
+        delivery_fee, remaining = _delivery_charge(merchandise, configured_fee, minimum)
     return PriceQuote(
         subtotal=subtotal,
         discount_amount=discount_amount,
         discount_code=discount_code,
+        discount_name=discount_name,
         delivery_fee=delivery_fee,
         configured_delivery_fee=configured_fee,
         free_delivery_minimum=minimum,
         amount_until_free_delivery=remaining,
         total=money(merchandise + delivery_fee),
     )
+
+
+def preview_coupons(
+    lines: list[tuple[ProductVariant, int, Decimal]],
+    *,
+    user=None,
+    now=None,
+) -> list[dict]:
+    subtotal = money(sum((line_total for _, _, line_total in lines), ZERO))
+    settings_row = CommerceSettings.load()
+    configured_fee = money(settings_row.delivery_fee)
+    rows = [
+        row
+        for row in Discount.objects.filter(is_active=True).exclude(code__isnull=True).exclude(code="")
+        if _currently_open(row, now)
+    ]
+    previews = []
+    for row in rows:
+        eligible, amount_needed = coupon_eligible(discount=row, subtotal=subtotal, user=user)
+        if row.benefit == Discount.Benefit.FREE_DELIVERY:
+            estimated_savings = configured_fee if eligible else ZERO
+        else:
+            estimated_savings = amount_for(discount=row, lines=lines) if eligible else ZERO
+        previews.append(
+            {
+                **_serialize_coupon(row, amount_needed=amount_needed),
+                "eligible": eligible,
+                "amount_needed": money_str(amount_needed),
+                "estimated_savings": money_str(estimated_savings),
+            }
+        )
+    best_code = ""
+    best_savings = ZERO
+    for item in previews:
+        if not item["eligible"]:
+            continue
+        savings = money(item["estimated_savings"])
+        if savings > best_savings:
+            best_savings = savings
+            best_code = item["code"]
+    for item in previews:
+        item["is_best"] = item["code"] == best_code and best_code != ""
+    return previews
 
 
 def serialize_offer_rules() -> dict:
@@ -78,10 +148,16 @@ def serialize_offer_rules() -> dict:
         for row in Discount.objects.filter(is_active=True, code__isnull=True).select_related("product")
         if _currently_open(row)
     ]
+    coupons = [
+        _serialize_coupon(row)
+        for row in Discount.objects.filter(is_active=True).exclude(code__isnull=True).exclude(code="")
+        if _currently_open(row)
+    ]
     return {
         "delivery_fee": money_str(settings_row.delivery_fee),
         "free_delivery_minimum": money_str(settings_row.free_delivery_minimum),
         "discounts": discounts,
+        "coupons": coupons,
     }
 
 
@@ -143,3 +219,42 @@ def _serialize_discount(row: Discount) -> dict:
         "product_title": row.product.title if row.product_id else "",
         "is_active": row.is_active,
     }
+
+
+def _serialize_coupon(row: Discount, *, amount_needed: Decimal | None = None) -> dict:
+    return {
+        "code": row.code or "",
+        "name": row.name,
+        "headline": row.headline or row.name,
+        "detail": _coupon_detail(row, amount_needed=amount_needed),
+        "kind": row.kind,
+        "benefit": row.benefit,
+        "value": money_str(row.value),
+        "scope": row.scope,
+        "minimum_order": money_str(row.minimum_order) if row.minimum_order else "",
+        "max_discount": money_str(row.max_discount) if row.max_discount else "",
+        "first_order_only": row.first_order_only,
+    }
+
+
+def _coupon_detail(row: Discount, *, amount_needed: Decimal | None = None) -> str:
+    if row.detail:
+        if amount_needed and amount_needed > ZERO and "add aed" not in row.detail.lower():
+            return f"{row.detail} · add AED {money_str(amount_needed)} more"
+        return row.detail
+    parts = []
+    if row.benefit == Discount.Benefit.FREE_DELIVERY:
+        parts.append("Free delivery")
+    elif row.kind == Discount.Kind.PERCENT:
+        parts.append(f"{money_str(row.value).rstrip('0').rstrip('.')}% off")
+    else:
+        parts.append(f"AED {money_str(row.value)} off")
+    if row.max_discount:
+        parts.append(f"up to AED {money_str(row.max_discount)}")
+    if row.minimum_order:
+        parts.append(f"on orders over AED {money_str(row.minimum_order)}")
+    if amount_needed and amount_needed > ZERO:
+        parts.append(f"add AED {money_str(amount_needed)} more")
+    if row.first_order_only:
+        parts.append("first order only")
+    return " · ".join(parts)

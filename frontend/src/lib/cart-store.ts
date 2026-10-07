@@ -2,6 +2,7 @@ export type CartLine = {
   variant_id: number;
   quantity: number;
   title: string;
+  brand?: string;
   sku: string;
   unit_price: string;
   slug?: string;
@@ -92,6 +93,7 @@ function normalizeLine(row: unknown): CartLine | null {
     sku: String(item.sku || ""),
     unit_price: String(item.unit_price || "0.00"),
     slug: item.slug ? String(item.slug) : undefined,
+    brand: item.brand ? String(item.brand) : undefined,
     on_hand: on_hand == null || !Number.isFinite(on_hand) ? undefined : on_hand,
     image_url: item.image_url ? String(item.image_url) : undefined,
     detail: item.detail ? String(item.detail) : undefined,
@@ -106,6 +108,7 @@ export function keepLineDetails(previous: CartLine[], next: CartLine[]): CartLin
     return {
       ...line,
       slug: line.slug || old.slug,
+      brand: line.brand || old.brand,
       image_url: line.image_url || old.image_url,
       detail: line.detail || old.detail,
     };

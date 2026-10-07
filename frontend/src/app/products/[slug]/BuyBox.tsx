@@ -171,6 +171,7 @@ export function BuyBox({
             <AddToCartButton
               variantId={selected.id}
               title={title}
+              brand={brand}
               sku={selected.sku}
               unitPrice={selected.price}
               slug={currentSlug}
@@ -195,7 +196,7 @@ export function BuyBox({
           {!inStock || hasLabReport ? (
             <p className="buy-meta">
               {!inStock ? "Out of stock" : `${selected?.on_hand} in stock`}
-              {hasLabReport ? " · Lab report on file" : ""}
+              {hasLabReport ? " · Lab report available" : ""}
             </p>
           ) : null}
         </div>

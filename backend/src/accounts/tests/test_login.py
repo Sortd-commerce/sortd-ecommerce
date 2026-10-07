@@ -1,16 +1,26 @@
 from django.contrib.auth import get_user_model
+from django.core import mail
 
-from accounts.tests.helpers import login, signup, signup_and_verify, ApiTestCase
+from accounts.tests.helpers import (
+    PASSWORD,
+    login,
+    login_with_code,
+    request_login_code,
+    signup,
+    signup_and_verify,
+    verify_login,
+    ApiTestCase,
+)
 from core.messages import ErrorMessage
 
 User = get_user_model()
 
 
 class LoginTests(ApiTestCase):
-    def test_login_returns_the_profile_and_tokens(self):
+    def test_login_code_returns_the_profile_and_tokens(self):
         signup_and_verify(self.client)
 
-        response = login(self.client, email="Ada@Example.com")
+        response = login_with_code(self.client, email="Ada@Example.com")
 
         self.assertEqual(response.status_code, 200)
         body = response.json()
@@ -20,62 +30,66 @@ class LoginTests(ApiTestCase):
         self.assertIn("access", body["data"]["tokens"])
         self.assertIn("refresh", body["data"]["tokens"])
 
-    def test_login_updates_last_login(self):
+    def test_login_code_updates_last_login(self):
         signup_and_verify(self.client)
         before = User.objects.get(email="ada@example.com").last_login
         self.assertIsNotNone(before)
 
-        login(self.client)
+        login_with_code(self.client)
 
         after = User.objects.get(email="ada@example.com").last_login
         self.assertIsNotNone(after)
         self.assertGreaterEqual(after, before)
 
-    def test_wrong_password_uses_a_generic_error(self):
+    def test_wrong_login_code_reports_tries_left(self):
         signup_and_verify(self.client)
+        request_login_code(self.client)
 
-        response = login(self.client, password="wrong-password")
+        response = verify_login(self.client, code="000000")
 
         self.assertEqual(response.status_code, 401)
-        body = response.json()
-        self.assertEqual(body["status"], "error")
-        self.assertEqual(body["message"], ErrorMessage.INVALID_CREDENTIALS)
-        self.assertNotIn("password", response.content.decode().lower())
+        self.assertIn("left", response.json()["message"].lower())
 
-    def test_wrong_password_on_unverified_account_looks_the_same(self):
-        signup(self.client)
+    def test_password_login_fails_for_passwordless_users(self):
+        signup_and_verify(self.client)
 
         response = login(self.client, password="wrong-password")
 
         self.assertEqual(response.status_code, 401)
         self.assertEqual(response.json()["message"], ErrorMessage.INVALID_CREDENTIALS)
 
-    def test_correct_password_on_unverified_account_asks_for_verification(self):
+    def test_staff_password_login_still_works(self):
+        user = User.objects.create_user(
+            email="staff@example.com",
+            password=PASSWORD,
+            first_name="Staff",
+            last_name="User",
+        )
+        user.email_verified_at = user.date_joined
+        user.save(update_fields=["email_verified_at"])
+
+        response = login(self.client, email="staff@example.com")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["data"]["user"]["email"], "staff@example.com")
+
+    def test_login_code_is_not_sent_for_unverified_accounts(self):
         signup(self.client)
 
-        response = login(self.client)
+        response = request_login_code(self.client)
 
-        self.assertEqual(response.status_code, 401)
-        self.assertEqual(response.json()["message"], ErrorMessage.EMAIL_NOT_VERIFIED)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(mail.outbox), 1)
 
-    def test_unknown_email_uses_the_same_error_as_a_wrong_password(self):
-        wrong_password = login(self.client, email="missing@example.com")
-        signup_and_verify(self.client)
-        wrong_user = login(self.client, password="wrong-password")
-
-        self.assertEqual(wrong_password.status_code, wrong_user.status_code)
-        self.assertEqual(wrong_password.json()["message"], wrong_user.json()["message"])
-
-    def test_inactive_user_cannot_log_in(self):
+    def test_inactive_user_cannot_log_in_with_code(self):
         signup_and_verify(self.client)
         User.objects.filter(email="ada@example.com").update(is_active=False)
 
-        response = login(self.client)
+        response = login_with_code(self.client)
 
         self.assertEqual(response.status_code, 401)
-        self.assertEqual(response.json()["message"], ErrorMessage.INVALID_CREDENTIALS)
 
-    def test_login_requires_a_password(self):
+    def test_password_login_requires_a_password(self):
         response = self.client.post(
             "/api/v1/auth/login",
             data={"email": "ada@example.com"},

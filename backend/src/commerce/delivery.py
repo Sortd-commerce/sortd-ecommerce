@@ -28,6 +28,7 @@ class SlotView:
     remaining: int
     window_id: int
     source: str
+    status: str
 
 
 class DeliveryService:
@@ -128,7 +129,7 @@ class DeliveryService:
             for slot in self._slots_for(delivery_date, now=now)
             if slot.window_id == window_id and slot.source == source
         ]
-        if not matching or matching[0].remaining < 1:
+        if not matching or matching[0].status != "available" or matching[0].remaining < 1:
             raise ValidationError({"window": ErrorMessage.SLOT_UNAVAILABLE})
         return matching[0]
 
@@ -156,9 +157,13 @@ class DeliveryService:
         slots = []
         for window_id, start, end, capacity, cutoff, source in templates:
             cutoff_at = datetime.combine(day, start, tzinfo=self._zone) - timedelta(minutes=cutoff)
-            if now >= cutoff_at:
-                continue
             remaining = max(capacity - used.get((start, end), 0), 0)
+            if now >= cutoff_at:
+                status = "passed"
+            elif remaining < 1:
+                status = "full"
+            else:
+                status = "available"
             slots.append(
                 SlotView(
                     date=day,
@@ -168,6 +173,7 @@ class DeliveryService:
                     remaining=remaining,
                     window_id=window_id,
                     source=source,
+                    status=status,
                 )
             )
         return slots

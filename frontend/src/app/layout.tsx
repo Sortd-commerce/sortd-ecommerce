@@ -3,10 +3,12 @@ import { Archivo, Archivo_Narrow, IBM_Plex_Mono, Libre_Baskerville } from "next/
 import { BasketProvider } from "@/components/BasketProvider";
 import { CartProvider } from "@/components/CartProvider";
 import { PricingProvider } from "@/components/PricingProvider";
+import { AuthProvider, type AuthUser } from "@/components/auth/AuthProvider";
 import { Chrome } from "@/components/Chrome";
 import { PageTransition } from "@/components/PageTransition";
 import { SiteHeader } from "@/components/SiteHeader";
 import { ToastProvider } from "@/components/Toast";
+import { apiFetch } from "@/lib/api";
 import { fetchPricingRules } from "@/lib/catalog";
 import { getAccessToken } from "@/lib/auth";
 import "./globals.css";
@@ -47,10 +49,12 @@ export const viewport: Viewport = {
 };
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  const [signedIn, pricing] = await Promise.all([
-    getAccessToken().then(Boolean),
+  const signedIn = Boolean(await getAccessToken());
+  const [pricing, profile] = await Promise.all([
     fetchPricingRules(),
+    signedIn ? apiFetch<AuthUser>("/profile") : Promise.resolve(null),
   ]);
+  const user = profile?.ok ? profile.data ?? null : null;
   return (
     <html lang="en">
       <body className={`${display.variable} ${body.variable} ${mono.variable} ${brand.variable} antialiased`}>
@@ -60,12 +64,14 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
         <CartProvider>
           <PricingProvider initialRules={pricing.ok ? pricing.data ?? null : null}>
             <ToastProvider>
-              <BasketProvider>
-                <div className="site-bg" aria-hidden />
-                <Chrome header={<SiteHeader signedIn={signedIn} />} signedIn={signedIn}>
-                  <PageTransition>{children}</PageTransition>
-                </Chrome>
-              </BasketProvider>
+              <AuthProvider user={user}>
+                <BasketProvider>
+                  <div className="site-bg" aria-hidden />
+                  <Chrome header={<SiteHeader signedIn={signedIn} user={user} />} signedIn={signedIn}>
+                    <PageTransition>{children}</PageTransition>
+                  </Chrome>
+                </BasketProvider>
+              </AuthProvider>
             </ToastProvider>
           </PricingProvider>
         </CartProvider>

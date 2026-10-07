@@ -249,6 +249,72 @@ button {
   color: var(--text);
 }
 
+.nav-group {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.nav-group-toggle {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  padding: 0.5rem 0.7rem;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.nav-group-toggle:hover,
+.nav-group-toggle-active {
+  background: rgb(255 255 255 / 0.04);
+  color: var(--text);
+}
+
+.nav-group-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.nav-group-caret {
+  transition: transform 180ms ease;
+}
+
+.nav-group-caret-open {
+  transform: rotate(180deg);
+}
+
+.nav-group-items {
+  display: grid;
+  gap: 0.1rem;
+  margin-left: 0.35rem;
+  border-left: 1px solid rgb(255 255 255 / 0.08);
+  padding-left: 0.55rem;
+}
+
+.nav-subitem {
+  display: block;
+  border-radius: 8px;
+  padding: 0.42rem 0.65rem;
+  color: var(--muted);
+  font-size: 0.8125rem;
+  white-space: nowrap;
+}
+
+.nav-subitem:hover {
+  background: rgb(255 255 255 / 0.04);
+  color: var(--text);
+}
+
+.nav-subitem-active {
+  background: rgb(63 175 122 / 0.12);
+  color: var(--text);
+}
+
 .badge {
   display: inline-flex;
   align-items: center;
@@ -400,6 +466,10 @@ button {
   border-left: 1px solid var(--line);
   background: var(--panel);
   box-shadow: -14px 0 36px rgb(0 0 0 / 0.35);
+}
+
+.drawer-panel--wide {
+  width: min(100%, 480px);
 }
 
 .drawer-panel--enter {

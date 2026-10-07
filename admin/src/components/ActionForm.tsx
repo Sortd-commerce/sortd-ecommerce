@@ -12,7 +12,7 @@ function SubmitSpinner() {
 
 export function SubmitButton({
   children,
-  className = "btn",
+  className = "",
   pendingLabel = "Saving…",
 }: {
   children: React.ReactNode;
@@ -20,8 +20,10 @@ export function SubmitButton({
   pendingLabel?: string;
 }) {
   const { pending } = useFormStatus();
+  const variant = /\bbtn-(ghost|danger)\b/.test(className);
+  const classes = [variant ? "" : "btn", className].filter(Boolean).join(" ");
   return (
-    <button type="submit" className={className} disabled={pending} aria-busy={pending}>
+    <button type="submit" className={classes} disabled={pending} aria-busy={pending}>
       {pending ? (
         <>
           <SubmitSpinner />

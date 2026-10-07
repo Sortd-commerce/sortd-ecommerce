@@ -17,6 +17,8 @@ from accounts.schemas import (
     PasswordChangeIn,
     ProfileUpdateIn,
     RefreshIn,
+    RequestLoginCodeIn,
+    ResendCodeIn,
     ResendVerificationIn,
     ResentOut,
     ResetPasswordIn,
@@ -24,9 +26,11 @@ from accounts.schemas import (
     SignupIn,
     TokenPairOut,
     UserOut,
+    VerifyCodeIn,
     VerifyEmailIn,
     VerifyIn,
     VerifyOut,
+    split_full_name,
 )
 from dataclasses import asdict
 
@@ -60,16 +64,16 @@ class AuthController(ControllerBase):
         throttle=[SignupThrottle()],
     )
     def signup(self, payload: SignupIn):
+        first_name, last_name = split_full_name(payload.full_name)
         user = build_signup_service().signup(
             SignupCommand(
                 email=payload.email,
-                password=payload.password,
-                first_name=payload.first_name,
-                last_name=payload.last_name,
+                first_name=first_name,
+                last_name=last_name,
                 phone=payload.phone,
             )
         )
-        return status.HTTP_201_CREATED, success("Account created.", asdict(user))
+        return status.HTTP_201_CREATED, success("Check your email for a code.", asdict(user))
 
     @route.post(
         "/verify-email",
@@ -92,8 +96,64 @@ class AuthController(ControllerBase):
         throttle=[ResendThrottle()],
     )
     def resend_verification(self, payload: ResendVerificationIn):
-        build_signup_service().resend(email=payload.email)
-        return success("If an account needs verification, a new link was sent.", {"sent": True})
+        build_signup_service().resend(email=payload.email, purpose="signup")
+        return success("If an account needs verification, a new code was sent.", {"sent": True})
+
+    @route.post(
+        "/resend-code",
+        response={200: SuccessResponse[ResentOut], **_ERROR_RESPONSES},
+        summary="Resend a signup or login code",
+        throttle=[ResendThrottle()],
+    )
+    def resend_code(self, payload: ResendCodeIn):
+        build_signup_service().resend(email=payload.email, purpose=payload.purpose)
+        return success("If that account exists, a new code was sent.", {"sent": True})
+
+    @route.post(
+        "/signup/verify",
+        response={200: SuccessResponse[AuthOut], **_ERROR_RESPONSES},
+        summary="Verify signup with a 6-digit email code",
+        throttle=[VerifyThrottle()],
+    )
+    def verify_signup_code(self, payload: VerifyCodeIn):
+        from accounts.models import EmailVerification
+
+        result = build_signup_service().verify_code(
+            email=payload.email,
+            code=payload.code,
+            request=self.context.request,
+            device_id=payload.device_id,
+            kind=EmailVerification.Kind.VERIFY,
+        )
+        return success("Account created.", asdict(result))
+
+    @route.post(
+        "/login/code",
+        response={200: SuccessResponse[ResentOut], **_ERROR_RESPONSES},
+        summary="Send a login code to a verified email",
+        throttle=[ResendThrottle()],
+    )
+    def request_login_code(self, payload: RequestLoginCodeIn):
+        build_login_service().request_code(email=payload.email)
+        return success("If that account exists, a login code was sent.", {"sent": True})
+
+    @route.post(
+        "/login/verify",
+        response={200: SuccessResponse[AuthOut], **_ERROR_RESPONSES},
+        summary="Log in with a 6-digit email code",
+        throttle=[VerifyThrottle()],
+    )
+    def verify_login_code(self, payload: VerifyCodeIn):
+        from accounts.models import EmailVerification
+
+        result = build_signup_service().verify_code(
+            email=payload.email,
+            code=payload.code,
+            request=self.context.request,
+            device_id=payload.device_id,
+            kind=EmailVerification.Kind.LOGIN,
+        )
+        return success("Logged in.", asdict(result))
 
     @route.post(
         "/forgot-password",

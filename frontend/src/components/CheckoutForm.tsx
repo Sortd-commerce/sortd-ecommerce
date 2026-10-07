@@ -7,8 +7,10 @@ import { placeOrderAction, setPrimaryAddressAction } from "@/lib/actions";
 import { emptyActionState, SubmitButton } from "@/components/ActionForm";
 import { AddressPicker } from "@/components/AddressPicker";
 import { useToast } from "@/components/Toast";
+import { DeliverySlotPicker } from "@/components/DeliverySlotPicker";
 import { OpenBasketLink } from "@/components/OpenBasketLink";
 import { OrderSummary } from "@/components/OrderSummary";
+import { StripePaymentForm } from "@/components/StripePaymentForm";
 import { OptimizedImage } from "@/components/OptimizedImage";
 import { usePricing } from "@/components/PricingProvider";
 import { useCart } from "@/components/CartProvider";
@@ -33,6 +35,7 @@ export type CheckoutSlot = {
   remaining: number;
   window_id: number;
   source: string;
+  status: "available" | "passed" | "full";
 };
 
 export type CheckoutPaymentMethod = {
@@ -45,28 +48,26 @@ function slotKey(slot: CheckoutSlot) {
   return `${slot.date}|${slot.window_id}|${slot.source}`;
 }
 
-function formatClock(value: string) {
-  return value.slice(0, 5);
-}
-
-function formatDay(value: string) {
-  const parsed = new Date(`${value}T12:00:00`);
-  if (Number.isNaN(parsed.getTime())) return value;
-  return parsed.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "short" });
-}
-
-function isToday(value: string) {
-  const parsed = new Date(`${value}T12:00:00`);
-  const now = new Date();
-  return (
-    parsed.getFullYear() === now.getFullYear() &&
-    parsed.getMonth() === now.getMonth() &&
-    parsed.getDate() === now.getDate()
-  );
-}
-
 function lineTotal(unitPrice: string, quantity: number) {
   return (Number(unitPrice) * quantity).toFixed(2);
+}
+
+const PAYMENT_NAME: Record<string, string> = {
+  cod: "Cash on delivery",
+  card: "Credit or debit card",
+};
+
+const PAYMENT_DETAIL: Record<string, string> = {
+  cod: "Pay the rider at your door",
+  card: "Visa, Mastercard, Amex",
+};
+
+function firstAvailableSlot(slots: CheckoutSlot[]) {
+  return slots.find((row) => row.status === "available" && row.remaining > 0) || null;
+}
+
+function addressLabel(address: CheckoutAddress) {
+  return address.is_default ? "Home" : address.line1 || address.city || "Address";
 }
 
 function ChoiceCard({
@@ -127,13 +128,17 @@ export function CheckoutForm({
   const { quote, discountCode, refreshQuote } = usePricing();
   const [settingPrimary, startPrimary] = useTransition();
   const defaultAddress = addresses.find((row) => row.is_default) || addresses[0];
-  const activePayments = paymentMethods.filter((row) => row.is_active);
+  const checkoutPayments = paymentMethods.filter((row) => row.code === "cod" || row.code === "card");
+  const activePayments = checkoutPayments.filter((row) => row.is_active);
   const [addressId, setAddressId] = useState<number | "">(defaultAddress?.id || "");
-  const [slotId, setSlotId] = useState(slots[0] ? slotKey(slots[0]) : "");
-  const [whenMode, setWhenMode] = useState<"now" | "schedule">("now");
+  const [slotId, setSlotId] = useState(() => {
+    const first = firstAvailableSlot(slots);
+    return first ? slotKey(first) : "";
+  });
   const [paymentMethod, setPaymentMethod] = useState(activePayments[0]?.code || "");
   const [panel, setPanel] = useState<"pick" | "add" | "edit">(addresses.length ? "pick" : "add");
   const [addressOpen, setAddressOpen] = useState(false);
+  const [cardPayment, setCardPayment] = useState<{ clientSecret: string; orderNumber: string } | null>(null);
 
   useEffect(() => {
     itemsRef.current = items;
@@ -143,8 +148,11 @@ export function CheckoutForm({
     () => addresses.find((row) => row.id === addressId) || defaultAddress,
     [addressId, addresses, defaultAddress],
   );
-  const selectedSlot = useMemo(() => slots.find((row) => slotKey(row) === slotId) || slots[0], [slotId, slots]);
-  const activeSlot = whenMode === "now" ? slots[0] : selectedSlot;
+  const selectedSlot = useMemo(
+    () => slots.find((row) => slotKey(row) === slotId) || firstAvailableSlot(slots),
+    [slotId, slots],
+  );
+  const activeSlot = selectedSlot?.status === "available" ? selectedSlot : firstAvailableSlot(slots);
 
   const [state, formAction] = useActionState(async (prev: ActionState, formData: FormData) => {
     await flush();
@@ -156,6 +164,10 @@ export function CheckoutForm({
   }, emptyActionState);
 
   useEffect(() => {
+    if (state.ok && state.clientSecret && state.orderNumber) {
+      setCardPayment({ clientSecret: state.clientSecret, orderNumber: state.orderNumber });
+      return;
+    }
     if (!state.message || state.ok) return;
     toast.error(state.message);
   }, [state, toast]);
@@ -170,7 +182,7 @@ export function CheckoutForm({
     }
   }, [addresses, addressId, defaultAddress]);
 
-  const canPlace = Boolean(selectedAddress && activeSlot && paymentMethod && items.length);
+  const canPlace = Boolean(selectedAddress && activeSlot && paymentMethod && items.length && !cardPayment);
 
   function onAddressSaved() {
     setPanel("pick");
@@ -191,17 +203,10 @@ export function CheckoutForm({
     });
   }
 
-  const nowDetail = slots[0]
-    ? isToday(slots[0].date)
-      ? "Arrives in about 30 minutes"
-      : `Arrives ${formatDay(slots[0].date)}`
-    : "No open windows right now";
-
   return (
     <>
       <div className="checkout-intro">
         <OpenBasketLink className="back-link">Back to basket</OpenBasketLink>
-        <h1>Checkout</h1>
       </div>
       <div className="checkout-layout">
       <div className="checkout-steps-col">
@@ -236,7 +241,7 @@ export function CheckoutForm({
             <div className="pick-card pick-card-on address-summary">
               <input type="radio" checked readOnly tabIndex={-1} aria-label="Selected address" />
               <span>
-                <strong>{selectedAddress.is_default ? "Primary address" : "Saved address"}</strong>
+                <strong>{addressLabel(selectedAddress)}</strong>
                 <small>{selectedAddress.formatted_address || `${selectedAddress.line1}, ${selectedAddress.city}`}</small>
               </span>
               <button type="button" className="text-action address-change" onClick={() => setAddressOpen(true)}>
@@ -252,7 +257,7 @@ export function CheckoutForm({
                   name="saved_address"
                   value={String(address.id)}
                   checked={address.id === selectedAddress?.id}
-                  title={address.is_default ? "Primary address" : address.city || "Address"}
+                  title={addressLabel(address)}
                   detail={address.formatted_address || address.line1}
                   onChange={() => {
                     setAddressId(address.id);
@@ -285,11 +290,11 @@ export function CheckoutForm({
             </button>
           ) : null}
           {panel === "pick" && !addressOpen ? (
-            <p className="fine-print">Delivery is available in Dubai. We check the pin code before an address can be saved.</p>
+            <p className="fine-print">We deliver across Dubai. Search for your building or use your location.</p>
           ) : null}
           {panel === "add" ? (
             <>
-              <p className="fine-print">Delivery is available in Dubai. We check the pin code before an address can be saved.</p>
+              <p className="fine-print">We deliver across Dubai. Search for your building or use your location.</p>
               <AddressPicker
                 isDefault={addresses.length === 0}
                 showPrimaryToggle={addresses.length > 0}
@@ -320,84 +325,46 @@ export function CheckoutForm({
 
         <section className="checkout-block">
           <p className="step-index">02</p>
-          <h2>When</h2>
-          <div className="when-grid" role="radiogroup" aria-label="When to deliver">
-            <div
-              role="radio"
-              aria-checked={whenMode === "now"}
-              tabIndex={0}
-              className={`pick-card ${whenMode === "now" ? "pick-card-on" : ""} ${slots.length ? "" : "is-disabled"}`}
-              onClick={() => slots.length && setWhenMode("now")}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" || event.key === " ") {
-                  event.preventDefault();
-                  if (slots.length) setWhenMode("now");
-                }
-              }}
-            >
-              <input type="radio" checked={whenMode === "now"} readOnly tabIndex={-1} aria-hidden="true" />
-              <span>
-                <strong>Now</strong>
-                <small>{nowDetail}</small>
-              </span>
-            </div>
-            <div
-              role="radio"
-              aria-checked={whenMode === "schedule"}
-              tabIndex={0}
-              className={`pick-card ${whenMode === "schedule" ? "pick-card-on" : ""} ${slots.length ? "" : "is-disabled"}`}
-              onClick={() => slots.length && setWhenMode("schedule")}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" || event.key === " ") {
-                  event.preventDefault();
-                  if (slots.length) setWhenMode("schedule");
-                }
-              }}
-            >
-              <input type="radio" checked={whenMode === "schedule"} readOnly tabIndex={-1} aria-hidden="true" />
-              <span>
-                <strong>Schedule</strong>
-                <small>Choose a delivery slot</small>
-              </span>
-            </div>
-          </div>
-          {whenMode === "schedule" && slots.length ? (
-            <div className="choice-stack" role="radiogroup" aria-label="Delivery windows">
-              {slots.map((slot) => (
-                <ChoiceCard
-                  key={slotKey(slot)}
-                  name="saved_slot"
-                  value={slotKey(slot)}
-                  checked={activeSlot ? slotKey(slot) === slotKey(activeSlot) : false}
-                  title={`${formatDay(slot.date)} · ${formatClock(slot.start_time)}–${formatClock(slot.end_time)}`}
-                  detail={`${slot.remaining} left`}
-                  onChange={() => setSlotId(slotKey(slot))}
-                />
-              ))}
-            </div>
-          ) : null}
+          <h2>Delivery slot</h2>
+          <DeliverySlotPicker
+            slots={slots}
+            value={activeSlot ? slotKey(activeSlot) : slotId}
+            onChange={setSlotId}
+          />
         </section>
 
         <section className="checkout-block" id="pay">
           <p className="step-index">03</p>
           <h2>Pay with</h2>
-          <div className="choice-stack" role="radiogroup" aria-label="Payment methods">
-            {paymentMethods.map((method) => (
-              <ChoiceCard
-                key={method.code}
-                name="saved_payment"
-                value={method.code}
-                checked={paymentMethod === method.code}
-                disabled={!method.is_active}
-                title={method.name}
-                detail={method.is_active ? undefined : "Coming soon"}
-                onChange={() => {
-                  if (method.is_active) setPaymentMethod(method.code);
-                }}
-              />
-            ))}
-            {!paymentMethods.length ? <p className="fine-print">No payment methods are available.</p> : null}
-          </div>
+          {cardPayment ? (
+            <StripePaymentForm
+              clientSecret={cardPayment.clientSecret}
+              orderNumber={cardPayment.orderNumber}
+              onCancel={() => {
+                const number = cardPayment.orderNumber;
+                setCardPayment(null);
+                router.push(`/orders/${number}`);
+              }}
+            />
+          ) : (
+            <div className="choice-stack" role="radiogroup" aria-label="Payment methods">
+              {checkoutPayments.map((method) => (
+                <ChoiceCard
+                  key={method.code}
+                  name="saved_payment"
+                  value={method.code}
+                  checked={paymentMethod === method.code}
+                  disabled={!method.is_active}
+                  title={PAYMENT_NAME[method.code] || method.name}
+                  detail={method.is_active ? PAYMENT_DETAIL[method.code] || undefined : "Unavailable"}
+                  onChange={() => {
+                    if (method.is_active) setPaymentMethod(method.code);
+                  }}
+                />
+              ))}
+              {!checkoutPayments.length ? <p className="fine-print">No payment methods are available.</p> : null}
+            </div>
+          )}
         </section>
 
         <section className="checkout-block">
@@ -405,7 +372,7 @@ export function CheckoutForm({
           <h2>Delivery note</h2>
           <label className="field">
             <span className="sr-only">Delivery note</span>
-            <textarea name="note" form="place-order" rows={3} placeholder="Leave at the door, call on arrival..." />
+            <textarea name="note" form="place-order" rows={3} placeholder="Gate code, leave at door, call on arrival…" />
           </label>
         </section>
       </div>

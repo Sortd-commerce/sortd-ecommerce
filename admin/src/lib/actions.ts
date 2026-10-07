@@ -270,48 +270,65 @@ export async function updatePricingAction(_prev: ActionState, formData: FormData
   return replied(true, "Pricing updated.", "/delivery");
 }
 
-export async function createDiscountAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+function optionalAmount(formData: FormData, key: string) {
+  const raw = String(formData.get(key) || "").trim();
+  return raw ? raw : null;
+}
+
+function discountPayload(formData: FormData) {
   const productId = String(formData.get("product_id") || "").trim();
+  return {
+    name: String(formData.get("name") || ""),
+    headline: String(formData.get("headline") || ""),
+    detail: String(formData.get("detail") || ""),
+    kind: String(formData.get("kind") || "percent"),
+    benefit: String(formData.get("benefit") || "merchandise"),
+    value: String(formData.get("value") || "0"),
+    scope: String(formData.get("scope") || "all"),
+    product_id: productId ? Number(productId) : null,
+    code: String(formData.get("code") || "") || null,
+    minimum_order: optionalAmount(formData, "minimum_order"),
+    max_discount: optionalAmount(formData, "max_discount"),
+    first_order_only: formData.get("first_order_only") === "on",
+    is_active: formData.get("is_active") === "on",
+  };
+}
+
+export async function createDiscountAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const redirectTo = String(formData.get("redirect_to") || "/delivery");
   const result = await apiFetch("/admin/discounts", {
     method: "POST",
-    body: {
-      name: String(formData.get("name") || ""),
-      kind: String(formData.get("kind") || "percent"),
-      value: String(formData.get("value") || "0"),
-      scope: String(formData.get("scope") || "all"),
-      product_id: productId ? Number(productId) : null,
-      code: String(formData.get("code") || "") || null,
-      is_active: formData.get("is_active") === "on",
-    },
+    body: discountPayload(formData),
   });
   if (!result.ok) return replied(false, result.message);
-  return replied(true, "Discount added.", "/delivery");
+  return replied(true, "Discount added.", redirectTo);
 }
 
 export async function updateDiscountAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const discountId = String(formData.get("discount_id") || "");
-  const productId = String(formData.get("product_id") || "").trim();
+  const redirectTo = String(formData.get("redirect_to") || "/delivery");
   const result = await apiFetch(`/admin/discounts/${discountId}`, {
     method: "PATCH",
-    body: {
-      name: String(formData.get("name") || ""),
-      kind: String(formData.get("kind") || "percent"),
-      value: String(formData.get("value") || "0"),
-      scope: String(formData.get("scope") || "all"),
-      product_id: productId ? Number(productId) : null,
-      code: String(formData.get("code") || "") || null,
-      is_active: formData.get("is_active") === "on",
-    },
+    body: discountPayload(formData),
   });
   if (!result.ok) return replied(false, result.message);
-  return replied(true, "Discount saved.", "/delivery");
+  return replied(true, "Discount saved.", redirectTo);
+}
+
+export async function removeDiscountAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const discountId = String(formData.get("discount_id") || "");
+  const redirectTo = String(formData.get("redirect_to") || "/delivery");
+  const result = await apiFetch(`/admin/discounts/${discountId}`, { method: "DELETE" });
+  if (!result.ok) return replied(false, result.message);
+  return replied(true, "Coupon deleted.", redirectTo);
 }
 
 export async function deleteDiscountAction(formData: FormData) {
   const discountId = String(formData.get("discount_id") || "");
+  const redirectTo = String(formData.get("redirect_to") || "/delivery");
   const result = await apiFetch(`/admin/discounts/${discountId}`, { method: "DELETE" });
-  if (!result.ok) fail("/delivery", result.message);
-  redirect("/delivery");
+  if (!result.ok) fail(redirectTo, result.message);
+  redirect(redirectTo);
 }
 
 export async function createMemberAction(_prev: ActionState, formData: FormData): Promise<ActionState> {

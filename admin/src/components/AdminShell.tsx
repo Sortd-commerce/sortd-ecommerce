@@ -7,25 +7,34 @@ import {
   Package,
   SignOut,
   ShoppingBag,
+  Ticket,
   Truck,
   Users,
 } from "@phosphor-icons/react";
 import { BrandMark } from "@/components/BrandMark";
+import { NavGroup } from "@/components/NavGroup";
 import { logoutAction } from "@/lib/actions";
 import type { StaffProfile } from "@/lib/staff";
 
-const NAV = [
+const TOP_NAV = [
   { href: "/", label: "Overview", icon: ChartLine, admin: true },
   { href: "/orders", label: "Orders", icon: ShoppingBag, admin: false },
-  { href: "/products", label: "Catalog", icon: Package, admin: true },
   { href: "/delivery", label: "Delivery", icon: Truck, admin: true },
+  { href: "/coupons", label: "Coupons", icon: Ticket, admin: true },
   { href: "/members", label: "Members", icon: Users, admin: true },
+];
+
+const CATALOG_NAV = [
+  { href: "/products", label: "Products" },
+  { href: "/products/import", label: "Product import" },
+  { href: "/products/categories", label: "Aisle images" },
+  { href: "/products/new", label: "New product" },
 ];
 
 export function AdminShell({ me, children }: { me: StaffProfile; children: React.ReactNode }) {
   const pathname = usePathname();
   const isAdmin = me.role === "admin";
-  const links = NAV.filter((link) => isAdmin || !link.admin);
+  const links = TOP_NAV.filter((link) => isAdmin || !link.admin);
   const name = [me.first_name, me.last_name].filter(Boolean).join(" ") || me.email;
 
   return (
@@ -43,8 +52,24 @@ export function AdminShell({ me, children }: { me: StaffProfile; children: React
           </form>
         </div>
         <nav className="flex gap-1 overflow-x-auto px-3 pb-3 lg:flex-1 lg:flex-col lg:overflow-visible lg:pb-0">
-          {links.map((link) => {
+          {links.slice(0, 2).map((link) => {
             const active = link.href === "/" ? pathname === "/" : pathname.startsWith(link.href);
+            const Icon = link.icon;
+            return (
+              <Link
+                key={link.href}
+                href={link.href}
+                className={`nav-item ${active ? "nav-item-active" : ""}`}
+                aria-current={active ? "page" : undefined}
+              >
+                <Icon size={18} weight={active ? "fill" : "regular"} />
+                {link.label}
+              </Link>
+            );
+          })}
+          {isAdmin ? <NavGroup label="Catalog" icon={Package} items={CATALOG_NAV} /> : null}
+          {links.slice(2).map((link) => {
+            const active = pathname.startsWith(link.href);
             const Icon = link.icon;
             return (
               <Link

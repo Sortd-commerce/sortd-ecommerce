@@ -5,6 +5,7 @@ from ninja_extra.permissions import AllowAny
 
 from catalog.models import Category, Product, ProductStatus
 from catalog.queries import active_products, current_report, product_has_lab_report, report_has_passed
+from catalog.search import search_suggestions
 from catalog.schemas import (
     CategoryOut,
     LabReportOut,
@@ -99,6 +100,11 @@ class CategoryController(ControllerBase):
 
 @api_controller("/products", tags=["Catalog"], auth=None, permissions=[AllowAny], use_unique_op_id=False)
 class ProductController(ControllerBase):
+    @route.get("/search", response={200: SuccessResponse, **_ERROR_RESPONSES}, summary="Search products and categories")
+    def search(self, q: str = "", limit: int = 3):
+        rows = search_suggestions(q, limit=max(1, min(limit, 8)))
+        return success("Search suggestions retrieved.", rows)
+
     @route.get("", response={200: SuccessResponse, **_ERROR_RESPONSES}, summary="List products")
     def list_products(self, query: Query[PageQuery]):
         page = paginate_queryset(

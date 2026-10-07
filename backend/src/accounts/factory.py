@@ -8,7 +8,8 @@ def build_signup_service() -> SignupService:
 
 
 def build_login_service() -> LoginService:
-    return LoginService(tokens=JwtTokenIssuer(), email_sender=DjangoEmailSender())
+    signup = build_signup_service()
+    return LoginService(tokens=JwtTokenIssuer(), email_sender=DjangoEmailSender(), signup=signup)
 
 
 def build_token_service() -> TokenService:

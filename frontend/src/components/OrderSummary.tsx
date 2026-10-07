@@ -1,5 +1,6 @@
 "use client";
 
+import { CouponField } from "@/components/CouponField";
 import { usePricing } from "@/components/PricingProvider";
 
 function money(value: string) {
@@ -14,33 +15,22 @@ export function OrderSummary({
   showPromo?: boolean;
   className?: string;
 }) {
-  const { quote, discountCode, setDiscountCode } = usePricing();
+  const { quote } = usePricing();
   const hasDiscount = Number(quote.discount_amount) > 0;
   const deliveryFree = Number(quote.delivery_fee) <= 0;
   const remaining = Number(quote.amount_until_free_delivery);
 
   return (
     <div className={className}>
-      {showPromo ? (
-        <label className="field promo-field">
-          <span>Promo code</span>
-          <input
-            name="discount_code"
-            value={discountCode}
-            onChange={(event) => setDiscountCode(event.target.value)}
-            placeholder="Optional"
-            autoComplete="off"
-          />
-        </label>
-      ) : null}
+      {showPromo ? <CouponField /> : null}
       <dl className="order-bill">
         <div>
           <dt>Item total</dt>
           <dd>AED {money(quote.subtotal)}</dd>
         </div>
         {hasDiscount ? (
-          <div>
-            <dt>Discount</dt>
+          <div className="order-discount">
+            <dt>{quote.discount_code ? `Coupon · ${quote.discount_code}` : "Discount"}</dt>
             <dd>- AED {money(quote.discount_amount)}</dd>
           </div>
         ) : null}

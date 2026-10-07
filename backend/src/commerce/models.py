@@ -103,6 +103,10 @@ class Discount(models.Model):
         PERCENT = "percent", "Percent"
         FIXED = "fixed", "Fixed"
 
+    class Benefit(models.TextChoices):
+        MERCHANDISE = "merchandise", "Merchandise discount"
+        FREE_DELIVERY = "free_delivery", "Free delivery"
+
     class Scope(models.TextChoices):
         ALL = "all", "All"
         PRODUCT = "product", "Product"
@@ -110,13 +114,19 @@ class Discount(models.Model):
         CATEGORY = "category", "Category"
 
     name = models.CharField(max_length=120)
+    headline = models.CharField(max_length=120, blank=True)
+    detail = models.CharField(max_length=240, blank=True)
     kind = models.CharField(max_length=16, choices=Kind.choices)
+    benefit = models.CharField(max_length=20, choices=Benefit.choices, default=Benefit.MERCHANDISE)
     value = models.DecimalField(max_digits=10, decimal_places=2)
     code = models.CharField(max_length=40, unique=True, null=True, blank=True)
     scope = models.CharField(max_length=16, choices=Scope.choices, default=Scope.ALL)
     product = models.ForeignKey("catalog.Product", null=True, blank=True, on_delete=models.CASCADE)
     variant = models.ForeignKey("catalog.ProductVariant", null=True, blank=True, on_delete=models.CASCADE)
     category = models.ForeignKey("catalog.Category", null=True, blank=True, on_delete=models.CASCADE)
+    minimum_order = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    max_discount = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    first_order_only = models.BooleanField(default=False)
     starts_at = models.DateTimeField(null=True, blank=True)
     ends_at = models.DateTimeField(null=True, blank=True)
     is_active = models.BooleanField(default=True)
@@ -160,6 +170,7 @@ class Order(models.Model):
     status = models.CharField(max_length=32, choices=OrderStatus.choices, default=OrderStatus.PLACED)
     payment_method = models.CharField(max_length=32, default="cod")
     payment_status = models.CharField(max_length=16, choices=PaymentStatus.choices, default=PaymentStatus.UNPAID)
+    stripe_payment_intent_id = models.CharField(max_length=128, blank=True)
     currency = models.CharField(max_length=3, default="AED")
     subtotal = models.DecimalField(max_digits=10, decimal_places=2)
     discount_amount = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal("0.00"))

@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { BasketView } from "@/components/BasketView";
 import { useBasket } from "@/components/BasketProvider";
 
-export function CartDrawer() {
+export function CartDrawer({ signedIn = false }: { signedIn?: boolean }) {
   const pathname = usePathname();
   const { open, closeBasket } = useBasket();
   const visible = open && pathname !== "/cart";
@@ -30,7 +30,7 @@ export function CartDrawer() {
     <div className="basket-layer">
       <button type="button" className="basket-scrim" aria-label="Close basket" onClick={closeBasket} />
       <aside className="basket-drawer" role="dialog" aria-modal="true" aria-label="Your basket">
-        <BasketView onClose={closeBasket} />
+        <BasketView onClose={closeBasket} signedIn={signedIn} />
       </aside>
     </div>
   );

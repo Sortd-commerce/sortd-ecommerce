@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { Clock, X } from "@phosphor-icons/react";
 import { OptimizedImage } from "@/components/OptimizedImage";
 import { OrderSummary } from "@/components/OrderSummary";
@@ -8,6 +9,7 @@ import { usePricing } from "@/components/PricingProvider";
 import { useCart } from "@/components/CartProvider";
 import { QuantityStepper } from "@/components/QuantityStepper";
 import { useToast } from "@/components/Toast";
+import { fetchDefaultAddressAction } from "@/lib/actions";
 
 function money(value: string | number) {
   const amount = Number(value);
@@ -17,24 +19,37 @@ function money(value: string | number) {
 export function BasketView({
   variant = "drawer",
   onClose,
+  signedIn = false,
 }: {
   variant?: "drawer" | "page";
   onClose?: () => void;
+  signedIn?: boolean;
 }) {
   const { items, count, setQuantity, removeItem } = useCart();
   const { quote } = usePricing();
   const toast = useToast();
+  const [deliverTo, setDeliverTo] = useState<string | null>(null);
   const remaining = Number(quote.amount_until_free_delivery);
   const minimum = Number(quote.free_delivery_minimum);
   const progress =
     minimum > 0 ? Math.min(100, Math.max(0, ((minimum - remaining) / minimum) * 100)) : 100;
+
+  useEffect(() => {
+    if (!signedIn) {
+      setDeliverTo(null);
+      return;
+    }
+    void fetchDefaultAddressAction().then((result) => {
+      setDeliverTo(result.ok ? result.deliverTo || null : null);
+    });
+  }, [signedIn]);
 
   return (
     <div className={`basket-view basket-${variant}`}>
       <header className="basket-head">
         <div>
           <p className="basket-kicker">
-            {count} {count === 1 ? "item" : "items"}
+            {count} {count === 1 ? "ITEM" : "ITEMS"}
           </p>
           <h2>Your basket</h2>
         </div>
@@ -48,8 +63,8 @@ export function BasketView({
       <div className="basket-deliver">
         <Clock size={18} weight="bold" />
         <p>
-          <strong>Delivery in about 30 minutes</strong>
-          <span>Across Dubai, when a window is open</span>
+          <strong>Delivery in 30 minutes</strong>
+          <span>{deliverTo ? `To ${deliverTo}` : "Across Dubai"}</span>
         </p>
       </div>
 
@@ -85,6 +100,7 @@ export function BasketView({
                 )}
               </div>
               <div className="basket-copy">
+                {item.brand ? <p className="basket-brand">{item.brand}</p> : null}
                 {item.slug ? (
                   <Link href={`/products/${item.slug}`} onClick={onClose}>
                     {item.title}
@@ -134,7 +150,7 @@ export function BasketView({
               <span>
                 <strong>AED {money(quote.total)}</strong>
                 <small>
-                  Total · {count} {count === 1 ? "item" : "items"}
+                  TOTAL · {count} {count === 1 ? "ITEM" : "ITEMS"}
                 </small>
               </span>
               <span>Checkout →</span>
