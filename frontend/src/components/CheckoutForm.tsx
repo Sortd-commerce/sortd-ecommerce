@@ -11,6 +11,9 @@ import {
   validateCheckoutAction,
 } from "@/lib/actions";
 import { emptyActionState, SubmitButton } from "@/components/ActionForm";
+import { CheckoutAddressSection } from "@/components/CheckoutAddressSection";
+import { CheckoutCodPendingOverlay } from "@/components/CheckoutCodPendingOverlay";
+import { CheckoutProcessingOverlay } from "@/components/CheckoutProcessingOverlay";
 import { CheckoutSelectionProvider } from "@/components/CheckoutSelectionContext";
 import { DeliverySlotPicker } from "@/components/DeliverySlotPicker";
 import { OpenBasketLink } from "@/components/OpenBasketLink";
@@ -19,6 +22,7 @@ import { OptimizedImage } from "@/components/OptimizedImage";
 import { useToast } from "@/components/Toast";
 import { usePricing } from "@/components/PricingProvider";
 import { useCart } from "@/components/CartProvider";
+import { useStripeWalletSupport } from "@/components/useStripeWalletSupport";
 import type { CheckoutAddress, CheckoutPaymentMethod, CheckoutSlot } from "@/lib/checkout";
 import { toSyncPayload } from "@/lib/cart-store";
 
@@ -63,14 +67,33 @@ function usesStripePayment(code: string) {
   return code === "apple_pay" || code === "card";
 }
 
-function defaultPaymentMethod(methods: CheckoutPaymentMethod[]) {
-  const checkout = checkoutPaymentMethods(methods);
-  const active = checkout.filter((row) => row.is_active);
-  return active.find((row) => row.code === "apple_pay")?.code || active[0]?.code || "";
+function initialPaymentMethod(methods: CheckoutPaymentMethod[]) {
+  const active = checkoutPaymentMethods(methods).filter((row) => row.is_active);
+  return active.find((row) => row.code === "card")?.code || active.find((row) => row.code !== "apple_pay")?.code || active[0]?.code || "";
 }
 
 function firstAvailableSlot(slots: CheckoutSlot[]) {
   return slots.find((row) => row.status === "available" && row.remaining > 0) || null;
+}
+
+function isPaymentSelectable(
+  method: CheckoutPaymentMethod,
+  walletSupport: { applePay: boolean; loading: boolean },
+) {
+  if (!method.is_active) return false;
+  if (method.code === "apple_pay") return walletSupport.applePay && !walletSupport.loading;
+  return true;
+}
+
+function paymentMethodDetail(
+  method: CheckoutPaymentMethod,
+  walletSupport: { applePay: boolean; loading: boolean },
+) {
+  if (!method.is_active) return "Unavailable";
+  if (method.code === "apple_pay" && !walletSupport.loading && !walletSupport.applePay) {
+    return "Use Safari on iPhone, iPad, or Mac";
+  }
+  return PAYMENT_DETAIL[method.code];
 }
 
 function ChoiceCard({
@@ -118,11 +141,11 @@ function ChoiceCard({
 export function CheckoutForm({
   slots,
   paymentMethods,
-  addressStep,
+  addresses,
 }: {
   slots: CheckoutSlot[];
   paymentMethods: CheckoutPaymentMethod[];
-  addressStep: React.ReactNode;
+  addresses: CheckoutAddress[];
 }) {
   const router = useRouter();
   const toast = useToast();
@@ -133,19 +156,28 @@ export function CheckoutForm({
   const onAddressChange = useCallback((address: CheckoutAddress | null) => {
     setSelectedAddress(address);
   }, []);
+  const walletSupport = useStripeWalletSupport(quote.total);
   const checkoutPayments = useMemo(() => checkoutPaymentMethods(paymentMethods), [paymentMethods]);
-  const activePayments = useMemo(() => checkoutPayments.filter((row) => row.is_active), [checkoutPayments]);
+  const selectablePayments = useMemo(
+    () => checkoutPayments.filter((row) => isPaymentSelectable(row, walletSupport)),
+    [checkoutPayments, walletSupport],
+  );
+  const applePayConfigured = checkoutPayments.some((row) => row.code === "apple_pay" && row.is_active);
+  const showApplePayUnavailable =
+    applePayConfigured && !walletSupport.loading && !walletSupport.applePay;
   const [slotId, setSlotId] = useState(() => {
     const first = firstAvailableSlot(slots);
     return first ? slotKey(first) : "";
   });
-  const [paymentMethod, setPaymentMethod] = useState(() => defaultPaymentMethod(paymentMethods));
+  const [paymentMethod, setPaymentMethod] = useState(() => initialPaymentMethod(paymentMethods));
+  const paymentTouchedRef = useRef(false);
   const [payModal, setPayModal] = useState<{
     clientSecret: string;
     preferWallet: "apple_pay" | "card";
     total: string;
   } | null>(null);
   const [payPending, setPayPending] = useState(false);
+  const [payProcessing, setPayProcessing] = useState(false);
   const [placingOrder, setPlacingOrder] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
   const toastedRef = useRef("");
@@ -208,11 +240,20 @@ export function CheckoutForm({
   }, emptyActionState);
 
   useEffect(() => {
-    if (!activePayments.some((row) => row.code === paymentMethod)) {
-      const next = activePayments.find((row) => row.code === "apple_pay")?.code || activePayments[0]?.code || "";
-      if (next) setPaymentMethod(next);
-    }
-  }, [activePayments, paymentMethod]);
+    if (walletSupport.loading) return;
+    setPaymentMethod((current) => {
+      if (current === "apple_pay" && !walletSupport.applePay) {
+        return selectablePayments.find((row) => row.code === "card")?.code || selectablePayments[0]?.code || "";
+      }
+      if (!paymentTouchedRef.current && walletSupport.applePay && selectablePayments.some((row) => row.code === "apple_pay")) {
+        return "apple_pay";
+      }
+      if (!selectablePayments.some((row) => row.code === current)) {
+        return selectablePayments.find((row) => row.code === "card")?.code || selectablePayments[0]?.code || "";
+      }
+      return current;
+    });
+  }, [selectablePayments, walletSupport.applePay, walletSupport.loading]);
 
   useEffect(() => {
     if (!state.message || state.ok) return;
@@ -222,8 +263,16 @@ export function CheckoutForm({
   }, [state, toast]);
 
   const paysOnline = usesStripePayment(paymentMethod);
+  const checkoutLocked = payPending || payProcessing || placingOrder;
+  const processingMessage = placingOrder
+    ? "Placing your order…"
+    : payProcessing
+      ? "Processing your payment…"
+      : payPending
+        ? "Getting payment ready…"
+        : null;
   const canPlace = Boolean(
-    selectedAddress && activeSlot && paymentMethod && items.length && !payModal && !payPending && !placingOrder,
+    selectedAddress && activeSlot && paymentMethod && items.length && !payModal && !checkoutLocked,
   );
 
   async function openPaymentModal() {
@@ -258,6 +307,7 @@ export function CheckoutForm({
   async function onPaymentSuccess(paymentIntentId: string) {
     if (!selectedAddress || !activeSlot) return;
     setPayModal(null);
+    setPayProcessing(false);
     setPlacingOrder(true);
     try {
       const prepared = await prepareCheckout({
@@ -270,6 +320,7 @@ export function CheckoutForm({
       });
       if (!prepared.ok) {
         toast.error(prepared.message);
+        setPlacingOrder(false);
         return;
       }
       const note = formRef.current ? String(new FormData(formRef.current).get("note") || "") : "";
@@ -287,11 +338,12 @@ export function CheckoutForm({
       });
       if (!result.ok || !result.orderNumber) {
         toast.error(result.message || "Order could not be placed after payment.");
+        setPlacingOrder(false);
         return;
       }
-      toast.success("Payment received.");
+      toast.success("Thank you — your order is placed.");
       router.push(`/orders/${result.orderNumber}`);
-    } finally {
+    } catch {
       setPlacingOrder(false);
     }
   }
@@ -310,7 +362,7 @@ export function CheckoutForm({
                 <h2>Deliver to</h2>
               </div>
             </div>
-            {addressStep}
+            <CheckoutAddressSection addresses={addresses} />
           </section>
 
           <section className="checkout-block">
@@ -327,22 +379,32 @@ export function CheckoutForm({
             <p className="step-index">03</p>
             <h2>Pay with</h2>
             <div className="choice-stack" role="radiogroup" aria-label="Payment methods">
-              {checkoutPayments.map((method) => (
-                <ChoiceCard
-                  key={method.code}
-                  name="saved_payment"
-                  value={method.code}
-                  checked={paymentMethod === method.code}
-                  disabled={!method.is_active}
-                  title={PAYMENT_NAME[method.code] || method.name}
-                  detail={method.is_active ? PAYMENT_DETAIL[method.code] || undefined : "Unavailable"}
-                  onChange={() => {
-                    if (method.is_active) setPaymentMethod(method.code);
-                  }}
-                />
-              ))}
+              {checkoutPayments.map((method) => {
+                const disabled = !isPaymentSelectable(method, walletSupport);
+                return (
+                  <ChoiceCard
+                    key={method.code}
+                    name="saved_payment"
+                    value={method.code}
+                    checked={paymentMethod === method.code}
+                    disabled={disabled}
+                    title={PAYMENT_NAME[method.code] || method.name}
+                    detail={paymentMethodDetail(method, walletSupport)}
+                    onChange={() => {
+                      if (disabled) return;
+                      paymentTouchedRef.current = true;
+                      setPaymentMethod(method.code);
+                    }}
+                  />
+                );
+              })}
               {!checkoutPayments.length ? <p className="fine-print">No payment methods are available.</p> : null}
             </div>
+            {showApplePayUnavailable ? (
+              <p className="fine-print checkout-wallet-note">
+                Apple Pay isn&apos;t available on this device. You can pay by card or cash on delivery.
+              </p>
+            ) : null}
           </section>
 
           <section className="checkout-block">
@@ -356,6 +418,7 @@ export function CheckoutForm({
         </div>
 
         <form id="place-order" ref={formRef} action={formAction} className="order-card">
+          <CheckoutCodPendingOverlay />
           <input type="hidden" name="address_id" value={selectedAddress?.id || ""} />
           <input type="hidden" name="delivery_date" value={activeSlot?.date || ""} />
           <input type="hidden" name="window_id" value={activeSlot?.window_id || ""} />
@@ -402,7 +465,7 @@ export function CheckoutForm({
               disabled={!canPlace}
               onClick={() => void openPaymentModal()}
             >
-              <span>{placingOrder ? "Placing order…" : payPending ? "Preparing payment…" : "Pay now"}</span>
+              <span>{placingOrder ? "Placing your order…" : payPending ? "Getting payment ready…" : "Pay now"}</span>
               <span>AED {quote.total} →</span>
             </button>
           ) : (
@@ -421,10 +484,15 @@ export function CheckoutForm({
           clientSecret={payModal.clientSecret}
           preferWallet={payModal.preferWallet}
           total={payModal.total}
+          locked={checkoutLocked}
+          onProcessingChange={setPayProcessing}
           onSuccess={(paymentIntentId) => void onPaymentSuccess(paymentIntentId)}
-          onClose={() => setPayModal(null)}
+          onClose={() => {
+            if (!checkoutLocked) setPayModal(null);
+          }}
         />
       ) : null}
+      {processingMessage ? <CheckoutProcessingOverlay message={processingMessage} /> : null}
     </CheckoutSelectionProvider>
   );
 }

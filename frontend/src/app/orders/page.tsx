@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { apiFetch } from "@/lib/api";
+import { formatOrderStatus } from "@/lib/orders";
 
 type Orders = {
   results: Array<{ number: string; status: string; total: string; delivery_date: string }>;
@@ -29,7 +30,7 @@ export default async function OrdersPage() {
             <div>
               <p className="orders-row-number">{order.number}</p>
               <p className="orders-row-meta">
-                {order.status} · {order.delivery_date}
+                {formatOrderStatus(order.status)} · {order.delivery_date}
               </p>
             </div>
             <p className="orders-row-total">AED {order.total}</p>

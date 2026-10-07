@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { OrderCartClear } from "@/components/OrderCartClear";
 import { apiFetch } from "@/lib/api";
+import { formatOrderStatus } from "@/lib/orders";
 
 type Order = {
   number: string;
@@ -49,7 +50,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ nu
         ← Orders
       </Link>
       <section className="card-quiet rounded-[1.8rem] p-6">
-        <p className="text-sm uppercase tracking-[0.16em] text-citrus">{order.status}</p>
+        <p className="text-sm uppercase tracking-[0.16em] text-citrus">{formatOrderStatus(order.status)}</p>
         <h1 className="mt-2 font-[family-name:var(--font-display)] text-4xl text-forest">{order.number}</h1>
         <p className="mt-3 text-ink/70">Ordered {formatOrderedAt(order.created_at)}</p>
         <p className="mt-1 text-ink/70">

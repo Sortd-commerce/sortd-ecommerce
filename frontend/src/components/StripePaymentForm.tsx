@@ -9,10 +9,12 @@ function PayForm({
   preferWallet,
   onSuccess,
   onCancel,
+  onProcessingChange,
 }: {
   preferWallet: "apple_pay" | "card";
   onSuccess: (paymentIntentId: string) => void;
   onCancel: () => void;
+  onProcessingChange?: (processing: boolean) => void;
 }) {
   const stripe = useStripe();
   const elements = useElements();
@@ -23,6 +25,7 @@ function PayForm({
     event.preventDefault();
     if (!stripe || !elements) return;
     setPending(true);
+    onProcessingChange?.(true);
     const result = await stripe.confirmPayment({
       elements,
       redirect: "if_required",
@@ -30,12 +33,14 @@ function PayForm({
     if (result.error) {
       toast.error(result.error.message || "Payment could not be completed.");
       setPending(false);
+      onProcessingChange?.(false);
       return;
     }
     const paymentIntentId = result.paymentIntent?.id;
     if (!paymentIntentId) {
-      toast.error("Payment is processing. Please try again.");
+      toast.error("We couldn't confirm your payment. Please try again.");
       setPending(false);
+      onProcessingChange?.(false);
       return;
     }
     onSuccess(paymentIntentId);
@@ -45,16 +50,16 @@ function PayForm({
     <form onSubmit={onPay} className="stripe-pay-form">
       <p className="fine-print">
         {preferWallet === "apple_pay"
-          ? "Use Apple Pay, or enter card details below."
-          : "Enter your card details to complete payment."}
+          ? "Use Apple Pay, or enter your card details below."
+          : "Enter your card details to pay."}
       </p>
-      <PaymentElement options={{ wallets: { applePay: "auto", googlePay: "auto" } }} />
+      <PaymentElement options={{ wallets: { applePay: "auto", googlePay: "never" } }} />
       <div className="stripe-pay-actions">
         <button type="button" className="btn btn-secondary" onClick={onCancel} disabled={pending}>
           Cancel
         </button>
         <button type="submit" className="btn btn-primary" disabled={!stripe || pending}>
-          {pending ? "Processing…" : "Pay now"}
+          {pending ? "Processing payment…" : "Pay now"}
         </button>
       </div>
     </form>
@@ -66,11 +71,13 @@ export function StripePaymentForm({
   preferWallet = "card",
   onSuccess,
   onCancel,
+  onProcessingChange,
 }: {
   clientSecret: string;
   preferWallet?: "apple_pay" | "card";
   onSuccess: (paymentIntentId: string) => void;
   onCancel: () => void;
+  onProcessingChange?: (processing: boolean) => void;
 }) {
   const [stripePromise, setStripePromise] = useState<Promise<Stripe | null> | null>(null);
 
@@ -91,7 +98,12 @@ export function StripePaymentForm({
 
   return (
     <Elements stripe={stripePromise} options={{ clientSecret }}>
-      <PayForm preferWallet={preferWallet} onSuccess={onSuccess} onCancel={onCancel} />
+      <PayForm
+        preferWallet={preferWallet}
+        onSuccess={onSuccess}
+        onCancel={onCancel}
+        onProcessingChange={onProcessingChange}
+      />
     </Elements>
   );
 }

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { logoutAction } from "@/lib/actions";
 import { apiFetch } from "@/lib/api";
+import { formatOrderStatus } from "@/lib/orders";
 
 type UserProfile = {
   email: string;
@@ -96,7 +97,7 @@ export default async function AccountPage() {
               <Link key={order.number} href={`/orders/${order.number}`} className="account-order-row">
                 <span>
                   <strong>{order.number}</strong>
-                  <small>{order.status}</small>
+                  <small>{formatOrderStatus(order.status)}</small>
                 </span>
                 <b>AED {order.total}</b>
               </Link>

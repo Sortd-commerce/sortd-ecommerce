@@ -150,11 +150,6 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     persistLocal(local);
     setReady(true);
 
-    if (pathname.startsWith("/orders/") && consumeClearCartFlag()) {
-      clearCart();
-      return;
-    }
-
     let cancelled = false;
     void (async () => {
       const remote = await fetchCartAction();
@@ -181,7 +176,13 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [pathname, persistLocal, clearCart, applySyncResult]);
+  }, [persistLocal, applySyncResult]);
+
+  useEffect(() => {
+    if (pathname.startsWith("/orders/") && consumeClearCartFlag()) {
+      clearCart();
+    }
+  }, [pathname, clearCart]);
 
   const addItem = useCallback(
     (line: Omit<CartLine, "quantity"> & { quantity?: number }) => {

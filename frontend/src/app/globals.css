@@ -392,6 +392,45 @@ button {
   margin-bottom: 0.5rem;
 }
 
+.checkout-pay-scrim:disabled {
+  cursor: default;
+}
+
+.checkout-pay-close:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.checkout-processing {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: grid;
+  place-items: center;
+  padding: 1.5rem;
+  background: rgb(14 26 20 / 0.62);
+  backdrop-filter: blur(4px);
+  pointer-events: all;
+}
+
+.checkout-processing-card {
+  display: grid;
+  gap: 0.35rem;
+  justify-items: center;
+  width: min(100%, 18rem);
+  padding: 1.5rem 1.25rem;
+  border: 1px solid var(--line);
+  border-radius: 1.25rem;
+  background: white;
+  box-shadow: 0 24px 48px rgb(14 26 20 / 0.18);
+  text-align: center;
+}
+
+.checkout-processing-card .loading-spinner {
+  color: var(--forest);
+  font-weight: 600;
+}
+
 .search-form-icon,
 .header-glyph,
 .cart-pill-icon {
