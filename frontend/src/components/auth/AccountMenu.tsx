@@ -88,9 +88,6 @@ export function AccountMenu({ user }: { user: AuthUser | null }) {
             <span>My orders</span>
             {activeOrders > 0 ? <span className="account-menu-badge">{activeOrders} on the way</span> : null}
           </Link>
-          <Link href="/addresses" className="account-menu-item" role="menuitem" onClick={() => setOpen(false)}>
-            Saved addresses
-          </Link>
           <Link href="/account" className="account-menu-item" role="menuitem" onClick={() => setOpen(false)}>
             Membership
           </Link>

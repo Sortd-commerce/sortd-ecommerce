@@ -9,13 +9,6 @@ type UserProfile = {
   phone: string;
 };
 
-type Address = {
-  formatted_address: string;
-  line1: string;
-  city: string;
-  is_default?: boolean;
-};
-
 type Orders = {
   results: Array<{ number: string; status: string; total: string }>;
 };
@@ -25,14 +18,9 @@ function displayName(profile: UserProfile) {
   return name || profile.email.split("@")[0];
 }
 
-function formatAddress(address: Address) {
-  return address.formatted_address || `${address.line1}, ${address.city}`;
-}
-
 export default async function AccountPage() {
-  const [profile, addresses, orders] = await Promise.all([
+  const [profile, orders] = await Promise.all([
     apiFetch<UserProfile>("/profile"),
-    apiFetch<Address[]>("/addresses"),
     apiFetch<Orders>("/orders?page_size=3"),
   ]);
 
@@ -42,7 +30,7 @@ export default async function AccountPage() {
         <section className="account-guest">
           <p className="account-kicker">Account</p>
           <h1>Sign in to your account</h1>
-          <p className="account-copy">View orders, save delivery addresses, and checkout faster.</p>
+          <p className="account-copy">View orders and checkout faster.</p>
           <div className="account-guest-actions">
             <Link href="/?auth=login&next=/account" className="btn btn-primary">
               Sign in
@@ -57,8 +45,6 @@ export default async function AccountPage() {
   }
 
   const user = profile.data!;
-  const primary =
-    addresses.data?.find((row) => row.is_default) || addresses.data?.[0];
   const recentOrders = orders.data?.results || [];
 
   return (
@@ -81,11 +67,6 @@ export default async function AccountPage() {
       </section>
 
       <section className="account-grid" aria-label="Account shortcuts">
-        <Link href="/addresses" className="account-card">
-          <span className="account-card-label">Delivery</span>
-          <strong>{primary ? "Primary address" : "Add your address"}</strong>
-          <p>{primary ? formatAddress(primary) : "Set where we deliver in Dubai"}</p>
-        </Link>
         <Link href="/orders" className="account-card">
           <span className="account-card-label">Orders</span>
           <strong>{recentOrders.length ? "Recent orders" : "No orders yet"}</strong>

@@ -49,7 +49,7 @@ async function DeliverBar({ signedIn }: { signedIn: boolean }) {
               <CaretDownIcon />
             </Link>
           ) : signedIn ? (
-            <Link href="/addresses" className="deliver-place deliver-place--cta">
+            <Link href="/checkout" className="deliver-place deliver-place--cta">
               Add your address
               <CaretDownIcon />
             </Link>
