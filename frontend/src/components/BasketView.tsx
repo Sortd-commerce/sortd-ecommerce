@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Clock, X } from "@phosphor-icons/react";
+import { X } from "@phosphor-icons/react";
+import { BasketClockIcon } from "@/components/HeaderIcons";
 import { OptimizedImage } from "@/components/OptimizedImage";
 import { OrderSummary } from "@/components/OrderSummary";
 import { usePricing } from "@/components/PricingProvider";
@@ -64,7 +65,7 @@ export function BasketView({
 
       <div className="basket-deliver">
         <span className="basket-deliver-icon" aria-hidden>
-          <Clock size={18} weight="bold" />
+          <BasketClockIcon />
         </span>
         <p>
           {deliveryPromise ? <strong>{deliveryPromise}</strong> : null}

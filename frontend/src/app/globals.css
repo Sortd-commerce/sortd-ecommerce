@@ -2681,28 +2681,31 @@ button {
 }
 
 .basket-deliver-icon {
-  display: grid;
-  width: 2rem;
-  height: 2rem;
+  display: inline-flex;
+  width: 2.125rem;
+  height: 2.125rem;
   flex-shrink: 0;
-  place-items: center;
+  align-items: center;
+  justify-content: center;
   border-radius: 999px;
   background: color-mix(in srgb, var(--mint) 55%, white);
   color: var(--forest);
   line-height: 0;
 }
 
-.basket-deliver-icon svg {
+.basket-deliver-clock {
   display: block;
+  width: 1rem;
+  height: 1rem;
   flex-shrink: 0;
 }
 
 .basket-deliver strong,
-.basket-deliver span {
+.basket-deliver p > span {
   display: block;
 }
 
-.basket-deliver span,
+.basket-deliver p > span,
 .basket-copy small {
   color: rgb(23 54 40 / 0.6);
   font-size: 0.82rem;
