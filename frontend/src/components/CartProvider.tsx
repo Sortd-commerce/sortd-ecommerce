@@ -145,7 +145,6 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   }, [bumpRevision, persistLocal, scheduleFlush]);
 
   useEffect(() => {
-    setReady(false);
     const mountRevision = localRevision.current;
     const local = loadCart();
     persistLocal(local);

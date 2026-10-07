@@ -8,6 +8,24 @@ import { apiFetch } from "@/lib/api";
 import { paymentMethodLabel, paymentStatusLabel } from "@/lib/payments";
 import { requireStaff } from "@/lib/staff";
 
+const NEXT_STATUS_OPTIONS: Record<string, Array<{ value: string; label: string }>> = {
+  placed: [
+    { value: "confirmed", label: "Confirmed" },
+    { value: "out_for_delivery", label: "Out for delivery" },
+    { value: "cancelled", label: "Cancelled" },
+  ],
+  confirmed: [
+    { value: "placed", label: "Placed" },
+    { value: "out_for_delivery", label: "Out for delivery" },
+    { value: "cancelled", label: "Cancelled" },
+  ],
+  out_for_delivery: [
+    { value: "placed", label: "Placed" },
+    { value: "confirmed", label: "Confirmed" },
+    { value: "delivered", label: "Delivered" },
+  ],
+};
+
 type Order = {
   number: string;
   status: string;
@@ -30,6 +48,7 @@ export default async function AdminOrderDetailPage({ params }: { params: Promise
   if (!result.ok || !result.data) notFound();
   const order = result.data;
   const canEdit = me.role === "admin" && order.status !== "cancelled" && order.status !== "delivered";
+  const nextStatuses = NEXT_STATUS_OPTIONS[order.status] || [];
 
   return (
     <div className="space-y-6">
@@ -42,16 +61,17 @@ export default async function AdminOrderDetailPage({ params }: { params: Promise
         actions={<StatusBadge value={order.status} />}
       />
 
-      {canEdit ? (
+      {canEdit && nextStatuses.length ? (
         <ActionForm action={updateOrderStatusAction} className="panel flex flex-wrap items-end gap-3 p-4" successLabel="Status updated.">
           <input type="hidden" name="number" value={order.number} />
           <label className="field">
             <span>Update status</span>
-            <select name="status" defaultValue={order.status === "placed" ? "confirmed" : order.status}>
-              <option value="confirmed">Confirmed</option>
-              <option value="out_for_delivery">Out for delivery</option>
-              <option value="delivered">Delivered</option>
-              <option value="cancelled">Cancelled</option>
+            <select name="status" defaultValue={nextStatuses[0]?.value}>
+              {nextStatuses.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
             </select>
           </label>
           <SubmitButton>Save status</SubmitButton>

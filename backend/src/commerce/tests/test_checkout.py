@@ -84,6 +84,16 @@ class CheckoutTests(ApiTestCase):
         blocked = post_json(self.client, "/api/v1/delivery/check", {"address": "outside"})
         self.assertFalse(blocked.json()["data"]["serviceable"])
 
+    def test_delivery_accepts_dubai_when_postal_allowlist_empty(self):
+        DeliveryPostalCode.objects.all().delete()
+
+        dubai = post_json(self.client, "/api/v1/delivery/check", {"address": "dubai marina"})
+        self.assertEqual(dubai.status_code, 200)
+        self.assertTrue(dubai.json()["data"]["serviceable"])
+
+        blocked = post_json(self.client, "/api/v1/delivery/check", {"address": "outside"})
+        self.assertFalse(blocked.json()["data"]["serviceable"])
+
     def test_delivery_autocomplete_returns_fixture_suggestions(self):
         response = post_json(self.client, "/api/v1/delivery/autocomplete", {"q": "marina"})
         self.assertEqual(response.status_code, 200)

@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
 import { useCart } from "@/components/CartProvider";
 import { fetchPricingRulesAction, previewCouponsAction, quoteCartAction } from "@/lib/actions";
 import {
@@ -28,6 +29,7 @@ type PricingContextValue = {
   setDiscountCode: (value: string) => void;
   refreshQuote: () => Promise<void>;
   syncQuote: (quote: PriceQuote) => void;
+  loadCouponPreviews: () => Promise<void>;
 };
 
 const PricingContext = createContext<PricingContextValue | null>(null);
@@ -39,6 +41,8 @@ export function PricingProvider({
   children: React.ReactNode;
   initialRules?: PricingRules | null;
 }) {
+  const pathname = usePathname();
+  const isCheckout = pathname.startsWith("/checkout");
   const { items } = useCart();
   const [rules, setRules] = useState<PricingRules | null>(() => initialRules ?? loadCachedPricingRules());
   const [quote, setQuote] = useState<PriceQuote>(EMPTY_QUOTE);
@@ -56,6 +60,7 @@ export function PricingProvider({
   useEffect(() => {
     if (initialRules) {
       setRules(initialRules);
+      return;
     }
     void fetchPricingRulesAction().then((result) => {
       if (result.ok && result.data) {
@@ -74,7 +79,6 @@ export function PricingProvider({
       setQuote(EMPTY_QUOTE);
       return;
     }
-    setQuote(buildLocalQuote(items, rules));
     try {
       const result = await quoteCartAction(
         items.map((item) => ({ variant_id: item.variant_id, quantity: item.quantity })),
@@ -82,10 +86,12 @@ export function PricingProvider({
       );
       if (result.ok && result.data) {
         setQuote(result.data);
+        return;
       }
     } catch {
-      setQuote(buildLocalQuote(items, rules));
+      // Fall back to a local estimate only when the pricing API is unavailable.
     }
+    setQuote(buildLocalQuote(items, rules));
   }, [items, rules]);
 
   useEffect(() => {
@@ -98,24 +104,30 @@ export function PricingProvider({
 
   useEffect(() => {
     if (timer.current) clearTimeout(timer.current);
+    const delay = isCheckout ? 0 : 180;
+    if (delay === 0) {
+      void refreshQuote();
+      return () => {
+        if (timer.current) clearTimeout(timer.current);
+      };
+    }
     timer.current = setTimeout(() => {
       void refreshQuote();
-    }, 180);
+    }, delay);
     return () => {
       if (timer.current) clearTimeout(timer.current);
     };
-  }, [items, appliedCode, refreshQuote]);
+  }, [items, appliedCode, refreshQuote, isCheckout]);
 
-  useEffect(() => {
+  const loadCouponPreviews = useCallback(async () => {
     if (!items.length) {
       setCouponPreviews([]);
       return;
     }
-    void previewCouponsAction(items.map((item) => ({ variant_id: item.variant_id, quantity: item.quantity }))).then(
-      (result) => {
-        if (result.ok && result.data) setCouponPreviews(result.data);
-      },
+    const result = await previewCouponsAction(
+      items.map((item) => ({ variant_id: item.variant_id, quantity: item.quantity })),
     );
+    if (result.ok && result.data) setCouponPreviews(result.data);
   }, [items]);
 
   const setDraftCode = useCallback((value: string) => {
@@ -170,6 +182,7 @@ export function PricingProvider({
       setDiscountCode: setDraftCode,
       refreshQuote,
       syncQuote,
+      loadCouponPreviews,
     }),
     [
       rules,
@@ -183,6 +196,7 @@ export function PricingProvider({
       removeCoupon,
       refreshQuote,
       syncQuote,
+      loadCouponPreviews,
     ],
   );
 

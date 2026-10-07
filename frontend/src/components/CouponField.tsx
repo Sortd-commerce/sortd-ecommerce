@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Tag, Ticket } from "@phosphor-icons/react";
 import { usePricing } from "@/components/PricingProvider";
 
@@ -34,9 +34,17 @@ export function CouponField() {
     couponError,
     applyCoupon,
     removeCoupon,
+    loadCouponPreviews,
   } = usePricing();
   const [showOffers, setShowOffers] = useState(false);
   const [applying, setApplying] = useState(false);
+  const previewsRequested = useRef(false);
+
+  useEffect(() => {
+    if (previewsRequested.current) return;
+    previewsRequested.current = true;
+    void loadCouponPreviews();
+  }, [loadCouponPreviews]);
 
   const applied = Boolean(appliedCode && Number(quote.discount_amount) > 0);
   const typed = draftCode.trim().length > 0 && !applied;

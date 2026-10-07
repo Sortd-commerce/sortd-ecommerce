@@ -3,7 +3,7 @@ from decimal import Decimal
 from accounts.tests.helpers import PASSWORD, PHONE, ApiTestCase, bearer, login, post_json, signup_and_verify
 from catalog.models import Category, Product, ProductStatus, ProductVariant
 from catalog.tests.test_catalog import make_product
-from commerce.models import DeliveryPostalCode, DeliveryWindow, Order, OrderStatus, PaymentMethod
+from commerce.models import Address, DeliveryPostalCode, DeliveryWindow, Order, OrderStatus, PaymentMethod
 from datetime import timedelta
 from unittest.mock import patch
 
@@ -178,6 +178,108 @@ class AdminApiTests(ApiTestCase):
         )
         self.assertEqual(confirmed.status_code, 200)
         self.assertEqual(confirmed.json()["data"]["status"], "confirmed")
+
+        dispatched = self.client.patch(
+            f"/api/v1/admin/orders/{number}",
+            data={"status": "out_for_delivery"},
+            content_type="application/json",
+            **self.auth,
+        )
+        self.assertEqual(dispatched.status_code, 200)
+        self.assertEqual(dispatched.json()["data"]["status"], "out_for_delivery")
+
+    def test_placed_order_can_move_directly_to_out_for_delivery(self):
+        tomorrow = (timezone.now() + timedelta(days=1)).date()
+        window = DeliveryWindow.objects.create(
+            weekday=tomorrow.weekday(),
+            start_time="09:00:00",
+            end_time="12:00:00",
+            capacity=2,
+            cutoff_minutes=0,
+            is_active=True,
+        )
+        address = Address.objects.create(
+            user=self.user,
+            line1="Marina Walk",
+            city="Dubai",
+            formatted_address="Dubai Marina",
+            place_id="fixture-dubai-marina",
+        )
+        placed = post_json(
+            self.client,
+            "/api/v1/orders",
+            {
+                "address_id": address.id,
+                "delivery_date": tomorrow.isoformat(),
+                "window_id": window.id,
+                "window_source": "weekly",
+                "expected_total": "16.90",
+                "payment_method": "cod",
+            },
+            HTTP_IDEMPOTENCY_KEY="admin-order-direct-dispatch",
+            **self.auth,
+        )
+        self.assertEqual(placed.status_code, 201)
+        number = placed.json()["data"]["number"]
+
+        dispatched = self.client.patch(
+            f"/api/v1/admin/orders/{number}",
+            data={"status": "out_for_delivery"},
+            content_type="application/json",
+            **self.auth,
+        )
+        self.assertEqual(dispatched.status_code, 200)
+        self.assertEqual(dispatched.json()["data"]["status"], "out_for_delivery")
+
+    def test_out_for_delivery_order_can_move_back_to_placed(self):
+        tomorrow = (timezone.now() + timedelta(days=1)).date()
+        window = DeliveryWindow.objects.create(
+            weekday=tomorrow.weekday(),
+            start_time="09:00:00",
+            end_time="12:00:00",
+            capacity=2,
+            cutoff_minutes=0,
+            is_active=True,
+        )
+        address = Address.objects.create(
+            user=self.user,
+            line1="Marina Walk",
+            city="Dubai",
+            formatted_address="Dubai Marina",
+            place_id="fixture-dubai-marina",
+        )
+        placed = post_json(
+            self.client,
+            "/api/v1/orders",
+            {
+                "address_id": address.id,
+                "delivery_date": tomorrow.isoformat(),
+                "window_id": window.id,
+                "window_source": "weekly",
+                "expected_total": "16.90",
+                "payment_method": "cod",
+            },
+            HTTP_IDEMPOTENCY_KEY="admin-order-revert-placed",
+            **self.auth,
+        )
+        number = placed.json()["data"]["number"]
+
+        dispatched = self.client.patch(
+            f"/api/v1/admin/orders/{number}",
+            data={"status": "out_for_delivery"},
+            content_type="application/json",
+            **self.auth,
+        )
+        self.assertEqual(dispatched.status_code, 200)
+
+        reverted = self.client.patch(
+            f"/api/v1/admin/orders/{number}",
+            data={"status": "placed"},
+            content_type="application/json",
+            **self.auth,
+        )
+        self.assertEqual(reverted.status_code, 200)
+        self.assertEqual(reverted.json()["data"]["status"], "placed")
 
     def test_staff_can_create_pack_offers_and_flavour_links(self):
         first = post_json(

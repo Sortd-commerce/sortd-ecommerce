@@ -26,6 +26,7 @@
   --page-max: none;
   --btn-ease: cubic-bezier(0.22, 1, 0.36, 1);
   --btn-hover-shadow: 0 6px 18px rgb(20 53 3 / 0.14);
+  --anchor-scroll-offset: 14rem;
 }
 
 @theme inline {
@@ -44,6 +45,7 @@
 html {
   color-scheme: light;
   scroll-behavior: smooth;
+  scroll-padding-top: var(--anchor-scroll-offset);
   overflow-x: hidden;
   max-width: 100%;
 }
@@ -2838,7 +2840,8 @@ button {
 }
 
 .basket-bill div,
-.order-bill div {
+.order-bill div,
+.order-bill-row {
   display: flex;
   justify-content: space-between;
   gap: 1rem;
@@ -3720,6 +3723,10 @@ button {
 }
 
 @media (min-width: 800px) {
+  :root {
+    --anchor-scroll-offset: 12.5rem;
+  }
+
   .product-layout {
     grid-template-columns: minmax(0, 640fr) minmax(0, 536fr);
     gap: 4rem;

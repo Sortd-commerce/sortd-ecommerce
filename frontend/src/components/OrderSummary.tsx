@@ -27,28 +27,30 @@ export function OrderSummary({
     <div className={className}>
       {showPromo ? <CouponField /> : null}
       {isBasket ? <p className="basket-kicker basket-bill-label">Bill details</p> : null}
-      <dl className={`order-bill${isBasket ? " order-bill--basket" : ""}`}>
-        <div>
-          <dt>Item total</dt>
-          <dd>AED {money(quote.subtotal)}</dd>
+      <div className={`order-bill${isBasket ? " order-bill--basket" : ""}`}>
+        <div className="order-bill-row">
+          <span className="order-bill-label">Item total</span>
+          <span className="order-bill-value">AED {money(quote.subtotal)}</span>
         </div>
         {hasDiscount ? (
-          <div className="order-discount">
-            <dt>{quote.discount_code ? `Coupon · ${quote.discount_code}` : "Discount"}</dt>
-            <dd>- AED {money(quote.discount_amount)}</dd>
+          <div className="order-bill-row order-discount">
+            <span className="order-bill-label">
+              {quote.discount_code ? `Coupon · ${quote.discount_code}` : "Discount"}
+            </span>
+            <span className="order-bill-value">- AED {money(quote.discount_amount)}</span>
           </div>
         ) : null}
-        <div>
-          <dt>Delivery fee</dt>
-          <dd className={deliveryFree ? "order-fee-free" : undefined}>
+        <div className="order-bill-row">
+          <span className="order-bill-label">Delivery fee</span>
+          <span className={`order-bill-value${deliveryFree ? " order-fee-free" : ""}`}>
             {deliveryFree ? "Free" : `AED ${money(quote.delivery_fee)}`}
-          </dd>
+          </span>
         </div>
-        <div className="order-due">
-          <dt>To pay</dt>
-          <dd>AED {money(quote.total)}</dd>
+        <div className="order-bill-row order-due">
+          <span className="order-bill-label">To pay</span>
+          <span className="order-bill-value">AED {money(quote.total)}</span>
         </div>
-      </dl>
+      </div>
       {!isBasket && remaining > 0 ? (
         <p className="delivery-note-line delivery-note-banner">
           Add AED {money(quote.amount_until_free_delivery)} more and delivery is free.

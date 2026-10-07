@@ -31,6 +31,49 @@ class SlotView:
     status: str
 
 
+DUBAI_LOCATION_TYPES = (
+    "locality",
+    "administrative_area_level_1",
+    "administrative_area_level_2",
+    "sublocality",
+    "sublocality_level_1",
+)
+
+
+def _component_text(components: list[dict], type_name: str) -> str:
+    for component in components:
+        if type_name in (component.get("types") or []):
+            value = component.get("long_name") or component.get("short_name") or ""
+            if value:
+                return str(value)
+    return ""
+
+
+def _is_uae(components: list[dict]) -> bool:
+    for component in components:
+        if "country" not in (component.get("types") or []):
+            continue
+        short_name = str(component.get("short_name") or "").upper()
+        long_name = str(component.get("long_name") or "").lower()
+        if short_name == "AE" or "united arab emirates" in long_name:
+            return True
+    return False
+
+
+def _is_dubai_location(result: GeocodeResult) -> bool:
+    if result.status != "OK":
+        return False
+
+    components = result.address_components or []
+    if components and not _is_uae(components):
+        return False
+
+    parts = [result.formatted_address or ""]
+    parts.extend(_component_text(components, type_name) for type_name in DUBAI_LOCATION_TYPES)
+    haystack = " ".join(part for part in parts if part).lower()
+    return "dubai" in haystack
+
+
 class DeliveryService:
     def __init__(self, *, clock, geocoder: PlacesProvider) -> None:
         self._clock = clock
@@ -102,7 +145,11 @@ class DeliveryService:
         return GeocodeResult(status="ZERO_RESULTS")
 
     def is_serviceable(self, result: GeocodeResult) -> bool:
-        if result.status != "OK" or not result.postal_code:
+        if result.status != "OK":
+            return False
+        if not DeliveryPostalCode.objects.filter(is_active=True).exists():
+            return _is_dubai_location(result)
+        if not result.postal_code:
             return False
         code = normalize_postal_code(result.postal_code)
         if not code:

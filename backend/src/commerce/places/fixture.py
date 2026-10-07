@@ -16,6 +16,7 @@ class FixtureProvider:
                 address_components=[
                     {"long_name": "00000", "short_name": "00000", "types": ["postal_code"]},
                     {"long_name": "Dubai", "short_name": "Dubai", "types": ["locality"]},
+                    {"long_name": "United Arab Emirates", "short_name": "AE", "types": ["country"]},
                 ],
             ),
             "outside": GeocodeResult(
@@ -27,6 +28,8 @@ class FixtureProvider:
                 place_id="fixture-abu-dhabi",
                 address_components=[
                     {"long_name": "99999", "short_name": "99999", "types": ["postal_code"]},
+                    {"long_name": "Abu Dhabi", "short_name": "Abu Dhabi", "types": ["locality"]},
+                    {"long_name": "United Arab Emirates", "short_name": "AE", "types": ["country"]},
                 ],
             ),
         }

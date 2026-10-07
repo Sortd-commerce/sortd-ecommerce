@@ -1,35 +1,13 @@
+import { Suspense } from "react";
+import { CheckoutAddressesLoader } from "@/components/CheckoutAddresses";
+import { CheckoutAddressSkeleton } from "@/components/CheckoutAddressSection";
 import { CheckoutForm } from "@/components/CheckoutForm";
 import { CheckoutGuestGate } from "@/components/CheckoutGuestGate";
-import { apiFetch } from "@/lib/api";
+import {
+  fetchCheckoutPaymentMethods,
+  fetchCheckoutWindows,
+} from "@/lib/checkout";
 import { getAccessToken } from "@/lib/auth";
-
-type Address = {
-  id: number;
-  line1: string;
-  city: string;
-  formatted_address: string;
-  is_default?: boolean;
-  place_id?: string;
-  latitude?: string | null;
-  longitude?: string | null;
-  postal_code?: string;
-};
-
-type Slot = {
-  date: string;
-  start_time: string;
-  end_time: string;
-  remaining: number;
-  window_id: number;
-  source: string;
-  status: "available" | "passed" | "full";
-};
-
-type PaymentMethod = {
-  code: string;
-  name: string;
-  is_active: boolean;
-};
 
 export default async function CheckoutPage() {
   const access = await getAccessToken();
@@ -37,23 +15,25 @@ export default async function CheckoutPage() {
     return <CheckoutGuestGate />;
   }
 
-  const [addresses, windows, payments] = await Promise.all([
-    apiFetch<Address[]>("/addresses"),
-    apiFetch<Slot[]>("/delivery/windows", { auth: false }),
-    apiFetch<PaymentMethod[]>("/payments/methods", { auth: false }),
+  const [windows, payments] = await Promise.all([
+    fetchCheckoutWindows(),
+    fetchCheckoutPaymentMethods(),
   ]);
 
-  if (!addresses.ok && (addresses.status === 401 || addresses.status === 403)) {
-    return <CheckoutGuestGate />;
-  }
-
-  const addressList = addresses.data || [];
   const slots = windows.data || [];
   const methods = payments.data || [];
 
   return (
     <div className="checkout-page">
-      <CheckoutForm addresses={addressList} slots={slots} paymentMethods={methods} />
+      <CheckoutForm
+        slots={slots}
+        paymentMethods={methods}
+        addressStep={
+          <Suspense fallback={<CheckoutAddressSkeleton />}>
+            <CheckoutAddressesLoader />
+          </Suspense>
+        }
+      />
     </div>
   );
 }

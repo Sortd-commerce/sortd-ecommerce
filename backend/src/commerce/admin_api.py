@@ -178,6 +178,7 @@ class OrderStatusIn(Schema):
     @classmethod
     def validate_status(cls, value: str) -> str:
         allowed = {
+            OrderStatus.PLACED,
             OrderStatus.CONFIRMED,
             OrderStatus.OUT_FOR_DELIVERY,
             OrderStatus.DELIVERED,
@@ -807,9 +808,21 @@ class AdminController(ControllerBase):
             order = build_order_service().cancel(order.user, number=number)
         else:
             transitions = {
-                OrderStatus.PLACED: {OrderStatus.CONFIRMED, OrderStatus.CANCELLED},
-                OrderStatus.CONFIRMED: {OrderStatus.OUT_FOR_DELIVERY, OrderStatus.CANCELLED},
-                OrderStatus.OUT_FOR_DELIVERY: {OrderStatus.DELIVERED},
+                OrderStatus.PLACED: {
+                    OrderStatus.CONFIRMED,
+                    OrderStatus.OUT_FOR_DELIVERY,
+                    OrderStatus.CANCELLED,
+                },
+                OrderStatus.CONFIRMED: {
+                    OrderStatus.PLACED,
+                    OrderStatus.OUT_FOR_DELIVERY,
+                    OrderStatus.CANCELLED,
+                },
+                OrderStatus.OUT_FOR_DELIVERY: {
+                    OrderStatus.PLACED,
+                    OrderStatus.CONFIRMED,
+                    OrderStatus.DELIVERED,
+                },
             }
             allowed = transitions.get(order.status, set())
             if payload.status not in allowed:
