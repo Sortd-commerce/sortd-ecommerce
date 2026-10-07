@@ -42,24 +42,78 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false);
   const itemsRef = useRef(items);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const localRevision = useRef(0);
+  const scheduleFlushRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     itemsRef.current = items;
   }, [items]);
 
-  const persist = useCallback((next: CartLine[]) => {
+  const persistLocal = useCallback((next: CartLine[]) => {
     itemsRef.current = next;
     setItems(next);
     saveCart(next);
   }, []);
 
-  const clearCart = useCallback(() => {
-    if (timer.current) {
-      clearTimeout(timer.current);
+  const bumpRevision = useCallback(() => {
+    localRevision.current += 1;
+  }, []);
+
+  const applySyncResult = useCallback(
+    (result: Awaited<ReturnType<typeof syncCartAction>>, baseLines: CartLine[]) => {
+      let next = baseLines;
+      if (result.skipped?.length) {
+        const skipped = new Set(result.skipped);
+        next = next.filter((line) => !skipped.has(line.variant_id));
+      }
+      if (result.data) {
+        next = keepLineDetails(next, fromRemote(result.data));
+      }
+      persistLocal(next);
+      if (result.skipped?.length) {
+        return {
+          ok: false as const,
+          message: "Some items in your basket are no longer available and were removed.",
+        };
+      }
+      return { ok: true as const };
+    },
+    [persistLocal],
+  );
+
+  const runSync = useCallback(
+    async (revisionAtStart: number): Promise<{ ok: boolean; message?: string; stale?: boolean }> => {
+      const payload = toSyncPayload(itemsRef.current);
+      const sentFingerprint = cartFingerprint(itemsRef.current);
+      const result = await syncCartAction(payload);
+      if (result.status === 401) return { ok: true };
+
+      const localChanged =
+        revisionAtStart !== localRevision.current ||
+        cartFingerprint(itemsRef.current) !== sentFingerprint;
+      if (localChanged) {
+        scheduleFlushRef.current?.();
+        return { ok: true, stale: true };
+      }
+
+      if (!result.ok) {
+        return { ok: false, message: result.message || "Could not update your basket." };
+      }
+      return applySyncResult(result, itemsRef.current);
+    },
+    [applySyncResult],
+  );
+
+  const scheduleFlush = useCallback(() => {
+    if (!ready) return;
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => {
       timer.current = null;
-    }
-    persist([]);
-  }, [persist]);
+      void runSync(localRevision.current);
+    }, 1600);
+  }, [ready, runSync]);
+
+  scheduleFlushRef.current = scheduleFlush;
 
   const flush = useCallback(async () => {
     if (!ready) return { ok: true };
@@ -67,43 +121,32 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       clearTimeout(timer.current);
       timer.current = null;
     }
-    const payload = toSyncPayload(itemsRef.current);
-    if (!payload.length) return { ok: true };
-    const result = await syncCartAction(payload);
-    if (result.status === 401) return { ok: true };
-    if (!result.ok) {
-      return { ok: false, message: result.message || "Could not update your basket." };
+    let last = { ok: true as boolean, message: undefined as string | undefined };
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const revisionAtStart = localRevision.current;
+      last = await runSync(revisionAtStart);
+      if (!last.ok || revisionAtStart === localRevision.current) {
+        return last;
+      }
     }
-    let next = itemsRef.current;
-    if (result.skipped?.length) {
-      const skipped = new Set(result.skipped);
-      next = next.filter((line) => !skipped.has(line.variant_id));
-    }
-    if (result.data) {
-      next = keepLineDetails(next, fromRemote(result.data));
-    }
-    persist(next);
-    if (result.skipped?.length) {
-      return {
-        ok: false,
-        message: "Some items in your basket are no longer available and were removed.",
-      };
-    }
-    return { ok: true };
-  }, [persist, ready]);
+    return last;
+  }, [ready, runSync]);
 
-  const scheduleFlush = useCallback(() => {
-    if (!ready) return;
-    if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => {
-      void flush();
-    }, 1600);
-  }, [flush, ready]);
+  const clearCart = useCallback(() => {
+    if (timer.current) {
+      clearTimeout(timer.current);
+      timer.current = null;
+    }
+    bumpRevision();
+    persistLocal([]);
+    scheduleFlush();
+  }, [bumpRevision, persistLocal, scheduleFlush]);
 
   useEffect(() => {
     setReady(false);
+    const mountRevision = localRevision.current;
     const local = loadCart();
-    persist(local);
+    persistLocal(local);
     setReady(true);
 
     if (pathname.startsWith("/orders/") && consumeClearCartFlag()) {
@@ -114,46 +157,58 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     let cancelled = false;
     void (async () => {
       const remote = await fetchCartAction();
-      if (cancelled) return;
+      if (cancelled || mountRevision !== localRevision.current) return;
       if (!remote.ok || remote.status === 401 || !remote.data) {
         return;
       }
       const merged = mergeCarts(itemsRef.current, fromRemote(remote.data));
-      persist(merged);
+      if (mountRevision !== localRevision.current) return;
+      persistLocal(merged);
       if (cartFingerprint(merged) !== cartFingerprint(fromRemote(remote.data))) {
-        await syncCartAction(toSyncPayload(merged));
+        const revisionAtPush = localRevision.current;
+        const result = await syncCartAction(toSyncPayload(merged));
+        if (revisionAtPush !== localRevision.current) return;
+        if (result.ok && result.data) {
+          applySyncResult(
+            { ok: true, status: 200, message: "", data: result.data, skipped: result.data.skipped_variant_ids },
+            itemsRef.current,
+          );
+        }
       }
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [pathname, persist, clearCart]);
+  }, [pathname, persistLocal, clearCart, applySyncResult]);
 
   const addItem = useCallback(
     (line: Omit<CartLine, "quantity"> & { quantity?: number }) => {
       const { lines, result } = upsertLine(itemsRef.current, { ...line, quantity: line.quantity ?? 1 });
-      persist(lines);
+      bumpRevision();
+      persistLocal(lines);
       if (result.ok) scheduleFlush();
       return result;
     },
-    [persist, scheduleFlush],
+    [bumpRevision, persistLocal, scheduleFlush],
   );
 
   const setQuantity = useCallback(
     (variantId: number, quantity: number, onHand?: number | null) => {
-      persist(setLineQuantity(itemsRef.current, variantId, quantity, onHand));
+      bumpRevision();
+      persistLocal(setLineQuantity(itemsRef.current, variantId, quantity, onHand));
       scheduleFlush();
     },
-    [persist, scheduleFlush],
+    [bumpRevision, persistLocal, scheduleFlush],
   );
 
   const removeItem = useCallback(
     (variantId: number) => {
-      persist(itemsRef.current.filter((line) => line.variant_id !== variantId));
+      bumpRevision();
+      persistLocal(itemsRef.current.filter((line) => line.variant_id !== variantId));
       scheduleFlush();
     },
-    [persist, scheduleFlush],
+    [bumpRevision, persistLocal, scheduleFlush],
   );
 
   const quantityOf = useCallback((variantId: number) => quantityInCart(items, variantId), [items]);
