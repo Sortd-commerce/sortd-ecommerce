@@ -540,3 +540,15 @@ class CheckoutTests(ApiTestCase):
         self.assertEqual(preview.status_code, 200)
         codes = [row["code"] for row in preview.json()["data"]]
         self.assertNotIn("WELCOME10", codes)
+
+    def test_pricing_rules_expose_delivery_promise(self):
+        settings = CommerceSettings.load()
+        settings.delivery_promise = "Same-day delivery across Dubai"
+        settings.free_delivery_minimum = Decimal("0.00")
+        settings.save()
+
+        response = self.client.get("/api/v1/pricing")
+        self.assertEqual(response.status_code, 200)
+        data = response.json()["data"]
+        self.assertEqual(data["delivery_promise"], "Same-day delivery across Dubai")
+        self.assertEqual(data["free_delivery_minimum"], "0.00")

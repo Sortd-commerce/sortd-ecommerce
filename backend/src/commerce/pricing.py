@@ -171,6 +171,7 @@ def serialize_offer_rules() -> dict:
     return {
         "delivery_fee": money_str(settings_row.delivery_fee),
         "free_delivery_minimum": money_str(settings_row.free_delivery_minimum),
+        "delivery_promise": settings_row.delivery_promise.strip() or "Delivery in 30 minutes",
         "discounts": discounts,
         "coupons": coupons,
     }

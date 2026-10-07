@@ -247,6 +247,7 @@ class MemberPatchIn(Schema):
 class PricingSettingsIn(Schema):
     delivery_fee: Decimal = Field(ge=0)
     free_delivery_minimum: Decimal = Field(ge=0)
+    delivery_promise: str = Field(min_length=1, max_length=120)
 
 
 class DiscountIn(Schema):
@@ -530,6 +531,7 @@ def _serialize_pricing_settings(row: CommerceSettings) -> dict:
     return {
         "delivery_fee": money_str(row.delivery_fee),
         "free_delivery_minimum": money_str(row.free_delivery_minimum),
+        "delivery_promise": row.delivery_promise.strip() or "Delivery in 30 minutes",
     }
 
 
@@ -1339,7 +1341,8 @@ class AdminController(ControllerBase):
         row = CommerceSettings.load()
         row.delivery_fee = money(payload.delivery_fee)
         row.free_delivery_minimum = money(payload.free_delivery_minimum)
-        row.save(update_fields=["delivery_fee", "free_delivery_minimum"])
+        row.delivery_promise = payload.delivery_promise.strip() or "Delivery in 30 minutes"
+        row.save(update_fields=["delivery_fee", "free_delivery_minimum", "delivery_promise"])
         return success("Pricing settings updated.", _serialize_pricing_settings(row))
 
     @route.get("/discounts", response={200: SuccessResponse, **_ERROR_RESPONSES}, summary="List discounts")

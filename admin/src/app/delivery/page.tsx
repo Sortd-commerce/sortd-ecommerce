@@ -17,6 +17,7 @@ const WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Satur
 type PricingSettings = {
   delivery_fee: string;
   free_delivery_minimum: string;
+  delivery_promise: string;
 };
 
 type ProductOption = {
@@ -46,10 +47,21 @@ export default async function DeliveryAdminPage() {
         <div className="border-b border-line px-4 py-4">
           <h2 className="font-semibold">Free delivery</h2>
           <p className="mt-1 text-sm text-muted">
-            Customers see how much more to add for free delivery. Set fee to 0 to disable delivery charges.
+            Customers see how much more to add for free delivery. Set the minimum to 0 to hide free-delivery messaging.
           </p>
         </div>
         <ActionForm action={updatePricingAction} className="grid gap-3 p-4 md:grid-cols-2" successLabel="Pricing updated.">
+          <label className="field md:col-span-2">
+            <span>Delivery promise</span>
+            <input
+              name="delivery_promise"
+              type="text"
+              maxLength={120}
+              defaultValue={pricing.data?.delivery_promise || "Delivery in 30 minutes"}
+              placeholder="Delivery in 30 minutes"
+              required
+            />
+          </label>
           <label className="field">
             <span>Delivery fee (AED)</span>
             <input name="delivery_fee" type="number" min="0" step="0.01" defaultValue={pricing.data?.delivery_fee || "0"} required />
