@@ -8,8 +8,6 @@ import type { AuthUser } from "@/components/auth/AuthProvider";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { logoutAction } from "@/lib/actions";
 
-const ACTIVE_STATUSES = new Set(["placed", "confirmed", "out_for_delivery"]);
-
 function displayName(user: AuthUser) {
   const name = `${user.first_name} ${user.last_name}`.trim();
   return name || user.email.split("@")[0];

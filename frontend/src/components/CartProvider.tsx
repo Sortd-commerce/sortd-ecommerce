@@ -36,6 +36,8 @@ type CartContextValue = {
 
 const CartContext = createContext<CartContextValue | null>(null);
 
+type SyncResult = { ok: boolean; message?: string; stale?: boolean };
+
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [items, setItems] = useState<CartLine[]>([]);
@@ -82,7 +84,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   );
 
   const runSync = useCallback(
-    async (revisionAtStart: number): Promise<{ ok: boolean; message?: string; stale?: boolean }> => {
+    async (revisionAtStart: number): Promise<SyncResult> => {
       const payload = toSyncPayload(itemsRef.current);
       const sentFingerprint = cartFingerprint(itemsRef.current);
       const result = await syncCartAction(payload);
@@ -121,7 +123,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       clearTimeout(timer.current);
       timer.current = null;
     }
-    let last = { ok: true as boolean, message: undefined as string | undefined };
+    let last: SyncResult = { ok: true };
     for (let attempt = 0; attempt < 3; attempt += 1) {
       const revisionAtStart = localRevision.current;
       last = await runSync(revisionAtStart);

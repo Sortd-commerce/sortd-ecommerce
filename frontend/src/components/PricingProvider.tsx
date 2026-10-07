@@ -57,8 +57,6 @@ export function PricingProvider({
     });
   }, [initialRules]);
 
-  const coupons = rules?.coupons || [];
-
   const refreshQuote = useCallback(async () => {
     if (!items.length) {
       setQuote(EMPTY_QUOTE);
@@ -148,7 +146,7 @@ export function PricingProvider({
     () => ({
       rules,
       quote,
-      coupons,
+      coupons: rules?.coupons ?? [],
       couponPreviews,
       draftCode,
       appliedCode,
@@ -163,7 +161,6 @@ export function PricingProvider({
     [
       rules,
       quote,
-      coupons,
       couponPreviews,
       draftCode,
       appliedCode,
