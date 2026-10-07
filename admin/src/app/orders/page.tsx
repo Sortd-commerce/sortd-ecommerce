@@ -98,7 +98,7 @@ export default async function AdminOrdersPage({
             {(data?.results || []).map((order) => (
               <tr key={order.number}>
                 <td>
-                  <Link href={`/orders/${order.number}`} className="font-medium text-accent hover:underline">
+                  <Link href={`/orders/${order.number}`} className="table-link">
                     {order.number}
                   </Link>
                 </td>

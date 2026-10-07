@@ -210,13 +210,19 @@ export async function fetchDefaultAddressAction(): Promise<{ ok: boolean; delive
 
 export async function syncCartAction(
   items: Array<{ variant_id: number; quantity: number }>,
-): Promise<{ ok: boolean; status: number; message: string; data?: RemoteCart }> {
+): Promise<{ ok: boolean; status: number; message: string; data?: RemoteCart; skipped?: number[] }> {
   const result = await apiFetch<RemoteCart>("/cart/sync", {
     method: "PUT",
     body: { items },
   });
   if (result.ok) revalidatePath("/cart");
-  return { ok: result.ok, status: result.status, message: result.message, data: result.data };
+  return {
+    ok: result.ok,
+    status: result.status,
+    message: result.message,
+    data: result.data,
+    skipped: result.data?.skipped_variant_ids,
+  };
 }
 
 export type PlaceOrderPayload = {

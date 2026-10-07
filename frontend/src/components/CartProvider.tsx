@@ -31,7 +31,7 @@ type CartContextValue = {
   setQuantity: (variantId: number, quantity: number, onHand?: number | null) => void;
   removeItem: (variantId: number) => void;
   clearCart: () => void;
-  flush: () => Promise<void>;
+  flush: () => Promise<{ ok: boolean; message?: string }>;
 };
 
 const CartContext = createContext<CartContextValue | null>(null);
@@ -62,18 +62,34 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   }, [persist]);
 
   const flush = useCallback(async () => {
-    if (!ready) return;
+    if (!ready) return { ok: true };
     if (timer.current) {
       clearTimeout(timer.current);
       timer.current = null;
     }
     const payload = toSyncPayload(itemsRef.current);
-    if (!payload.length) return;
+    if (!payload.length) return { ok: true };
     const result = await syncCartAction(payload);
-    if (result.status === 401) return;
-    if (result.ok && result.data) {
-      persist(keepLineDetails(itemsRef.current, fromRemote(result.data)));
+    if (result.status === 401) return { ok: true };
+    if (!result.ok) {
+      return { ok: false, message: result.message || "Could not update your basket." };
     }
+    let next = itemsRef.current;
+    if (result.skipped?.length) {
+      const skipped = new Set(result.skipped);
+      next = next.filter((line) => !skipped.has(line.variant_id));
+    }
+    if (result.data) {
+      next = keepLineDetails(next, fromRemote(result.data));
+    }
+    persist(next);
+    if (result.skipped?.length) {
+      return {
+        ok: false,
+        message: "Some items in your basket are no longer available and were removed.",
+      };
+    }
+    return { ok: true };
   }, [persist, ready]);
 
   const scheduleFlush = useCallback(() => {

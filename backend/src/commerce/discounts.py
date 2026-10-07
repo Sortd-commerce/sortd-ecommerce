@@ -41,16 +41,16 @@ def require_coupon_eligible(*, discount: Discount, subtotal: Decimal, user=None)
             raise ValidationError({"discount_code": "This code is for first orders only."})
 
 
-def coupon_eligible(*, discount: Discount, subtotal: Decimal, user=None) -> tuple[bool, Decimal]:
+def coupon_eligible(*, discount: Discount, subtotal: Decimal, user=None) -> tuple[bool, Decimal, str | None]:
     minimum = money(discount.minimum_order) if discount.minimum_order else ZERO
     if minimum > ZERO and subtotal < minimum:
-        return False, money(minimum - subtotal)
+        return False, money(minimum - subtotal), "minimum_not_met"
     if discount.first_order_only:
         if user is None:
-            return False, ZERO
+            return False, ZERO, "sign_in_required"
         if Order.objects.filter(user=user).exclude(status=OrderStatus.CANCELLED).exists():
-            return False, ZERO
-    return True, ZERO
+            return False, ZERO, "first_order_used"
+    return True, ZERO, None
 
 
 def amount_for(*, discount: Discount | None, lines: list[tuple[ProductVariant, int, Decimal]]) -> Decimal:

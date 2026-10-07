@@ -62,12 +62,30 @@ class CartService:
 
     def replace(self, user, lines: list[CartLineCommand]) -> dict:
         cart = self.get_or_create(user)
-        wanted = {line.variant_id: line.quantity for line in lines if line.quantity > 0}
+        skipped: list[int] = []
+        wanted: dict[int, int] = {}
+        for line in lines:
+            if line.quantity < 1:
+                continue
+            variant = ProductVariant.objects.filter(
+                pk=line.variant_id, is_active=True, product__status=ProductStatus.ACTIVE
+            ).first()
+            if variant is None:
+                skipped.append(line.variant_id)
+                continue
+            quantity = min(line.quantity, MAX_QUANTITY, max(0, variant.on_hand))
+            if quantity < 1:
+                skipped.append(line.variant_id)
+                continue
+            wanted[line.variant_id] = quantity
         with transaction.atomic():
             CartItem.objects.filter(cart=cart).exclude(variant_id__in=wanted.keys()).delete()
             for variant_id, quantity in wanted.items():
                 self._upsert(cart, variant_id, quantity, add=False)
-        return self.view(user)
+        result = self.view(user)
+        if skipped:
+            result["skipped_variant_ids"] = skipped
+        return result
 
     def set_item(self, user, *, variant_id: int, quantity: int) -> dict:
         cart = self.get_or_create(user)

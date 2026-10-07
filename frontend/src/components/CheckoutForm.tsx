@@ -151,7 +151,7 @@ export function CheckoutForm({
 }) {
   const router = useRouter();
   const toast = useToast();
-  const { items, count, flush } = useCart();
+  const { items, count, flush, ready: cartReady } = useCart();
   const itemsRef = useRef(items);
   const { quote, discountCode, refreshQuote } = usePricing();
   const [settingPrimary, startPrimary] = useTransition();
@@ -174,6 +174,8 @@ export function CheckoutForm({
   const [payPending, setPayPending] = useState(false);
   const [placingOrder, setPlacingOrder] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
+  const toastedRef = useRef("");
+  const validatedCartRef = useRef(false);
 
   useEffect(() => {
     itemsRef.current = items;
@@ -190,10 +192,20 @@ export function CheckoutForm({
   const activeSlot = selectedSlot?.status === "available" ? selectedSlot : firstAvailableSlot(slots);
 
   const [state, formAction] = useActionState(async (prev: ActionState, formData: FormData) => {
-    await flush();
+    const synced = await flush();
+    if (!synced.ok) {
+      return { ok: false, message: synced.message || "Your basket needs updating before checkout." };
+    }
+    const quoted = await quoteCartAction(
+      itemsRef.current.map((item) => ({ variant_id: item.variant_id, quantity: item.quantity })),
+      discountCode.trim(),
+    );
+    if (!quoted.ok || !quoted.data) {
+      return { ok: false, message: quoted.message || "Your basket could not be priced." };
+    }
     await refreshQuote();
     formData.set("cart_json", JSON.stringify(toSyncPayload(itemsRef.current)));
-    formData.set("expected_total", quote.total);
+    formData.set("expected_total", quoted.data.total);
     formData.set("discount_code", discountCode.trim());
     return placeOrderAction(prev, formData);
   }, emptyActionState);
@@ -207,8 +219,20 @@ export function CheckoutForm({
 
   useEffect(() => {
     if (!state.message || state.ok) return;
+    if (toastedRef.current === state.message) return;
+    toastedRef.current = state.message;
     toast.error(state.message);
   }, [state, toast]);
+
+  useEffect(() => {
+    if (!cartReady || validatedCartRef.current) return;
+    validatedCartRef.current = true;
+    void (async () => {
+      const result = await flush();
+      if (result.ok || !result.message) return;
+      toast.error(result.message);
+    })();
+  }, [cartReady, flush, toast]);
 
   useEffect(() => {
     if (!addresses.length) {
@@ -226,7 +250,6 @@ export function CheckoutForm({
   );
 
   async function latestTotal() {
-    await flush();
     const quoted = await quoteCartAction(
       itemsRef.current.map((item) => ({ variant_id: item.variant_id, quantity: item.quantity })),
       discountCode.trim(),
@@ -235,13 +258,24 @@ export function CheckoutForm({
       await refreshQuote();
       return quoted.data.total;
     }
-    return quote.total;
+    return null;
   }
 
   async function openPaymentModal() {
     if (!canPlace) return;
     setPayPending(true);
+    const synced = await flush();
+    if (!synced.ok) {
+      setPayPending(false);
+      toast.error(synced.message || "Your basket needs updating before checkout.");
+      return;
+    }
     const expectedTotal = await latestTotal();
+    if (!expectedTotal) {
+      setPayPending(false);
+      toast.error("One or more items in your basket are no longer available.");
+      return;
+    }
     const result = await prepareStripePaymentAction(expectedTotal, discountCode);
     setPayPending(false);
     if (!result.ok || !result.clientSecret) {
@@ -260,7 +294,16 @@ export function CheckoutForm({
     setPayModal(null);
     setPlacingOrder(true);
     try {
+      const synced = await flush();
+      if (!synced.ok) {
+        toast.error(synced.message || "Your basket needs updating before checkout.");
+        return;
+      }
       const expectedTotal = await latestTotal();
+      if (!expectedTotal) {
+        toast.error("One or more items in your basket are no longer available.");
+        return;
+      }
       const note = formRef.current ? String(new FormData(formRef.current).get("note") || "") : "";
       const result = await placePaidOrderAction({
         address_id: selectedAddress.id,

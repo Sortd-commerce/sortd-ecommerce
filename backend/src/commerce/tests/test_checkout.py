@@ -136,6 +136,19 @@ class CheckoutTests(ApiTestCase):
         self.assertEqual(data["latitude"], "25.080500")
         self.assertEqual(data["longitude"], "55.140300")
 
+    def test_cart_sync_skips_unavailable_variants(self):
+        response = self.client.put(
+            "/api/v1/cart/sync",
+            data=json.dumps({"items": [{"variant_id": self.variant.id, "quantity": 1}, {"variant_id": 999999, "quantity": 1}]}),
+            content_type="application/json",
+            **self.auth,
+        )
+        self.assertEqual(response.status_code, 200)
+        data = response.json()["data"]
+        self.assertEqual(len(data["items"]), 1)
+        self.assertEqual(data["items"][0]["variant_id"], self.variant.id)
+        self.assertEqual(data["skipped_variant_ids"], [999999])
+
     def test_cart_sync_replaces_client_lines(self):
         first = self.client.put(
             "/api/v1/cart/sync",
@@ -459,3 +472,38 @@ class CheckoutTests(ApiTestCase):
         )
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.json()["message"], "Sign in to use this code.")
+
+    def test_used_first_order_coupon_is_omitted_from_preview(self):
+        Discount.objects.create(
+            code="WELCOME10",
+            name="Welcome offer",
+            kind=Discount.Kind.PERCENT,
+            value=Decimal("10"),
+            scope=Discount.Scope.ALL,
+            first_order_only=True,
+            is_active=True,
+        )
+        self._add_to_cart(1)
+        first_quote = post_json(
+            self.client,
+            "/api/v1/pricing/quote",
+            {"items": [{"variant_id": self.variant.id, "quantity": 1}], "discount_code": "WELCOME10"},
+            **self.auth,
+        )
+        post_json(
+            self.client,
+            "/api/v1/orders",
+            self._order_payload(total=first_quote.json()["data"]["total"], discount_code="WELCOME10"),
+            HTTP_IDEMPOTENCY_KEY="welcome-preview",
+            **self.auth,
+        )
+        self._add_to_cart(1)
+        preview = post_json(
+            self.client,
+            "/api/v1/pricing/coupons/preview",
+            {"items": [{"variant_id": self.variant.id, "quantity": 1}]},
+            **self.auth,
+        )
+        self.assertEqual(preview.status_code, 200)
+        codes = [row["code"] for row in preview.json()["data"]]
+        self.assertNotIn("WELCOME10", codes)

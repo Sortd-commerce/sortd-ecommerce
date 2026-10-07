@@ -4471,6 +4471,17 @@ button {
   color: var(--forest);
 }
 
+.coupon-offer--inactive {
+  opacity: 0.72;
+}
+
+.coupon-offer-status {
+  margin: 0.35rem 0 0;
+  color: var(--text-faint);
+  font-size: 0.8125rem;
+  line-height: 1.35;
+}
+
 .order-discount dd {
   color: var(--valid);
   font-weight: 800;

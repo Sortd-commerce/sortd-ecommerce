@@ -15,6 +15,15 @@ function offerDetail(offer: { kind: string; value: string; detail: string }) {
   return `AED ${money(offer.value)} off`;
 }
 
+function offerStatus(offer: { eligible?: boolean; ineligible_reason?: string; amount_needed?: string }) {
+  if (offer.eligible !== false) return null;
+  if (offer.ineligible_reason === "sign_in_required") return "Sign in to use this code.";
+  if (offer.ineligible_reason === "minimum_not_met" && offer.amount_needed) {
+    return `Add AED ${money(offer.amount_needed)} more to qualify.`;
+  }
+  return "Not available for this order.";
+}
+
 export function CouponField() {
   const {
     quote,
@@ -105,33 +114,35 @@ export function CouponField() {
         </p>
       ) : typed ? (
         <p className="coupon-hint">Press Apply to check the code.</p>
-      ) : (
+      ) : offers.length ? (
         <button type="button" className="coupon-offers-toggle" onClick={() => setShowOffers((open) => !open)}>
           {showOffers ? "Hide available offers" : "See available offers →"}
         </button>
-      )}
+      ) : null}
 
       {showOffers && offers.length ? (
         <div className="coupon-offers">
-          {offers.map((offer) => (
-            <article
-              key={offer.code}
-              className={`coupon-offer ${offer.is_best ? "coupon-offer--best" : ""}`}
-            >
-              {offer.is_best ? <span className="coupon-offer-badge">Best for this order</span> : null}
-              <p className="coupon-offer-code">{offer.code}</p>
-              <h3>{offer.headline || offer.name}</h3>
-              <p>{offer.detail || offerDetail(offer)}</p>
-              <button
-                type="button"
-                className="coupon-offer-apply"
-                disabled={offer.eligible === false}
-                onClick={() => void onApply(offer.code)}
+          {offers.map((offer) => {
+            const status = offerStatus(offer);
+            return (
+              <article
+                key={offer.code}
+                className={`coupon-offer ${offer.is_best ? "coupon-offer--best" : ""} ${status ? "coupon-offer--inactive" : ""}`}
               >
-                Apply
-              </button>
-            </article>
-          ))}
+                {offer.is_best ? <span className="coupon-offer-badge">Best for this order</span> : null}
+                <p className="coupon-offer-code">{offer.code}</p>
+                <h3>{offer.headline || offer.name}</h3>
+                <p>{offer.detail || offerDetail(offer)}</p>
+                {status ? (
+                  <p className="coupon-offer-status">{status}</p>
+                ) : (
+                  <button type="button" className="coupon-offer-apply" onClick={() => void onApply(offer.code)}>
+                    Apply
+                  </button>
+                )}
+              </article>
+            );
+          })}
         </div>
       ) : null}
     </div>

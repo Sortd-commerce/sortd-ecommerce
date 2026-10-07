@@ -24,6 +24,7 @@ export type RemoteCart = {
   }>;
   subtotal: string;
   currency: string;
+  skipped_variant_ids?: number[];
 };
 
 const KEY = "sortd_cart_v1";

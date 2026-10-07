@@ -37,6 +37,7 @@ export type CouponOffer = {
   max_discount: string;
   first_order_only: boolean;
   eligible?: boolean;
+  ineligible_reason?: string;
   amount_needed?: string;
   estimated_savings?: string;
   is_best?: boolean;

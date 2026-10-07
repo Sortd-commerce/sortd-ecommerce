@@ -1,10 +1,12 @@
 from dataclasses import dataclass
 from decimal import Decimal
 
-from catalog.models import ProductVariant
+from catalog.models import ProductStatus, ProductVariant
 from commerce.discounts import amount_for, coupon_eligible, require_coupon_eligible, select_discount
 from commerce.models import CommerceSettings, Discount
+from core.messages import ErrorMessage
 from core.money import ZERO, money, money_str
+from ninja_extra.exceptions import ValidationError
 
 
 @dataclass(frozen=True)
@@ -41,10 +43,20 @@ def quote_variants(
     now=None,
 ) -> PriceQuote:
     wanted = {variant_id: quantity for variant_id, quantity in items if quantity > 0}
-    variants = ProductVariant.objects.select_related("product").filter(pk__in=wanted)
+    if not wanted:
+        raise ValidationError({"items": "Your cart is empty."})
+    variants = list(ProductVariant.objects.select_related("product").filter(pk__in=wanted))
+    if len(variants) != len(wanted):
+        raise ValidationError({"stock": ErrorMessage.OUT_OF_STOCK})
     lines = []
     for variant in variants:
         quantity = wanted[variant.id]
+        if (
+            not variant.is_active
+            or variant.product.status != ProductStatus.ACTIVE
+            or variant.on_hand < quantity
+        ):
+            raise ValidationError({"stock": ErrorMessage.OUT_OF_STOCK})
         line_total = money(variant.price) * quantity
         lines.append((variant, quantity, line_total))
     return quote_lines(lines, code=code, user=user, now=now)
@@ -114,7 +126,9 @@ def preview_coupons(
     ]
     previews = []
     for row in rows:
-        eligible, amount_needed = coupon_eligible(discount=row, subtotal=subtotal, user=user)
+        eligible, amount_needed, ineligible_reason = coupon_eligible(discount=row, subtotal=subtotal, user=user)
+        if ineligible_reason == "first_order_used":
+            continue
         if row.benefit == Discount.Benefit.FREE_DELIVERY:
             estimated_savings = configured_fee if eligible else ZERO
         else:
@@ -123,6 +137,7 @@ def preview_coupons(
             {
                 **_serialize_coupon(row, amount_needed=amount_needed),
                 "eligible": eligible,
+                "ineligible_reason": ineligible_reason or "",
                 "amount_needed": money_str(amount_needed),
                 "estimated_savings": money_str(estimated_savings),
             }
