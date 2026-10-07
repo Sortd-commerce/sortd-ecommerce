@@ -27,8 +27,16 @@ class ServiceTokenMiddleware:
         return self.get_response(request)
 
 
+_SERVICE_TOKEN_EXEMPT = {
+    "/api/v1/payments/stripe/webhook",
+    "/api/v1/payments/stripe/webhook/",
+}
+
+
 def _requires_service_token(path: str) -> bool:
     if not path.startswith("/api/v1/"):
+        return False
+    if path in _SERVICE_TOKEN_EXEMPT:
         return False
     if settings.ENVIRONMENT == LOCAL and path in {"/api/v1/docs", "/api/v1/docs/", "/api/v1/openapi.json"}:
         return False
