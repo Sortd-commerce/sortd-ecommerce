@@ -264,7 +264,7 @@ export async function updatePricingAction(_prev: ActionState, formData: FormData
     body: {
       delivery_fee: String(formData.get("delivery_fee") || "0"),
       free_delivery_minimum: String(formData.get("free_delivery_minimum") || "0"),
-      delivery_promise: String(formData.get("delivery_promise") || "Delivery in 30 minutes").trim(),
+      delivery_promise: String(formData.get("delivery_promise") ?? "").trim(),
     },
   });
   if (!result.ok) return replied(false, result.message);

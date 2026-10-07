@@ -10,7 +10,7 @@ import { useCart } from "@/components/CartProvider";
 import { QuantityStepper } from "@/components/QuantityStepper";
 import { useToast } from "@/components/Toast";
 import { fetchDefaultAddressAction } from "@/lib/actions";
-import { DEFAULT_DELIVERY_PROMISE } from "@/lib/pricing";
+import { normalizeDeliveryPromise } from "@/lib/pricing";
 
 function money(value: string | number) {
   const amount = Number(value);
@@ -28,7 +28,7 @@ export function BasketView({
 }) {
   const { items, count, setQuantity, removeItem } = useCart();
   const { quote, rules } = usePricing();
-  const deliveryPromise = rules?.delivery_promise?.trim() || DEFAULT_DELIVERY_PROMISE;
+  const deliveryPromise = normalizeDeliveryPromise(rules?.delivery_promise);
   const toast = useToast();
   const [deliverTo, setDeliverTo] = useState<string | null>(null);
   const remaining = Number(quote.amount_until_free_delivery);
@@ -67,7 +67,7 @@ export function BasketView({
           <Clock size={18} weight="bold" />
         </span>
         <p>
-          <strong>{deliveryPromise}</strong>
+          {deliveryPromise ? <strong>{deliveryPromise}</strong> : null}
           <span>{deliverTo ? `To ${deliverTo}` : "Across Dubai"}</span>
         </p>
       </div>
@@ -109,6 +109,12 @@ export function BasketView({
                   <p>{item.title}</p>
                 )}
                 {item.detail ? <small>{item.detail}</small> : null}
+              </div>
+              <div className="basket-line-side">
+                <p className="basket-price">
+                  <span className="basket-price-currency">AED</span>{" "}
+                  {money(Number(item.unit_price) * item.quantity)}
+                </p>
                 <QuantityStepper
                   value={item.quantity}
                   max={max}
@@ -129,10 +135,6 @@ export function BasketView({
                   }}
                 />
               </div>
-              <p className="basket-price">
-                <span className="basket-price-currency">AED</span>{" "}
-                {money(Number(item.unit_price) * item.quantity)}
-              </p>
             </article>
           );
         })}

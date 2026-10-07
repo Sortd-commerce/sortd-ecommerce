@@ -1130,6 +1130,46 @@ button {
   padding: 0;
 }
 
+.qty-on-dark .qty-btn-text {
+  position: relative;
+  z-index: 0;
+  display: inline-grid;
+  width: 1.375rem;
+  height: 1.375rem;
+  min-width: 1.375rem;
+  place-items: center;
+  line-height: 1;
+}
+
+.qty-on-dark .qty-btn-text::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: -1;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 999px;
+  background: transparent;
+  transform: translate(-50%, -50%);
+  transition: background 180ms var(--btn-ease);
+}
+
+.qty-on-dark .qty-btn:hover:not(:disabled),
+.qty-on-dark .qty-btn:active:not(:disabled) {
+  transform: none;
+  background: transparent;
+  border-color: transparent;
+}
+
+.qty-on-dark .qty-btn-text:hover:not(:disabled)::before {
+  background: color-mix(in srgb, var(--forest) 10%, white);
+}
+
+.qty-on-dark .qty-btn-text:active:not(:disabled)::before {
+  background: color-mix(in srgb, var(--forest) 16%, white);
+}
+
 .qty-on-dark .qty-value {
   min-width: 0.75rem;
   color: var(--ink);
@@ -2567,7 +2607,7 @@ button {
   top: 0;
   right: 0;
   bottom: 0;
-  width: min(100%, 430px);
+  width: min(100%, 460px);
   background: #fbf8f3;
   box-shadow: -18px 0 40px rgb(20 56 40 / 0.16);
 }
@@ -2580,7 +2620,7 @@ button {
 }
 
 .basket-page {
-  width: min(440px, 100%);
+  width: min(460px, 100%);
   min-height: 70dvh;
   margin: 0.6rem auto 1rem;
   overflow: hidden;
@@ -2641,15 +2681,20 @@ button {
 }
 
 .basket-deliver-icon {
-  display: inline-flex;
+  display: grid;
   width: 2rem;
   height: 2rem;
   flex-shrink: 0;
-  align-items: center;
-  justify-content: center;
+  place-items: center;
   border-radius: 999px;
   background: color-mix(in srgb, var(--mint) 55%, white);
   color: var(--forest);
+  line-height: 0;
+}
+
+.basket-deliver-icon svg {
+  display: block;
+  flex-shrink: 0;
 }
 
 .basket-deliver strong,
@@ -2748,6 +2793,13 @@ button {
   color: var(--forest);
 }
 
+.basket-line-side {
+  display: grid;
+  gap: 0.55rem;
+  justify-items: end;
+  align-content: start;
+}
+
 .basket-price,
 .order-lines b {
   margin: 0;
@@ -2755,6 +2807,7 @@ button {
   font-weight: 800;
   line-height: 1.2;
   white-space: nowrap;
+  text-align: right;
 }
 
 .basket-price-currency {
@@ -2762,9 +2815,8 @@ button {
   font-weight: 700;
 }
 
-.basket-line .qty-stepper {
+.basket-line-side .qty-stepper {
   width: fit-content;
-  margin-top: 0.15rem;
 }
 
 .basket-empty,

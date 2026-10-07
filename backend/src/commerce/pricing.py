@@ -9,6 +9,15 @@ from core.money import ZERO, money, money_str
 from ninja_extra.exceptions import ValidationError
 
 
+def clean_delivery_promise(value: str | None) -> str:
+    if value is None:
+        return ""
+    cleaned = value.strip()
+    if cleaned.lower() == "null":
+        return ""
+    return cleaned[:120]
+
+
 @dataclass(frozen=True)
 class PriceQuote:
     subtotal: Decimal
@@ -171,7 +180,7 @@ def serialize_offer_rules() -> dict:
     return {
         "delivery_fee": money_str(settings_row.delivery_fee),
         "free_delivery_minimum": money_str(settings_row.free_delivery_minimum),
-        "delivery_promise": settings_row.delivery_promise.strip() or "Delivery in 30 minutes",
+        "delivery_promise": clean_delivery_promise(settings_row.delivery_promise),
         "discounts": discounts,
         "coupons": coupons,
     }

@@ -55,9 +55,7 @@ export function PricingProvider({
 
   useEffect(() => {
     if (initialRules) {
-      saveCachedPricingRules(initialRules);
       setRules(initialRules);
-      return;
     }
     void fetchPricingRulesAction().then((result) => {
       if (result.ok && result.data) {

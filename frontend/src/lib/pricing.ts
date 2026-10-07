@@ -10,8 +10,6 @@ export type PriceQuote = {
   total: string;
 };
 
-export const DEFAULT_DELIVERY_PROMISE = "Delivery in 30 minutes";
-
 export type PricingRules = {
   delivery_fee: string;
   free_delivery_minimum: string;
@@ -46,7 +44,13 @@ export type CouponOffer = {
   is_best?: boolean;
 };
 
-const PRICING_RULES_KEY = "sortd_pricing_rules_v2";
+const PRICING_RULES_KEY = "sortd_pricing_rules_v3";
+
+export function normalizeDeliveryPromise(value: string | null | undefined): string | null {
+  const text = String(value ?? "").trim();
+  if (!text || text.toLowerCase() === "null") return null;
+  return text;
+}
 
 export function loadCachedPricingRules(): PricingRules | null {
   if (typeof window === "undefined") return null;
@@ -57,7 +61,7 @@ export function loadCachedPricingRules(): PricingRules | null {
     if (!parsed || typeof parsed.delivery_fee !== "string") return null;
     return {
       ...parsed,
-      delivery_promise: parsed.delivery_promise?.trim() || DEFAULT_DELIVERY_PROMISE,
+      delivery_promise: normalizeDeliveryPromise(parsed.delivery_promise) ?? "",
     };
   } catch {
     return null;

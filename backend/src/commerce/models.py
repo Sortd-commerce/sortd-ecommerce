@@ -78,7 +78,7 @@ class DeliveryOverrideWindow(models.Model):
 class CommerceSettings(models.Model):
     delivery_fee = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal("0.00"))
     free_delivery_minimum = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal("0.00"))
-    delivery_promise = models.CharField(max_length=120, default="Delivery in 30 minutes")
+    delivery_promise = models.CharField(max_length=120, blank=True, default="")
 
     def save(self, *args, **kwargs):
         self.pk = 1

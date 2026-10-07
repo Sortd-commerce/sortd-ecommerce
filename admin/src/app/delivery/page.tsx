@@ -14,6 +14,11 @@ import { requireAdmin } from "@/lib/staff";
 
 const WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
+function normalizeDeliveryPromise(value: string | null | undefined) {
+  const text = String(value ?? "").trim();
+  return text.toLowerCase() === "null" ? "" : text;
+}
+
 type PricingSettings = {
   delivery_fee: string;
   free_delivery_minimum: string;
@@ -57,10 +62,10 @@ export default async function DeliveryAdminPage() {
               name="delivery_promise"
               type="text"
               maxLength={120}
-              defaultValue={pricing.data?.delivery_promise || "Delivery in 30 minutes"}
+              defaultValue={normalizeDeliveryPromise(pricing.data?.delivery_promise)}
               placeholder="Delivery in 30 minutes"
-              required
             />
+            <span className="text-xs text-muted">Leave blank to hide this on the storefront.</span>
           </label>
           <label className="field">
             <span>Delivery fee (AED)</span>

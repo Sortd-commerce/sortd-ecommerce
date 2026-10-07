@@ -552,3 +552,12 @@ class CheckoutTests(ApiTestCase):
         data = response.json()["data"]
         self.assertEqual(data["delivery_promise"], "Same-day delivery across Dubai")
         self.assertEqual(data["free_delivery_minimum"], "0.00")
+
+    def test_pricing_rules_allow_blank_delivery_promise(self):
+        settings = CommerceSettings.load()
+        settings.delivery_promise = "null"
+        settings.save()
+
+        response = self.client.get("/api/v1/pricing")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["data"]["delivery_promise"], "")

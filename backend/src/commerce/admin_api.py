@@ -25,6 +25,7 @@ from catalog.models import Category, Product, ProductImage, ProductStatus, Produ
 from catalog.schemas import serialize_category, serialize_image
 from catalog.stock import StockService
 from catalog.writer import CatalogWriteError, ProductWriter, serialize_label, serialize_related, serialize_variant
+from commerce.pricing import clean_delivery_promise
 from commerce.models import (
     CommerceSettings,
     DeliveryPostalCode,
@@ -247,7 +248,12 @@ class MemberPatchIn(Schema):
 class PricingSettingsIn(Schema):
     delivery_fee: Decimal = Field(ge=0)
     free_delivery_minimum: Decimal = Field(ge=0)
-    delivery_promise: str = Field(min_length=1, max_length=120)
+    delivery_promise: str = Field(default="", max_length=120)
+
+    @field_validator("delivery_promise", mode="before")
+    @classmethod
+    def normalize_delivery_promise(cls, value):
+        return clean_delivery_promise(value if isinstance(value, str) or value is None else str(value))
 
 
 class DiscountIn(Schema):
@@ -531,7 +537,7 @@ def _serialize_pricing_settings(row: CommerceSettings) -> dict:
     return {
         "delivery_fee": money_str(row.delivery_fee),
         "free_delivery_minimum": money_str(row.free_delivery_minimum),
-        "delivery_promise": row.delivery_promise.strip() or "Delivery in 30 minutes",
+        "delivery_promise": clean_delivery_promise(row.delivery_promise),
     }
 
 
@@ -1341,7 +1347,7 @@ class AdminController(ControllerBase):
         row = CommerceSettings.load()
         row.delivery_fee = money(payload.delivery_fee)
         row.free_delivery_minimum = money(payload.free_delivery_minimum)
-        row.delivery_promise = payload.delivery_promise.strip() or "Delivery in 30 minutes"
+        row.delivery_promise = clean_delivery_promise(payload.delivery_promise)
         row.save(update_fields=["delivery_fee", "free_delivery_minimum", "delivery_promise"])
         return success("Pricing settings updated.", _serialize_pricing_settings(row))
 

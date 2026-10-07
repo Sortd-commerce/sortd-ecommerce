@@ -9,7 +9,7 @@ import { CaretDownIcon, DeliverPinIcon } from "@/components/HeaderIcons";
 import { SearchField } from "@/components/SearchField";
 import { DeliverBarSkeleton, SearchFormSkeleton } from "@/components/loading/StorefrontSkeletons";
 import { fetchCatalogCount, fetchCategories, fetchPricingRules } from "@/lib/catalog";
-import { DEFAULT_DELIVERY_PROMISE } from "@/lib/pricing";
+import { normalizeDeliveryPromise } from "@/lib/pricing";
 import { apiFetch } from "@/lib/api";
 
 type Address = { formatted_address: string; line1: string; city: string; is_default?: boolean };
@@ -34,7 +34,7 @@ async function DeliverBar({ signedIn }: { signedIn: boolean }) {
   const deliverTo = saved
     ? saved.formatted_address || `${saved.line1}, ${saved.city}`
     : null;
-  const deliveryPromise = pricing.data?.delivery_promise?.trim() || DEFAULT_DELIVERY_PROMISE;
+  const deliveryPromise = normalizeDeliveryPromise(pricing.data?.delivery_promise);
   const freeMinimum = Number(pricing.data?.free_delivery_minimum ?? 0);
 
   return (
@@ -57,10 +57,12 @@ async function DeliverBar({ signedIn }: { signedIn: boolean }) {
             <DeliverSignInPrompt />
           )}
         </div>
-        <div className="deliver-promise">
-          <span>{deliveryPromise}</span>
-          {freeMinimum > 0 ? <span className="deliver-free">Free over AED {freeMinimum.toFixed(0)}</span> : null}
-        </div>
+        {deliveryPromise || freeMinimum > 0 ? (
+          <div className="deliver-promise">
+            {deliveryPromise ? <span>{deliveryPromise}</span> : null}
+            {freeMinimum > 0 ? <span className="deliver-free">Free over AED {freeMinimum.toFixed(0)}</span> : null}
+          </div>
+        ) : null}
       </div>
     </div>
   );

@@ -25,8 +25,6 @@ export const fetchCatalogCount = unstable_cache(
   { revalidate: 60 },
 );
 
-export const fetchPricingRules = unstable_cache(
-  async () => apiFetch<PricingRules>("/pricing", { auth: false, cache: "force-cache" }),
-  ["storefront-pricing"],
-  { revalidate: 300 },
-);
+export async function fetchPricingRules() {
+  return apiFetch<PricingRules>("/pricing", { auth: false, cache: "no-store" });
+}
