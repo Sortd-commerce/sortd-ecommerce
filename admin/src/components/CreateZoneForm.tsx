@@ -1,15 +1,21 @@
 "use client";
 
-import { useState } from "react";
-import { ActionForm, SubmitButton } from "@/components/ActionForm";
+import { useActionState, useEffect, useState } from "react";
+import { SubmitButton } from "@/components/ActionForm";
 import { ZonePolygonMap, type LatLngTuple } from "@/components/ZonePolygonMap";
 import { createDeliveryZoneAction } from "@/lib/actions";
+import { emptyActionState } from "@/lib/action-state";
 
-export function CreateZoneForm() {
+export function CreateZoneForm({ onSuccess }: { onSuccess?: () => void }) {
   const [polygon, setPolygon] = useState<LatLngTuple[]>([]);
+  const [state, formAction] = useActionState(createDeliveryZoneAction, emptyActionState);
+
+  useEffect(() => {
+    if (state.ok) onSuccess?.();
+  }, [state.ok, onSuccess]);
 
   return (
-    <ActionForm action={createDeliveryZoneAction} className="mt-3 grid gap-4" successLabel="Delivery zone added.">
+    <form action={formAction} className="grid gap-4">
       <div className="grid gap-3 md:grid-cols-2">
         <label className="field">
           <span>Zone name</span>
@@ -18,10 +24,6 @@ export function CreateZoneForm() {
         <label className="field">
           <span>Slug</span>
           <input name="slug" placeholder="dubai-marina" />
-        </label>
-        <label className="field">
-          <span>Delivery fee (AED)</span>
-          <input name="delivery_fee" type="number" min="0" step="0.01" defaultValue="0" />
         </label>
         <label className="field">
           <span>Sort order</span>
@@ -37,6 +39,15 @@ export function CreateZoneForm() {
       </div>
       <input type="hidden" name="polygon" value={JSON.stringify(polygon)} />
       <SubmitButton>Add delivery zone</SubmitButton>
-    </ActionForm>
+      {state.message ? (
+        <p
+          className={`text-sm ${state.ok ? "text-accent" : "text-warn"}`}
+          aria-live="polite"
+          role={state.ok ? "status" : "alert"}
+        >
+          {state.ok ? "Delivery zone added." : state.message}
+        </p>
+      ) : null}
+    </form>
   );
 }

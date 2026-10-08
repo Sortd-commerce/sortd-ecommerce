@@ -26,7 +26,7 @@ export function ZoneEditor({ zone }: { zone: DeliveryZoneRow }) {
         <div>
           <p className="font-medium">{zone.name}</p>
           <p className="text-sm text-muted">
-            {zone.slug} · AED {zone.delivery_fee} · {zone.polygon.length} points
+            {zone.slug} · {zone.polygon.length} points
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -68,11 +68,6 @@ export function ZoneEditor({ zone }: { zone: DeliveryZoneRow }) {
           <label className="field">
             <span>Slug</span>
             <input name="slug" defaultValue={zone.slug} required />
-          </label>
-          <label className="field">
-            <span>Delivery fee (AED)</span>
-            <input name="delivery_fee" type="number" min="0" step="0.01" defaultValue={zone.delivery_fee} />
-            <span className="text-xs text-muted">Stored for future use. Checkout still uses the global delivery fee.</span>
           </label>
           <label className="field">
             <span>Sort order</span>

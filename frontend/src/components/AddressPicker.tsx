@@ -65,19 +65,7 @@ export function AddressPicker({
   const [query, setQuery] = useState(initialQuery || initialPlace?.formatted_address || "");
   const [suggestions, setSuggestions] = useState<PlaceSuggestion[]>([]);
   const [open, setOpen] = useState(false);
-  const [selected, setSelected] = useState<SelectedPlace | null>(() => {
-    if (!initialPlace?.place_id && !initialPlace?.latitude) return null;
-    return {
-      place_id: initialPlace.place_id || "",
-      label: initialPlace.formatted_address || initialQuery || "",
-      latitude: initialPlace.latitude || "",
-      longitude: initialPlace.longitude || "",
-      postal_code: initialPlace.postal_code || "",
-      formatted_address: initialPlace.formatted_address || initialQuery || "",
-      serviceable: true,
-      zone_name: "",
-    };
-  });
+  const [selected, setSelected] = useState<SelectedPlace | null>(null);
   const [locating, setLocating] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [makePrimary, setMakePrimary] = useState(isDefault);
@@ -97,6 +85,28 @@ export function AddressPicker({
     }
     return saveAddressAction(prev, formData);
   }, emptyActionState);
+
+  useEffect(() => {
+    if (!initialPlace?.place_id && !initialPlace?.latitude) return;
+    let cancelled = false;
+    void (async () => {
+      const result = await checkDeliveryPlace({
+        place_id: initialPlace.place_id || undefined,
+        latitude: initialPlace.latitude || undefined,
+        longitude: initialPlace.longitude || undefined,
+        address: initialPlace.formatted_address || initialQuery,
+      });
+      if (cancelled) return;
+      if (result.ok && result.data) {
+        setSelected(toSelected(result.data, initialPlace.formatted_address || initialQuery || ""));
+        skipSuggest.current = true;
+        setQuery(result.data.formatted_address || initialPlace.formatted_address || initialQuery || "");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [addressId, initialPlace, initialQuery]);
 
   useEffect(() => {
     if (!state.message) return;

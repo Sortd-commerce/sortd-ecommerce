@@ -7,7 +7,7 @@ from accounts.auth import SessionJWTAuth, optional_user
 from commerce.cart import CartLineCommand
 from commerce.factory import build_cart_service, build_delivery_service, build_order_service
 from commerce.models import Address, PaymentMethod, normalize_postal_code
-from commerce.orders import PlaceOrderCommand, request_hash_for, serialize_order
+from commerce.orders import PlaceOrderCommand, request_hash_for, serialize_order, stripe_checkout_idempotency_key
 from commerce.stripe_payments import (
     StripeNotConfigured,
     create_checkout_intent,
@@ -230,7 +230,10 @@ class PaymentController(ControllerBase):
             discount_code=payload.discount_code,
             payment_method=payload.payment_method,
         )
+        from decimal import Decimal
+
         quote = build_order_service().validate(user, command, match_total=True)
+        total = Decimal(str(quote["total"]))
         metadata = {
             "user_id": str(user.id),
             "address_id": str(payload.address_id),
@@ -240,11 +243,11 @@ class PaymentController(ControllerBase):
             "payment_method": payload.payment_method,
             "discount_code": (payload.discount_code or "").strip(),
             "note": payload.note,
-            "expected_total": str(quote.total),
+            "expected_total": str(total),
         }
         base = settings.FRONTEND_URL.rstrip("/")
         session = create_hosted_checkout_session(
-            total=quote.total,
+            total=total,
             currency=settings.DEFAULT_CURRENCY,
             user_id=user.id,
             metadata=metadata,
@@ -309,7 +312,7 @@ class PaymentController(ControllerBase):
         order = build_order_service().place(
             user,
             command,
-            idempotency_key=f"stripe-session-{payload.session_id}",
+            idempotency_key=stripe_checkout_idempotency_key(payload.session_id),
             request_hash=request_hash_for(body),
         )
         return success("Order placed.", serialize_order(order))

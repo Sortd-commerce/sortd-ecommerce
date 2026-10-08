@@ -33,15 +33,15 @@ export function CheckoutBasketStep({ onContinue }: { onContinue: () => void }) {
 
   return (
     <div className="checkout-basket-step">
-      <section className="checkout-arrival-card">
-        <h2>{deliveryPromise || "Arrives in about 30 min"}</h2>
-        <p>
-          {productCount} {productCount === 1 ? "product" : "products"} · {count}{" "}
-          {count === 1 ? "item" : "items"} · or pick a slot next
-        </p>
-      </section>
+      <section className="checkout-panel checkout-panel--basket" aria-label="Basket">
+        <div className="checkout-arrival-card">
+          <h2>{deliveryPromise || "Arrives in about 30 min"}</h2>
+          <p>
+            {productCount} {productCount === 1 ? "product" : "products"} · {count}{" "}
+            {count === 1 ? "item" : "items"} · or pick a slot next
+          </p>
+        </div>
 
-      <section className="checkout-panel checkout-panel--items" aria-label="Basket items">
         <ul className="checkout-basket-lines">
         {items.map((item) => {
           const max = item.on_hand;
@@ -60,7 +60,10 @@ export function CheckoutBasketStep({ onContinue }: { onContinue: () => void }) {
                 {item.detail ? <small>{item.detail}</small> : null}
               </div>
               <div className="checkout-basket-side">
-                <p className="checkout-basket-price">AED {money(Number(item.unit_price) * item.quantity)}</p>
+                <p className="checkout-basket-price">
+                  <span className="checkout-basket-price-currency">AED</span>{" "}
+                  {money(Number(item.unit_price) * item.quantity)}
+                </p>
                 <QuantityStepper
                   value={item.quantity}
                   max={max}
@@ -85,14 +88,14 @@ export function CheckoutBasketStep({ onContinue }: { onContinue: () => void }) {
           );
         })}
         </ul>
-      </section>
 
-      <p className="checkout-forgot">
-        Forgot something?{" "}
-        <Link href="/" className="text-action">
-          Add more items
-        </Link>
-      </p>
+        <p className="checkout-forgot">
+          Forgot something?{" "}
+          <Link href="/" className="checkout-forgot-link">
+            Add more items
+          </Link>
+        </p>
+      </section>
 
       {minimum > 0 && remaining > 0 ? (
         <div className="checkout-milestone">

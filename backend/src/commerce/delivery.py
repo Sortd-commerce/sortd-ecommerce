@@ -166,13 +166,13 @@ class DeliveryService:
         latitude: Decimal | None = None,
         longitude: Decimal | None = None,
     ) -> GeocodeResult:
-        # Preference: place_id → lat/lng → address text.
-        if place_id:
-            result = self._geocoder.geocode(place_id=place_id)
-            if result.status == "OK":
-                return result
+        # Preference: saved pin → place_id → address text.
         if latitude is not None and longitude is not None:
             result = self._geocoder.geocode(latitude=latitude, longitude=longitude)
+            if result.status == "OK":
+                return result
+        if place_id:
+            result = self._geocoder.geocode(place_id=place_id)
             if result.status == "OK":
                 return result
         if address:

@@ -88,21 +88,32 @@ class OrderService:
         address = Address.objects.filter(user=user, pk=command.address_id).first()
         if address is None:
             raise NotFound(ErrorMessage.NOT_FOUND)
-        geo_payload = self._delivery.check_address(
-            address=address.formatted_address or None,
-            place_id=address.place_id or None,
-            latitude=address.latitude,
-            longitude=address.longitude,
-        )
-        geo = GeocodeResult(
-            status=geo_payload["status"],
-            formatted_address=geo_payload["formatted_address"],
-            postal_code=geo_payload["postal_code"],
-            latitude=Decimal(geo_payload["latitude"]) if geo_payload["latitude"] else None,
-            longitude=Decimal(geo_payload["longitude"]) if geo_payload["longitude"] else None,
-            place_id=geo_payload["place_id"],
-            address_components=geo_payload["address_components"],
-        )
+        if address.latitude is not None and address.longitude is not None:
+            geo = GeocodeResult(
+                status="OK",
+                formatted_address=address.formatted_address or address.line1,
+                postal_code=address.postal_code or None,
+                latitude=address.latitude,
+                longitude=address.longitude,
+                place_id=address.place_id or None,
+                address_components=None,
+            )
+        else:
+            geo_payload = self._delivery.check_address(
+                address=address.formatted_address or None,
+                place_id=address.place_id or None,
+                latitude=address.latitude,
+                longitude=address.longitude,
+            )
+            geo = GeocodeResult(
+                status=geo_payload["status"],
+                formatted_address=geo_payload["formatted_address"],
+                postal_code=geo_payload["postal_code"],
+                latitude=Decimal(geo_payload["latitude"]) if geo_payload["latitude"] else None,
+                longitude=Decimal(geo_payload["longitude"]) if geo_payload["longitude"] else None,
+                place_id=geo_payload["place_id"],
+                address_components=geo_payload["address_components"],
+            )
         self._delivery.require_serviceable(geo)
 
         payment = PaymentMethod.objects.filter(code=command.payment_method, is_active=True).first()
@@ -338,6 +349,14 @@ class OrderService:
 def request_hash_for(payload: dict) -> str:
     encoded = json.dumps(payload, sort_keys=True, default=str)
     return sha256(encoded.encode("utf-8")).hexdigest()
+
+
+def stripe_checkout_idempotency_key(session_id: str) -> str:
+    """Stripe Checkout session ids exceed Order.idempotency_key (80 chars) if stored verbatim."""
+    token = session_id.strip()
+    if not token:
+        return ""
+    return f"stripe-{sha256(token.encode()).hexdigest()[:32]}"
 
 
 def serialize_order(order: Order, *, client_secret: str | None = None) -> dict:

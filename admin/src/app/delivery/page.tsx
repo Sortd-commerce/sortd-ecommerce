@@ -1,5 +1,5 @@
 import { ActionForm, SubmitButton } from "@/components/ActionForm";
-import { CreateZoneForm } from "@/components/CreateZoneForm";
+import { AddZoneDrawer } from "@/components/AddZoneDrawer";
 import { DiscountEditor, type DiscountRow } from "@/components/DiscountEditor";
 import { PageHeader } from "@/components/PageHeader";
 import { DeliveryZoneRow, ZoneEditor } from "@/components/ZoneEditor";
@@ -206,11 +206,14 @@ export default async function DeliveryAdminPage() {
         </div>
 
         <div className="panel overflow-hidden xl:col-span-2">
-          <div className="border-b border-line px-4 py-4">
-            <h2 className="font-semibold">Delivery zones</h2>
-            <p className="mt-1 text-sm text-muted">
-              Serviceability is based on the customer&apos;s location pin inside these polygons. Enable the zones you deliver to, or draw new ones on the map.
-            </p>
+          <div className="flex flex-wrap items-start justify-between gap-3 border-b border-line px-4 py-4">
+            <div>
+              <h2 className="font-semibold">Delivery zones</h2>
+              <p className="mt-1 text-sm text-muted">
+                Serviceability is based on the customer&apos;s location pin inside these polygons. Enable the zones you deliver to, or draw new ones on the map.
+              </p>
+            </div>
+            <AddZoneDrawer />
           </div>
           <ul>
             {(zones.data || []).map((row) => (
@@ -220,10 +223,6 @@ export default async function DeliveryAdminPage() {
               <li className="px-4 py-8 text-sm text-muted">No delivery zones yet. The reference Dubai zones are seeded on migration.</li>
             ) : null}
           </ul>
-          <div className="border-t border-line p-4">
-            <h3 className="text-sm font-medium">Add delivery zone</h3>
-            <CreateZoneForm />
-          </div>
         </div>
       </section>
     </div>
