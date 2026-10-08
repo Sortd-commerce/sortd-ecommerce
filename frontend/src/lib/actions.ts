@@ -80,6 +80,8 @@ export async function verifyLoginCodeAction(_prev: ActionState, formData: FormDa
   if (!result.ok || !result.data) return { ok: false, message: result.message, email, purpose: "login" };
   await setAuthCookies(result.data.tokens.access, result.data.tokens.refresh);
   revalidatePath("/", "layout");
+  const next = safeRedirectPath(String(formData.get("next") || ""));
+  if (next !== "/") redirect(next);
   return {
     ok: true,
     message: "Logged in.",

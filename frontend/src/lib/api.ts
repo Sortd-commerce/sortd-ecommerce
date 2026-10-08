@@ -1,4 +1,4 @@
-import { getAccessToken } from "@/lib/auth";
+import { getAccessToken, refreshAuthTokens } from "@/lib/auth";
 import { getServiceToken } from "@/lib/service-token";
 
 type ApiOptions = {
@@ -35,22 +35,38 @@ export async function apiFetch<T>(path: string, options: ApiOptions = {}): Promi
     headers["Content-Type"] = "application/json";
   }
 
-  if (options.auth !== false) {
+  async function attachAuth() {
+    if (options.auth === false) return;
     const access = await getAccessToken();
     if (access) {
       headers.Authorization = `Bearer ${access}`;
+    } else {
+      delete headers.Authorization;
     }
   }
 
-  let response: Response;
-  try {
-    response = await fetch(`${apiBase()}${path}`, {
+  await attachAuth();
+
+  async function sendRequest() {
+    return fetch(`${apiBase()}${path}`, {
       method: options.method || "GET",
       headers,
       body: options.body === undefined ? undefined : JSON.stringify(options.body),
       cache: options.cache || "no-store",
       ...(options.revalidate !== undefined ? { next: { revalidate: options.revalidate } } : {}),
     });
+  }
+
+  let response: Response;
+  try {
+    response = await sendRequest();
+    if (response.status === 401 && options.auth !== false) {
+      const refreshed = await refreshAuthTokens();
+      if (refreshed) {
+        await attachAuth();
+        response = await sendRequest();
+      }
+    }
   } catch {
     return {
       ok: false,

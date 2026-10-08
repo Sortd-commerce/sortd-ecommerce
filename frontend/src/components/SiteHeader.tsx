@@ -57,7 +57,7 @@ async function DeliverBar({ signedIn }: { signedIn: boolean }) {
         <div className="deliver-location">
           <DeliverPinIcon />
           <span className="deliver-label deliver-label--desktop">Delivering to</span>
-          <span className="deliver-label deliver-label--mobile">To:</span>
+          <span className="deliver-label deliver-label--mobile">To</span>
           {deliverTo && saved ? (
             <Link href="/checkout" className="deliver-place">
               <span className="deliver-place-full">{deliverTo}</span>

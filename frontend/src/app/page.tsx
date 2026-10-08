@@ -190,9 +190,11 @@ export default async function HomePage({
         </section>
       ) : null}
 
-      {(query || aisle) && (
-        <div className="home-section">
-          <div className="home-inner">
+      <section
+        className={`home-section home-section--catalog${query || aisle ? " home-section--filtered" : ""}`}
+      >
+        {query || aisle ? (
+          <div className="home-inner home-inner--filter">
             <p className="filter-note">
               {query
                 ? `Results for “${q.trim()}”`
@@ -202,10 +204,7 @@ export default async function HomePage({
               <Link href="/">Clear</Link>
             </p>
           </div>
-        </div>
-      )}
-
-      <section className="home-section home-section--catalog">
+        ) : null}
         <div id="catalog" className="home-inner catalog">
           {groups.map((group) => (
             <ProductRail key={group.slug} id={`aisle-${group.slug}`} title={group.name} count={group.products.length}>

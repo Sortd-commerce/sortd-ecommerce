@@ -135,16 +135,18 @@ export function CheckoutBasketStep({ onContinue }: { onContinue: () => void }) {
       ) : null}
 
       <div className="checkout-sticky-foot">
-        <button type="button" className="btn btn-primary checkout-continue-btn" disabled={!items.length} onClick={onContinue}>
-          <span>
+        <div className="checkout-sticky-foot-row">
+          <div className="checkout-sticky-total" aria-hidden>
             <small>TO PAY</small>
             <strong>AED {money(quote.total)}</strong>
-          </span>
-          <span>
-            Continue
-            <small>Address &amp; delivery slot</small>
-          </span>
-        </button>
+          </div>
+          <button type="button" className="btn btn-primary checkout-continue-btn" disabled={!items.length} onClick={onContinue}>
+            <span className="checkout-continue-copy">
+              Continue
+              <small>Address &amp; delivery slot</small>
+            </span>
+          </button>
+        </div>
       </div>
     </div>
   );

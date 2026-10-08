@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { useRouter } from "next/navigation";
 import { AuthModal } from "@/components/auth/AuthModal";
 import { useToast } from "@/components/Toast";
+import { safeRedirectPath } from "@/lib/redirect";
 
 export type AuthUser = {
   email: string;
@@ -70,13 +71,7 @@ export function AuthProvider({
       toast.success(
         purpose === "signup" ? `You're in. Welcome, ${greeting}.` : `You're logged in. Welcome back, ${greeting}.`,
       );
-      if (purpose === "login") {
-        router.replace("/");
-      } else if (nextPath) {
-        router.replace(nextPath);
-      } else {
-        router.replace("/");
-      }
+      router.replace(safeRedirectPath(nextPath));
       router.refresh();
     },
     [nextPath, router, toast],

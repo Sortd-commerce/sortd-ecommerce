@@ -149,9 +149,16 @@ function ChoiceCard({
 function slotSummary(slot: CheckoutSlot | null | undefined) {
   if (!slot) return "";
   const parsed = new Date(`${slot.date}T12:00:00`);
-  const day = Number.isNaN(parsed.getTime())
-    ? slot.date
-    : parsed.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
+  let day = slot.date;
+  if (!Number.isNaN(parsed.getTime())) {
+    const today = new Date();
+    const slotDay = new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate());
+    const todayDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const offset = Math.round((slotDay.getTime() - todayDay.getTime()) / 86_400_000);
+    if (offset === 0) day = "Today";
+    else if (offset === 1) day = "Tomorrow";
+    else day = parsed.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
+  }
   const start = slot.start_time.slice(0, 5);
   const end = slot.end_time.slice(0, 5);
   const [sh] = start.split(":").map(Number);
@@ -510,21 +517,26 @@ function CheckoutFormInner({
             {slotSection}
             {noteSection("03")}
             <div className="checkout-sticky-foot">
-              <button
-                type="button"
-                className="btn btn-primary checkout-continue-btn"
-                disabled={!canContinueDelivery}
-                onClick={() => setStep("pay")}
-              >
-                <span>
+              <div className="checkout-sticky-foot-row">
+                <div className="checkout-sticky-total" aria-hidden>
                   <small>TO PAY</small>
                   <strong>AED {money(quote.total)}</strong>
-                </span>
-                <span>
-                  Continue to payment
-                  <small>{slotSummary(activeSlot)} · {selectedAddress?.is_default ? "Home" : "Address"}</small>
-                </span>
-              </button>
+                </div>
+                <button
+                  type="button"
+                  className="btn btn-primary checkout-continue-btn"
+                  disabled={!canContinueDelivery}
+                  aria-label={`Continue to payment, total AED ${money(quote.total)}`}
+                  onClick={() => setStep("pay")}
+                >
+                  <span className="checkout-continue-copy">
+                    Continue to payment
+                    <small>
+                      {slotSummary(activeSlot)} · {selectedAddress?.is_default ? "Home" : "Address"}
+                    </small>
+                  </span>
+                </button>
+              </div>
             </div>
           </div>
         ) : null}

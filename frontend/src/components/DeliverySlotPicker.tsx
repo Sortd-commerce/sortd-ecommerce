@@ -131,7 +131,7 @@ export function DeliverySlotPicker({
               onClick={() => !disabled && onChange(key)}
             >
               <span className="slot-card-time">{slotLabel(slot)}</span>
-              {slot.status === "passed" ? <span className="slot-card-meta">Closed</span> : null}
+              {slot.status === "passed" ? <span className="slot-card-meta">Passed</span> : null}
               {slot.status === "full" ? <span className="slot-card-meta">Full</span> : null}
               {slot.status === "available" && slot.remaining <= 3 ? (
                 <span className="slot-card-urgency">{slot.remaining} left</span>
