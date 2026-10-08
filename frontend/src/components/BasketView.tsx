@@ -48,7 +48,7 @@ export function BasketView({
   }, [signedIn]);
 
   return (
-    <div className={`basket-view basket-${variant}`}>
+    <div className={`basket-view basket-view--${variant}`}>
       <header className="basket-head">
         <div>
           <p className="basket-kicker">
