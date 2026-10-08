@@ -543,7 +543,7 @@ function CheckoutFormInner({
         {step === "pay" ? (
           <div className="checkout-mobile-step">
             {paymentSection}
-            <div className="checkout-sticky-foot">
+            <div className="checkout-sticky-foot checkout-sticky-foot--pay">
               {paysOnline ? (
                 <button
                   type="button"
@@ -563,7 +563,9 @@ function CheckoutFormInner({
                   Pay AED {money(quote.total)}
                 </button>
               )}
-              <p className="fine-print checkout-footnote">Every item in this order passed all four gates.</p>
+              <p className="fine-print checkout-footnote checkout-footnote--sticky">
+                Every item in this order passed all four gates.
+              </p>
             </div>
           </div>
         ) : null}

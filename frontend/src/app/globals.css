@@ -938,23 +938,14 @@ button {
 .gallery-thumbs img,
 .basket-thumb img,
 .order-thumb img,
-.flavor-thumb__img {
+.flavor-thumb__img,
+.brand-photo img,
+.product-card-media img,
+.gallery-thumb__img {
   width: 100%;
   height: 100%;
   object-fit: cover;
   object-position: center;
-}
-
-.aisle-photo img,
-.brand-photo img,
-.product-card-media img {
-  object-fit: contain;
-  object-position: center;
-}
-
-.product-card-media img {
-  padding: 0.5rem 0.625rem;
-  box-sizing: border-box;
 }
 
 .promo-row,
@@ -4231,20 +4222,26 @@ aside.basket-drawer {
 }
 
 .cart-pill--compact {
-  flex: 1 1 0;
+  flex: 0 1 auto;
+  max-width: 100%;
   min-width: 0;
   min-height: var(--figma-header-pill-h);
   justify-content: flex-start;
+  overflow: hidden;
   padding: 0 0.85rem;
   gap: 0.5rem;
   box-shadow: none;
 }
 
 .cart-pill-compact {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
   font-family: var(--font-body), sans-serif;
   font-size: var(--figma-body-md);
   font-weight: 600;
   line-height: 1;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
@@ -4565,7 +4562,8 @@ aside.basket-drawer {
   max-width: none;
   padding-inline: 0;
   padding-block: 0;
-  padding-bottom: calc(5.5rem + env(safe-area-inset-bottom));
+  background: #fffdf9;
+  padding-bottom: calc(7.25rem + env(safe-area-inset-bottom));
 }
 
 .checkout-basket-step,
@@ -4771,8 +4769,7 @@ aside.basket-drawer {
   color: var(--forest);
 }
 
-.checkout-continue-btn,
-.checkout-pay-btn {
+.checkout-sticky-foot-row .checkout-continue-btn {
   display: flex;
   flex: 1;
   min-width: 0;
@@ -4802,6 +4799,31 @@ aside.basket-drawer {
 .checkout-continue-btn {
   min-height: 3.25rem;
   padding: 0.65rem 1rem;
+}
+
+.checkout-sticky-foot--pay {
+  display: grid;
+  gap: 0.625rem;
+}
+
+.checkout-sticky-foot--pay .checkout-pay-btn {
+  display: flex;
+  width: 100%;
+  box-sizing: border-box;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--figma-btn-h);
+  padding: 0.875rem 1.25rem;
+  font-family: var(--font-body), sans-serif;
+  font-size: var(--figma-body-2xl);
+  font-weight: 600;
+  line-height: 1.088rem;
+  text-align: center;
+}
+
+.checkout-footnote--sticky {
+  margin-top: 0;
+  padding-inline: 0.25rem;
 }
 
 .checkout-pay-btn {
@@ -5023,6 +5045,8 @@ aside.basket-drawer {
   }
 
   .header-main .header-nav--mobile .cart-pill--compact {
+    flex: 1 1 0;
+    max-width: min(100%, 12.5rem);
     height: var(--figma-header-pill-h);
   }
 

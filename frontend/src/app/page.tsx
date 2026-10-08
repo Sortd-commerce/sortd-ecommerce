@@ -111,7 +111,7 @@ export default async function HomePage({
                         alt=""
                         fill
                         sizes="80px"
-                        className="object-contain"
+                        className="object-cover"
                       />
                     ) : (
                       <span>{category.name.slice(0, 1)}</span>
@@ -173,7 +173,7 @@ export default async function HomePage({
                         alt=""
                         fill
                         sizes="80px"
-                        className="object-contain"
+                        className="object-cover"
                       />
                     ) : (
                       <span>{group.brand.slice(0, 1)}</span>

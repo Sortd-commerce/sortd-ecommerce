@@ -36,7 +36,7 @@ export function ProductCard({ product }: { product: CardProduct }) {
             alt={product.primary_image.alt || product.title}
             fill
             sizes="(max-width: 768px) 44vw, 220px"
-            className="object-contain"
+            className="object-cover"
           />
         ) : (
           <span className="product-card-fallback">{product.category.name}</span>
