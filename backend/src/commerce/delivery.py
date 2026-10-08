@@ -8,6 +8,7 @@ from django.db.models import Count
 from ninja_extra.exceptions import ValidationError
 
 from commerce.geocoding import GeocodeResult, PlacesProvider
+from commerce.places.types import AutocompleteSuggestion
 from commerce.models import (
     DeliveryDateOverride,
     DeliveryPostalCode,
@@ -39,6 +40,23 @@ DUBAI_LOCATION_TYPES = (
     "sublocality_level_1",
 )
 
+OTHER_UAE_EMIRATES = (
+    "abu dhabi",
+    "sharjah",
+    "ajman",
+    "fujairah",
+    "ras al khaimah",
+    "umm al quwain",
+    "al ain",
+)
+
+DUBAI_BBOX = {
+    "min_lat": Decimal("24.79"),
+    "max_lat": Decimal("25.36"),
+    "min_lon": Decimal("54.98"),
+    "max_lon": Decimal("55.64"),
+}
+
 
 def _component_text(components: list[dict], type_name: str) -> str:
     for component in components:
@@ -58,6 +76,24 @@ def _is_uae(components: list[dict]) -> bool:
         if short_name == "AE" or "united arab emirates" in long_name:
             return True
     return False
+
+
+def _is_in_dubai_bbox(*, latitude: Decimal | None, longitude: Decimal | None) -> bool:
+    if latitude is None or longitude is None:
+        return False
+    return (
+        DUBAI_BBOX["min_lat"] <= latitude <= DUBAI_BBOX["max_lat"]
+        and DUBAI_BBOX["min_lon"] <= longitude <= DUBAI_BBOX["max_lon"]
+    )
+
+
+def _is_dubai_suggestion(item: AutocompleteSuggestion) -> bool:
+    label = (item.label or "").lower()
+    if any(name in label for name in OTHER_UAE_EMIRATES):
+        return False
+    if "dubai" in label:
+        return True
+    return _is_in_dubai_bbox(latitude=item.latitude, longitude=item.longitude)
 
 
 def _is_dubai_location(result: GeocodeResult) -> bool:
@@ -81,7 +117,9 @@ class DeliveryService:
         self._zone = ZoneInfo(settings.DELIVERY_TIMEZONE)
 
     def autocomplete(self, *, query: str, country: str = "", limit: int = 8) -> list[dict]:
-        suggestions = self._geocoder.autocomplete(query=query, country=country or "", limit=limit)
+        batch_size = max(limit * 3, limit)
+        suggestions = self._geocoder.autocomplete(query=query, country=country or "ae", limit=batch_size)
+        dubai_suggestions = [item for item in suggestions if _is_dubai_suggestion(item)]
         return [
             {
                 "place_id": item.place_id,
@@ -89,7 +127,7 @@ class DeliveryService:
                 "latitude": str(item.latitude) if item.latitude is not None else None,
                 "longitude": str(item.longitude) if item.longitude is not None else None,
             }
-            for item in suggestions
+            for item in dubai_suggestions[:limit]
         ]
 
     def check_address(

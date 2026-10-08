@@ -29,11 +29,11 @@ export default async function CatalogImportPage() {
         </div>
         <div className="space-y-4 p-4">
           <CatalogImportForm />
-          <div className="rounded-xl border border-line bg-sand/40 p-4 text-sm text-muted">
-            <p className="font-medium text-ink">Before importing client data</p>
+          <div className="rounded-xl border border-line bg-panel-2 p-4 text-sm text-muted">
+            <p className="font-medium text-text">Before importing client data</p>
             <p className="mt-2">
               Clear dummy catalog data from the backend with{" "}
-              <code className="rounded bg-white px-1.5 py-0.5 text-xs">python src/manage.py clear_catalog_data --yes</code>.
+              <code className="rounded bg-panel px-1.5 py-0.5 text-xs text-text">python src/manage.py clear_catalog_data --yes</code>.
               User accounts are kept.
             </p>
           </div>

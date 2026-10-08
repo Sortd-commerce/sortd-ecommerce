@@ -33,27 +33,27 @@ export function CatalogImportForm() {
       ) : null}
 
       {result ? (
-        <div className="rounded-xl border border-line bg-white p-4 text-sm">
+        <div className="rounded-xl border border-line bg-panel-2 p-4 text-sm text-text">
           <dl className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
             <div>
               <dt className="text-muted">Rows</dt>
-              <dd className="font-medium tabular-nums">{result.row_count}</dd>
+              <dd className="font-medium tabular-nums text-text">{result.row_count}</dd>
             </div>
             <div>
               <dt className="text-muted">Created</dt>
-              <dd className="font-medium tabular-nums">{result.created}</dd>
+              <dd className="font-medium tabular-nums text-text">{result.created}</dd>
             </div>
             <div>
               <dt className="text-muted">Updated</dt>
-              <dd className="font-medium tabular-nums">{result.updated}</dd>
+              <dd className="font-medium tabular-nums text-text">{result.updated}</dd>
             </div>
             <div>
               <dt className="text-muted">Aisle images</dt>
-              <dd className="font-medium tabular-nums">{result.aisle_images_updated ?? 0}</dd>
+              <dd className="font-medium tabular-nums text-text">{result.aisle_images_updated ?? 0}</dd>
             </div>
             <div>
               <dt className="text-muted">Warnings</dt>
-              <dd className="font-medium tabular-nums">{result.warnings.length}</dd>
+              <dd className="font-medium tabular-nums text-text">{result.warnings.length}</dd>
             </div>
           </dl>
 
@@ -73,7 +73,7 @@ export function CatalogImportForm() {
 
           {result.warnings.length ? (
             <div className="mt-4">
-              <h3 className="font-medium">Warnings</h3>
+              <h3 className="font-medium text-text">Warnings</h3>
               <ul className="mt-2 max-h-48 space-y-1 overflow-y-auto text-sm text-muted">
                 {result.warnings.map((issue, index) => (
                   <li key={`warn-${issue.row}-${issue.field}-${index}`}>

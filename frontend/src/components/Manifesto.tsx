@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { OptimizedImage } from "@/components/OptimizedImage";
+import { landingUrl } from "@/lib/landing";
 
 export function Manifesto() {
+  const aboutHref = landingUrl("/about");
   return (
     <footer className="manifesto">
       <div className="manifesto-frame">
@@ -27,7 +29,7 @@ export function Manifesto() {
             <div className="manifesto-foot">
               <nav className="manifesto-links manifesto-links--mobile" aria-label="Footer">
                 <Link href="/">Home</Link>
-                <a href="https://sortd.com/about" target="_blank" rel="noreferrer">
+                <a href={aboutHref} target="_blank" rel="noreferrer">
                   About Us
                 </a>
                 <Link href="/#catalog">Products</Link>
@@ -40,7 +42,7 @@ export function Manifesto() {
                 <p className="manifesto-tagline">Only what passes.</p>
                 <nav className="manifesto-links" aria-label="Footer">
                   <Link href="/">Home</Link>
-                  <a href="https://sortd.com/about" target="_blank" rel="noreferrer">
+                  <a href={aboutHref} target="_blank" rel="noreferrer">
                     About Us
                   </a>
                   <Link href="/#catalog">Products</Link>

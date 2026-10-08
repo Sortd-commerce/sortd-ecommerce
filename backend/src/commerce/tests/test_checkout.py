@@ -101,6 +101,17 @@ class CheckoutTests(ApiTestCase):
         self.assertEqual(len(rows), 1)
         self.assertEqual(rows[0]["place_id"], "fixture-dubai-marina")
 
+    def test_delivery_autocomplete_filters_to_dubai_only(self):
+        response = post_json(self.client, "/api/v1/delivery/autocomplete", {"q": "united"})
+        self.assertEqual(response.status_code, 200)
+        rows = response.json()["data"]
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["place_id"], "fixture-dubai-marina")
+
+        blocked = post_json(self.client, "/api/v1/delivery/autocomplete", {"q": "outside"})
+        self.assertEqual(blocked.status_code, 200)
+        self.assertEqual(blocked.json()["data"], [])
+
     def test_delivery_check_accepts_lat_lng(self):
         response = post_json(
             self.client,

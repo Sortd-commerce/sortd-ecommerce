@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { IBM_Plex_Sans, Libre_Baskerville } from "next/font/google";
 import { AdminShell } from "@/components/AdminShell";
 import { getStaffProfile } from "@/lib/staff";
@@ -23,6 +23,14 @@ export const metadata: Metadata = {
   },
   description: "Staff console for Sortd orders, catalog, and delivery.",
   applicationName: "Sortd Operations",
+  icons: {
+    icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
+    apple: [{ url: "/apple-icon.svg", type: "image/svg+xml" }],
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#1B4D36",
 };
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

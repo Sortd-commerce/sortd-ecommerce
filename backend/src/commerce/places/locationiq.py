@@ -103,6 +103,9 @@ class LocationIQProvider:
             "limit": str(max(1, min(limit, 10))),
             "normalizecity": "1",
             "addressdetails": "1",
+            # Restrict autocomplete to Dubai's bounding box.
+            "viewbox": "54.9827,25.3592,55.6379,24.7937",
+            "bounded": "1",
         }
         if country.strip():
             params["countrycodes"] = country.strip().lower()
