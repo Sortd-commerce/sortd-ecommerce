@@ -22,7 +22,7 @@ function money(value: string) {
   return Number.isFinite(amount) ? amount.toFixed(2) : "0.00";
 }
 
-export function CartLink() {
+export function CartLink({ compact = false }: { compact?: boolean }) {
   const { count, subtotal } = useCart();
   const { openBasket } = useBasket();
   const displayAmount = count ? subtotal : "0.00";
@@ -31,18 +31,24 @@ export function CartLink() {
   return (
     <button
       type="button"
-      className="cart-pill"
+      className={`cart-pill${compact ? " cart-pill--compact" : ""}`}
       aria-label={label}
       aria-haspopup="dialog"
       onClick={openBasket}
     >
       <CartBagIcon />
-      <span className="cart-pill-copy">
-        <span className="cart-pill-count">
-          {count} {count === 1 ? "ITEM" : "ITEMS"}
+      {compact ? (
+        <span className="cart-pill-compact">
+          {count} · AED {money(displayAmount)}
         </span>
-        <span className="cart-pill-total">AED {money(displayAmount)}</span>
-      </span>
+      ) : (
+        <span className="cart-pill-copy">
+          <span className="cart-pill-count">
+            {count} {count === 1 ? "ITEM" : "ITEMS"}
+          </span>
+          <span className="cart-pill-total">AED {money(displayAmount)}</span>
+        </span>
+      )}
     </button>
   );
 }

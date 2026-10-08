@@ -27,6 +27,37 @@
   --btn-ease: cubic-bezier(0.22, 1, 0.36, 1);
   --btn-hover-shadow: 0 6px 18px rgb(20 53 3 / 0.14);
   --anchor-scroll-offset: 14rem;
+
+  /* Figma mobile spec (390px frame) — px÷16 */
+  --figma-mono-2xs: 0.539rem; /* 8.63px · product brand, AED prefix */
+  --figma-mono-xs: 0.5625rem; /* 9px · checkout steps */
+  --figma-mono-sm: 0.625rem; /* 10px · section links, kickers */
+  --figma-mono-md: 0.6875rem; /* 11px · basket kicker, field labels */
+  --figma-body-xs: 0.75rem; /* 12px · aisle labels, pack detail */
+  --figma-body-sm: 0.755rem; /* 12.08px · product card title */
+  --figma-body-md: 0.8125rem; /* 13px · cart pill, deliver bar */
+  --figma-body-lg: 0.875rem; /* 14px · search, bill rows */
+  --figma-body-xl: 0.9375rem; /* 15px · auth copy, floating CTA */
+  --figma-body-2xl: 1rem; /* 16px · arrival card, primary buttons */
+  --figma-display-sm: 1.133rem; /* 18.13px · product card price */
+  --figma-display-md: 1.25rem; /* 20px · floating cart total */
+  --figma-display-lg: 1.5rem; /* 24px · section headings */
+  --figma-display-xl: 1.625rem; /* 26px · checkout / delivery headings */
+  --figma-display-2xl: 1.875rem; /* 30px · auth modal title */
+  --figma-display-3xl: 2rem; /* 32px · basket title */
+  --figma-add-label: 0.701rem; /* 11.22px · ADD button */
+  --figma-ls-mono-wide: 0.0375rem; /* 0.6px */
+  --figma-ls-mono-step: 0.03375rem; /* 0.54px */
+  --figma-aisle: 5rem; /* 80px */
+  --figma-card-image: 10.25rem; /* 164px */
+  --figma-thumb-basket: 4.25rem; /* 68px */
+  --figma-thumb-checkout: 3.625rem; /* 58px */
+  --figma-avatar: 1.75rem; /* 28px */
+  --figma-search-h: 2.5625rem; /* 41px */
+  --figma-add-h: 1.50625rem; /* 24.1px */
+  --figma-btn-h: 3.3125rem; /* 53px */
+  --figma-deliver-h: 2rem; /* 32px */
+  --figma-header-h: 3.625rem; /* 58px */
 }
 
 @theme inline {
@@ -454,7 +485,10 @@ button {
   border: 0;
   background: transparent;
   color: var(--ink);
-  font-size: 0.9375rem;
+  font-family: var(--font-body), sans-serif;
+  font-size: var(--figma-body-lg);
+  font-weight: 400;
+  line-height: 0.952rem;
   outline: none;
 }
 
@@ -670,6 +704,23 @@ button {
   font-weight: 700;
 }
 
+.auth-modal-form .field > span:first-child {
+  font-family: var(--font-mono), monospace;
+  font-size: var(--figma-mono-md);
+  font-weight: 500;
+  letter-spacing: 0;
+  line-height: 0.894rem;
+  text-transform: uppercase;
+}
+
+.auth-modal-form .field input,
+.auth-modal-form .auth-phone-row input {
+  font-family: var(--font-body), sans-serif;
+  font-size: var(--figma-body-xl);
+  font-weight: 500;
+  line-height: 1.02rem;
+}
+
 .field-check {
   display: flex;
   align-items: center;
@@ -797,9 +848,10 @@ button {
 .aisle-all,
 .aisle-see-all {
   font-family: var(--font-mono), monospace;
-  font-size: 0.6875rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
+  font-size: var(--figma-mono-sm);
+  font-weight: 500;
+  letter-spacing: var(--figma-ls-mono-wide);
+  line-height: 0.8125rem;
   text-transform: uppercase;
   color: var(--leaf);
 }
@@ -815,15 +867,16 @@ button {
 
 .aisle-tile {
   display: grid;
-  flex: 0 0 6.875rem;
+  flex: 0 0 var(--figma-aisle);
   justify-items: center;
-  gap: 0.625rem;
-  width: 6.875rem;
+  gap: 0.5rem;
+  width: var(--figma-aisle);
   min-width: 0;
   text-align: center;
-  font-size: 0.8125rem;
+  font-family: var(--font-body), sans-serif;
+  font-size: var(--figma-body-xs);
   font-weight: 500;
-  line-height: 1.25;
+  line-height: 0.816rem;
   color: var(--ink);
 }
 
@@ -839,8 +892,8 @@ button {
   position: relative;
   display: grid;
   place-items: center;
-  width: 6.875rem;
-  height: 6.875rem;
+  width: var(--figma-aisle);
+  height: var(--figma-aisle);
   overflow: hidden;
   border-radius: 1.375rem;
 }
@@ -1030,16 +1083,18 @@ button {
 
 .product-card-brand {
   font-family: var(--font-mono), monospace;
-  font-size: 0.625rem;
+  font-size: var(--figma-mono-2xs);
   font-weight: 500;
-  letter-spacing: 0.04em;
+  letter-spacing: 0;
+  line-height: 0.701rem;
   text-transform: uppercase;
   color: var(--on-ink);
 }
 
 .product-card-title {
   min-height: 2.25rem;
-  font-size: 0.875rem;
+  font-family: var(--font-body), sans-serif;
+  font-size: var(--figma-body-sm);
   font-weight: 600;
   line-height: 1.28;
 }
@@ -1047,7 +1102,10 @@ button {
 .product-card-detail {
   min-height: 1rem;
   color: var(--on-ink);
-  font-size: 0.75rem;
+  font-family: var(--font-body), sans-serif;
+  font-size: var(--figma-body-xs);
+  font-weight: 400;
+  line-height: 0.816rem;
 }
 
 .product-card-row {
@@ -1061,17 +1119,18 @@ button {
 .product-card-price {
   display: flex;
   align-items: end;
-  gap: 0.2rem;
+  gap: 0.15rem;
   font-family: var(--font-display), sans-serif;
-  font-size: 1.125rem;
+  font-size: var(--figma-display-sm);
   font-weight: 700;
-  line-height: 1;
+  line-height: 1.21rem;
 }
 
 .product-card-price span {
   font-family: var(--font-mono), monospace;
-  font-size: 0.625rem;
+  font-size: var(--figma-mono-2xs);
   font-weight: 500;
+  line-height: 0.701rem;
   color: var(--on-ink);
 }
 
@@ -1080,9 +1139,12 @@ button {
   border-radius: 999px;
   background: color-mix(in srgb, var(--paper) 94%, white);
   color: var(--ink);
-  font-size: 0.8125rem;
+  font-family: var(--font-body), sans-serif;
+  font-size: var(--figma-add-label);
   font-weight: 600;
-  padding: 0.4375rem 1rem;
+  line-height: 0.763rem;
+  min-height: var(--figma-add-h);
+  padding: 0.25rem 0.85rem;
   cursor: pointer;
   box-shadow: 0 1px 0 rgb(20 53 3 / 0.05);
   transition: transform 220ms var(--btn-ease), background 220ms var(--btn-ease), border-color 220ms var(--btn-ease), box-shadow 220ms var(--btn-ease);
@@ -1563,9 +1625,11 @@ button {
   margin: 0;
   color: var(--leaf);
   font-family: var(--font-mono), monospace;
-  font-size: 0.75rem;
+  font-size: var(--figma-mono-sm);
   font-weight: 500;
-  line-height: 1rem;
+  letter-spacing: var(--figma-ls-mono-wide);
+  line-height: 0.8125rem;
+  text-transform: uppercase;
 }
 
 .buy-box h1 {
@@ -1608,9 +1672,9 @@ button {
   margin: 0;
   color: var(--text-faint);
   font-family: var(--font-mono), monospace;
-  font-size: 0.75rem;
+  font-size: var(--figma-body-xs);
   font-weight: 500;
-  line-height: 1rem;
+  line-height: 0.975rem;
   text-transform: uppercase;
 }
 
@@ -1724,16 +1788,18 @@ button {
 .flavor-label span {
   color: var(--text-faint);
   font-family: var(--font-mono), monospace;
-  font-size: 0.6875rem;
+  font-size: var(--figma-mono-sm);
   font-weight: 500;
-  line-height: 0.875rem;
+  letter-spacing: var(--figma-ls-mono-wide);
+  line-height: 0.8125rem;
   text-transform: uppercase;
 }
 
 .flavor-label strong {
-  font-size: 0.875rem;
+  font-family: var(--font-body), sans-serif;
+  font-size: var(--figma-body-lg);
   font-weight: 600;
-  line-height: 0.9375rem;
+  line-height: 0.952rem;
 }
 
 .flavor-thumbs {
@@ -2003,9 +2069,11 @@ button {
 .basket-kicker,
 .step-index {
   color: rgb(23 54 40 / 0.55);
-  font-size: 0.75rem;
-  font-weight: 800;
-  letter-spacing: 0.12em;
+  font-family: var(--font-mono), monospace;
+  font-size: var(--figma-mono-md);
+  font-weight: 500;
+  letter-spacing: 0;
+  line-height: 0.894rem;
   text-transform: uppercase;
 }
 
@@ -2684,7 +2752,11 @@ button {
 }
 
 .basket-head h2 {
-  font-size: 1.8rem;
+  font-family: var(--font-display), sans-serif;
+  font-size: var(--figma-display-3xl);
+  font-weight: 700;
+  line-height: 2.694rem;
+  letter-spacing: 0;
 }
 
 .basket-close {
@@ -2746,10 +2818,20 @@ button {
   display: block;
 }
 
+.basket-deliver strong {
+  font-family: var(--font-body), sans-serif;
+  font-size: var(--figma-body-xl);
+  font-weight: 600;
+  line-height: 1.02rem;
+}
+
 .basket-deliver p > span,
 .basket-copy small {
   color: rgb(23 54 40 / 0.6);
-  font-size: 0.82rem;
+  font-family: var(--font-body), sans-serif;
+  font-size: var(--figma-body-md);
+  font-weight: 400;
+  line-height: 0.884rem;
 }
 
 .delivery-progress {
@@ -2805,7 +2887,7 @@ button {
 .basket-line,
 .order-lines li {
   display: grid;
-  grid-template-columns: 3.4rem minmax(0, 1fr) auto;
+  grid-template-columns: var(--figma-thumb-basket) minmax(0, 1fr) auto;
   gap: 0.7rem;
   align-items: start;
   padding: 0.75rem 0;
@@ -2816,8 +2898,8 @@ button {
 .order-thumb {
   position: relative;
   display: grid;
-  width: 3.4rem;
-  height: 3.4rem;
+  width: var(--figma-thumb-basket);
+  height: var(--figma-thumb-basket);
   place-items: center;
   overflow: hidden;
   border-radius: 0.7rem;
@@ -2830,10 +2912,23 @@ button {
   min-width: 0;
 }
 
+.basket-brand {
+  font-family: var(--font-mono), monospace;
+  font-size: var(--figma-mono-sm);
+  font-weight: 500;
+  letter-spacing: var(--figma-ls-mono-wide);
+  line-height: 0.8125rem;
+  text-transform: uppercase;
+  color: rgb(23 54 40 / 0.55);
+}
+
 .basket-copy a,
 .basket-copy p,
 .order-lines strong {
-  font-weight: 800;
+  font-family: var(--font-body), sans-serif;
+  font-size: var(--figma-body-lg);
+  font-weight: 600;
+  line-height: 0.952rem;
   color: var(--forest);
 }
 
@@ -2848,15 +2943,18 @@ button {
 .order-lines b {
   margin: 0;
   color: var(--forest);
-  font-weight: 800;
-  line-height: 1.2;
+  font-family: var(--font-body), sans-serif;
+  font-size: var(--figma-body-lg);
+  font-weight: 600;
+  line-height: 0.952rem;
   white-space: nowrap;
   text-align: right;
 }
 
 .basket-price-currency {
-  font-size: 0.72em;
-  font-weight: 700;
+  font-family: var(--font-mono), monospace;
+  font-size: var(--figma-mono-sm);
+  font-weight: 500;
 }
 
 .basket-line-side .qty-stepper {
@@ -2884,7 +2982,10 @@ button {
   display: flex;
   justify-content: space-between;
   gap: 1rem;
-  font-size: 0.92rem;
+  font-family: var(--font-body), sans-serif;
+  font-size: var(--figma-body-lg);
+  font-weight: 400;
+  line-height: 0.952rem;
 }
 
 .basket-due,
@@ -2893,8 +2994,21 @@ button {
   padding-top: 0.55rem;
   border-top: 1px solid var(--line);
   color: var(--forest);
-  font-size: 1.15rem;
-  font-weight: 800;
+}
+
+.basket-due .order-bill-label,
+.order-due .order-bill-label {
+  font-size: var(--figma-body-2xl);
+  font-weight: 600;
+  line-height: 1.088rem;
+}
+
+.basket-due .order-bill-value,
+.order-due .order-bill-value {
+  font-family: var(--font-display), sans-serif;
+  font-size: var(--figma-display-md);
+  font-weight: 700;
+  line-height: 1.684rem;
 }
 
 .order-bill--basket {
@@ -2926,19 +3040,38 @@ button {
   text-align: left;
 }
 
-.basket-checkout small {
-  font-size: 0.72rem;
+.basket-checkout strong {
+  font-family: var(--font-display), sans-serif;
+  font-size: var(--figma-display-md);
   font-weight: 700;
-  letter-spacing: 0.06em;
+  line-height: 1.684rem;
+}
+
+.basket-checkout small {
+  font-family: var(--font-mono), monospace;
+  font-size: var(--figma-mono-sm);
+  font-weight: 500;
+  letter-spacing: var(--figma-ls-mono-wide);
+  line-height: 0.8125rem;
   text-transform: uppercase;
-  opacity: 0.8;
+  opacity: 0.85;
+}
+
+.basket-checkout span:last-child {
+  font-family: var(--font-body), sans-serif;
+  font-size: var(--figma-body-2xl);
+  font-weight: 600;
+  line-height: 1.088rem;
 }
 
 .basket-foot p,
 .delivery-note-line {
   margin-top: 0.55rem;
   color: rgb(23 54 40 / 0.62);
-  font-size: 0.8rem;
+  font-family: var(--font-mono), monospace;
+  font-size: var(--figma-mono-sm);
+  font-weight: 400;
+  line-height: 0.8125rem;
   text-align: center;
 }
 
@@ -3468,9 +3601,11 @@ button {
 .order-card h2 {
   margin: 0 0 1rem;
   color: var(--forest);
-  font-family: var(--font-display), serif;
-  font-size: 1.25rem;
+  font-family: var(--font-display), sans-serif;
+  font-size: var(--figma-display-xl);
   font-weight: 700;
+  line-height: 2.189rem;
+  letter-spacing: 0;
 }
 
 .checkout-block .block-head {
@@ -3948,9 +4083,551 @@ button {
   }
 }
 
+.deliver-label--mobile {
+  display: none;
+}
+
+.header-nav--mobile {
+  display: none;
+}
+
+.cart-pill--compact {
+  min-width: 0;
+  padding: 0.55rem 0.85rem;
+  gap: 0.45rem;
+}
+
+.cart-pill-compact {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.mobile-account-btn {
+  display: inline-grid;
+  place-items: center;
+  width: var(--figma-avatar);
+  height: var(--figma-avatar);
+  border: 0;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--paper);
+  font-family: var(--font-body), sans-serif;
+  font-size: var(--figma-body-md);
+  font-weight: 600;
+  line-height: 0.884rem;
+  cursor: pointer;
+}
+
+.mobile-account-btn--guest {
+  background: transparent;
+  border: 1.5px solid var(--ink);
+  color: var(--ink);
+}
+
+.floating-cart-bar {
+  position: fixed;
+  right: 0.75rem;
+  bottom: calc(0.75rem + env(safe-area-inset-bottom));
+  left: 0.75rem;
+  z-index: 35;
+}
+
+.floating-cart-bar-btn {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border: 0;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--paper);
+  padding: 0.85rem 1.1rem;
+  box-shadow: 0 10px 28px rgb(20 53 3 / 0.28);
+  cursor: pointer;
+}
+
+.floating-cart-bar-kicker {
+  display: block;
+  font-family: var(--font-mono), monospace;
+  font-size: var(--figma-mono-sm);
+  font-weight: 500;
+  letter-spacing: var(--figma-ls-mono-wide);
+  line-height: 0.8125rem;
+  color: var(--on-ink);
+}
+
+.floating-cart-bar-left strong {
+  font-family: var(--font-display), sans-serif;
+  font-size: var(--figma-display-md);
+  font-weight: 700;
+  line-height: 1.684rem;
+}
+
+.floating-cart-bar-action {
+  font-family: var(--font-body), sans-serif;
+  font-size: var(--figma-body-xl);
+  font-weight: 600;
+  line-height: 1.02rem;
+}
+
+.sheet-handle {
+  display: block;
+  width: 2.5rem;
+  height: 0.25rem;
+  margin: 0 auto 0.75rem;
+  border-radius: 999px;
+  background: rgb(20 53 3 / 0.18);
+}
+
+.account-sheet-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 65;
+}
+
+.account-sheet-scrim {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: rgb(14 26 20 / 0.46);
+  cursor: pointer;
+}
+
+.account-sheet {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  border-radius: 1.35rem 1.35rem 0 0;
+  background: white;
+  padding: 0.35rem 1rem calc(1rem + env(safe-area-inset-bottom));
+  box-shadow: 0 -12px 40px rgb(20 53 3 / 0.14);
+}
+
+.account-sheet-close {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  display: inline-flex;
+  width: 2rem;
+  height: 2rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: white;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.account-sheet-head {
+  display: grid;
+  gap: 0.2rem;
+  padding: 1.5rem 2.5rem 1rem 0;
+}
+
+.account-sheet-head strong {
+  font-family: var(--font-body), sans-serif;
+  font-size: var(--figma-body-xl);
+  font-weight: 600;
+  line-height: 1.02rem;
+}
+
+.account-sheet-head span {
+  color: rgb(14 26 20 / 0.62);
+  font-family: var(--font-body), sans-serif;
+  font-size: var(--figma-body-md);
+  font-weight: 400;
+  line-height: 0.884rem;
+}
+
+.account-sheet-items {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.account-sheet-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border: 0;
+  border-radius: 0.85rem;
+  background: transparent;
+  color: var(--ink);
+  font-family: var(--font-body), sans-serif;
+  font-size: var(--figma-body-lg);
+  font-weight: 600;
+  line-height: 0.952rem;
+  padding: 0.85rem 0.25rem;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.account-sheet-item--logout {
+  font-weight: 500;
+}
+
+.account-sheet-item--orders {
+  background: var(--tint-1);
+  padding-inline: 0.85rem;
+}
+
+.account-sheet-badge {
+  border-radius: 999px;
+  background: var(--mint);
+  color: var(--forest);
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.25rem 0.55rem;
+}
+
+.account-sheet-logout {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--line);
+}
+
+.account-sheet-item--logout {
+  width: 100%;
+  justify-content: center;
+  background: var(--tint-1);
+}
+
+.checkout-mobile-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: #fffdf9;
+  border-bottom: 1px solid var(--line);
+}
+
+.checkout-mobile-top {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.65rem;
+  align-items: start;
+  padding: 0.85rem max(1rem, var(--page-gutter)) 0.65rem;
+}
+
+.checkout-back-btn {
+  display: inline-flex;
+  width: 2.5rem;
+  height: 1.9375rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: white;
+  color: var(--forest);
+}
+
+.checkout-mobile-dest p {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-family: var(--font-body), sans-serif;
+  font-size: var(--figma-body-2xl);
+  font-weight: 600;
+  line-height: 1.088rem;
+  color: var(--ink);
+}
+
+.checkout-mobile-dest small {
+  display: block;
+  margin-top: 0.15rem;
+  color: rgb(14 26 20 / 0.58);
+  font-family: var(--font-body), sans-serif;
+  font-size: var(--figma-body-md);
+  font-weight: 400;
+  line-height: 0.884rem;
+}
+
+.checkout-stepper {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.35rem;
+  padding: 0 max(1rem, var(--page-gutter)) 0.65rem;
+  font-family: var(--font-mono), monospace;
+  font-size: var(--figma-mono-xs);
+  font-weight: 500;
+  letter-spacing: var(--figma-ls-mono-step);
+  line-height: 0.731rem;
+  color: rgb(14 26 20 / 0.45);
+}
+
+.checkout-stepper-on {
+  color: var(--ink);
+  box-shadow: inset 0 -2px 0 var(--ink);
+  padding-bottom: 0.35rem;
+}
+
+.checkout-savings-banner {
+  margin: 0;
+  background: var(--mint);
+  color: var(--forest);
+  font-family: var(--font-body), sans-serif;
+  font-size: var(--figma-body-md);
+  font-weight: 400;
+  line-height: 0.884rem;
+  text-align: center;
+  padding: 0.55rem 1rem;
+}
+
+.checkout-savings-banner strong {
+  font-weight: 600;
+}
+
+.checkout-page--mobile {
+  padding-bottom: calc(5.5rem + env(safe-area-inset-bottom));
+}
+
+.checkout-basket-step,
+.checkout-mobile-step {
+  padding: 0 max(1rem, var(--page-gutter)) 1rem;
+}
+
+.checkout-arrival-card {
+  margin-top: 0.85rem;
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+  background: white;
+  padding: 1rem;
+}
+
+.checkout-arrival-card h2 {
+  font-family: var(--font-body), sans-serif;
+  font-size: var(--figma-body-2xl);
+  font-weight: 600;
+  line-height: 1.088rem;
+}
+
+.checkout-arrival-card p {
+  margin-top: 0.25rem;
+  color: rgb(14 26 20 / 0.62);
+  font-family: var(--font-body), sans-serif;
+  font-size: var(--figma-body-md);
+  font-weight: 400;
+  line-height: 0.884rem;
+}
+
+.checkout-basket-lines {
+  display: grid;
+  gap: 0;
+  margin: 0.85rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.checkout-basket-line {
+  display: grid;
+  grid-template-columns: var(--figma-thumb-checkout) 1fr auto;
+  gap: 0.75rem;
+  align-items: start;
+  padding: 0.85rem 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.checkout-basket-thumb {
+  position: relative;
+  width: var(--figma-thumb-checkout);
+  height: var(--figma-thumb-checkout);
+  overflow: hidden;
+  border-radius: 0.65rem;
+  background: white;
+}
+
+.checkout-basket-brand {
+  font-family: var(--font-mono), monospace;
+  font-size: var(--figma-mono-sm);
+  font-weight: 500;
+  letter-spacing: var(--figma-ls-mono-wide);
+  line-height: 0.8125rem;
+  text-transform: uppercase;
+  color: rgb(14 26 20 / 0.55);
+}
+
+.checkout-basket-copy a,
+.checkout-basket-copy p {
+  font-family: var(--font-body), sans-serif;
+  font-size: var(--figma-body-lg);
+  font-weight: 600;
+  line-height: 0.952rem;
+}
+
+.checkout-basket-copy small {
+  display: block;
+  margin-top: 0.15rem;
+  color: rgb(14 26 20 / 0.55);
+  font-size: 0.75rem;
+}
+
+.checkout-basket-side {
+  display: grid;
+  justify-items: end;
+  gap: 0.45rem;
+}
+
+.checkout-basket-price {
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.checkout-forgot {
+  margin-top: 0.85rem;
+  font-size: 0.875rem;
+}
+
+.checkout-milestone {
+  margin-top: 1rem;
+  padding: 0.85rem;
+  border-radius: 0.85rem;
+  background: var(--tint-1);
+}
+
+.checkout-milestone-labels {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 0.45rem;
+  font-size: 0.6875rem;
+  color: rgb(14 26 20 / 0.58);
+}
+
+.checkout-coupons,
+.checkout-bill-block,
+.checkout-savings-block {
+  margin-top: 1.25rem;
+}
+
+.checkout-coupons h3,
+.checkout-bill-block h3,
+.checkout-savings-block h3 {
+  margin-bottom: 0.65rem;
+  font-family: var(--font-display), sans-serif;
+  font-size: var(--figma-display-xl);
+  font-weight: 700;
+  line-height: 1.852rem;
+  letter-spacing: 0;
+}
+
+.checkout-savings-block {
+  border-radius: 0.85rem;
+  background: var(--mint);
+  padding: 0.85rem;
+}
+
+.checkout-savings-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.checkout-savings-pill {
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--paper);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  padding: 0.25rem 0.65rem;
+}
+
+.checkout-savings-row {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 0.55rem;
+  font-size: 0.8125rem;
+}
+
+.checkout-sticky-foot {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 25;
+  background: linear-gradient(to top, #fffdf9 75%, rgb(255 253 249 / 0));
+  padding: 0.75rem max(1rem, var(--page-gutter)) calc(0.75rem + env(safe-area-inset-bottom));
+}
+
+.checkout-continue-btn,
+.checkout-pay-btn {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  text-align: left;
+}
+
+.checkout-continue-btn small,
+.checkout-continue-btn strong {
+  display: block;
+}
+
+.checkout-continue-btn span:first-child small {
+  font-family: var(--font-mono), monospace;
+  font-size: var(--figma-mono-sm);
+  font-weight: 500;
+  letter-spacing: var(--figma-ls-mono-wide);
+  line-height: 0.8125rem;
+  text-transform: uppercase;
+}
+
+.checkout-continue-btn strong {
+  font-family: var(--font-display), sans-serif;
+  font-size: var(--figma-display-md);
+  font-weight: 700;
+  line-height: 1.684rem;
+}
+
+.checkout-continue-btn span:last-child {
+  text-align: right;
+  font-family: var(--font-body), sans-serif;
+  font-size: var(--figma-body-2xl);
+  font-weight: 600;
+  line-height: 1.088rem;
+}
+
+.checkout-continue-btn span:last-child small {
+  color: var(--on-ink);
+  font-size: var(--figma-body-xs);
+  font-weight: 400;
+  line-height: 0.748rem;
+}
+
+.checkout-pay-btn {
+  justify-content: center;
+  min-height: 3.25rem;
+  font-family: var(--font-body), sans-serif;
+  font-size: 1.0625rem;
+  font-weight: 600;
+  line-height: 1.156rem;
+}
+
+.auth-modal-brand-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.auth-modal-handle {
+  display: none;
+}
+
 @media (max-width: 799px) {
   .store-main {
+    padding-bottom: calc(1rem + env(safe-area-inset-bottom));
+  }
+
+  body.has-floating-cart .store-main {
     padding-bottom: calc(4.5rem + env(safe-area-inset-bottom));
+  }
+
+  body.has-floating-cart .buy-actions {
+    bottom: calc(4.5rem + env(safe-area-inset-bottom));
   }
   .shell,
   .header-inner,
@@ -3970,6 +4647,45 @@ button {
 
   .header-link {
     display: none;
+  }
+
+  .header-nav--desktop {
+    display: none;
+  }
+
+  .header-nav--mobile {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .deliver-label--desktop {
+    display: none;
+  }
+
+  .deliver-label--mobile {
+    display: inline;
+  }
+
+  .header-row {
+    flex-wrap: nowrap;
+    min-height: 3.5rem;
+    padding-block: 0.75rem;
+  }
+
+  .search-form {
+    order: unset;
+    flex: 1 1 auto;
+  }
+
+  .header-main .header-row {
+    flex-wrap: wrap;
+  }
+
+  .header-main .search-form {
+    order: 3;
+    flex: 1 1 100%;
+    max-width: none;
   }
 
   .deliver-row {
@@ -4017,7 +4733,57 @@ button {
   }
 
   .brand-mark {
-    font-size: 1.55rem;
+    font-size: 1.5rem;
+    line-height: 1.5rem;
+  }
+
+  .brand-sm {
+    font-size: 1.375rem;
+    line-height: 1.375rem;
+  }
+
+  .deliver-row {
+    min-height: var(--figma-deliver-h);
+    padding-block: 0.5rem;
+  }
+
+  .deliver-label--mobile {
+    font-size: var(--figma-mono-sm);
+    letter-spacing: var(--figma-ls-mono-wide);
+  }
+
+  .deliver-place {
+    font-size: var(--figma-body-md);
+    font-weight: 600;
+    line-height: 0.884rem;
+  }
+
+  .deliver-promise > span:first-child {
+    font-size: var(--figma-body-md);
+    font-weight: 600;
+    line-height: 0.884rem;
+  }
+
+  .header-main .header-row {
+    min-height: var(--figma-header-h);
+    padding-block: 0.65rem;
+  }
+
+  .search-form {
+    min-height: var(--figma-search-h);
+    padding-inline: 1rem;
+    gap: 0.625rem;
+  }
+
+  .search-form-icon {
+    width: 1.0625rem;
+    height: 1.0625rem;
+  }
+
+  .cart-pill--compact {
+    font-size: var(--figma-body-md);
+    font-weight: 600;
+    line-height: 0.884rem;
   }
 
   .promo-row {
@@ -4028,6 +4794,7 @@ button {
     grid-auto-flow: row;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     grid-auto-columns: unset;
+    gap: 0.75rem;
     overflow: visible;
   }
 
@@ -4046,16 +4813,59 @@ button {
   }
 
   .aisle-tile {
-    flex: 0 0 5.5rem;
+    flex: 0 0 var(--figma-aisle);
   }
 
   .product-card-media {
-    height: 7.4rem;
+    height: var(--figma-card-image);
+    padding: 0.625rem;
+  }
+
+  .product-card-body {
+    padding: 0.625rem 0.6875rem 0.75rem;
+    gap: 0.2rem;
   }
 
   .product-card-title {
     min-height: 0;
-    font-size: 0.86rem;
+  }
+
+  .product-card-row {
+    margin-top: 0.45rem;
+  }
+
+  .gallery-stage {
+    aspect-ratio: 390 / 330;
+    min-height: 20.625rem;
+    border-radius: 0;
+  }
+
+  .buy-box h1 {
+    font-size: 1.375rem;
+    line-height: 1.45rem;
+  }
+
+  .buy-price {
+    font-size: 1.625rem;
+    line-height: 2.125rem;
+  }
+
+  .buy-box .stat-box strong {
+    font-size: 1.375rem;
+    line-height: 1.875rem;
+  }
+
+  .checkout-milestone > p {
+    font-family: var(--font-display), sans-serif;
+    font-size: var(--figma-display-xl);
+    font-weight: 700;
+    line-height: 1.852rem;
+  }
+
+  .aisle-head h2,
+  .aisle-picker h2 {
+    font-size: var(--figma-display-lg);
+    line-height: 2.02rem;
   }
 
   .product-card-row {
@@ -4125,7 +4935,7 @@ button {
   .buy-actions {
     position: fixed;
     right: 0.45rem;
-    bottom: calc(4.3rem + env(safe-area-inset-bottom));
+    bottom: calc(0.75rem + env(safe-area-inset-bottom));
     left: 0.45rem;
     z-index: 35;
     border: 1px solid var(--line);
@@ -4149,7 +4959,53 @@ button {
   }
 
   .basket-drawer {
+    top: auto;
+    right: 0;
+    bottom: 0;
+    left: 0;
     width: 100%;
+    max-height: 92dvh;
+    border-radius: 1.35rem 1.35rem 0 0;
+    overflow: hidden;
+  }
+
+  .basket-view::before {
+    content: "";
+    display: block;
+    width: 2.5rem;
+    height: 0.25rem;
+    margin: 0.5rem auto 0.25rem;
+    border-radius: 999px;
+    background: rgb(20 53 3 / 0.18);
+  }
+
+  .auth-modal {
+    top: auto;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    max-width: none;
+    max-height: 92dvh;
+    transform: none;
+    border-radius: 1.35rem 1.35rem 0 0;
+    padding-top: 0.5rem;
+  }
+
+  .auth-modal-handle {
+    display: block;
+  }
+
+  .auth-modal-close {
+    position: static;
+  }
+
+  .auth-modal-title {
+    padding-right: 0;
+  }
+
+  .tab-bar {
+    display: none;
   }
 
   .label-box__hero {
@@ -4830,8 +5686,10 @@ button {
 
 .auth-modal-title {
   font-family: var(--font-display), sans-serif;
-  font-size: 1.75rem;
-  line-height: 1.15;
+  font-size: var(--figma-display-2xl);
+  font-weight: 700;
+  line-height: 2.526rem;
+  letter-spacing: 0;
   color: var(--forest);
   padding-right: 2rem;
 }
@@ -4839,8 +5697,10 @@ button {
 .auth-modal-copy {
   margin-top: 0.5rem;
   color: rgb(14 26 20 / 0.72);
-  font-size: 0.9375rem;
-  line-height: 1.5;
+  font-family: var(--font-body), sans-serif;
+  font-size: var(--figma-body-xl);
+  font-weight: 400;
+  line-height: 1.02rem;
 }
 
 .auth-modal-form {
@@ -4852,8 +5712,15 @@ button {
 .auth-modal-foot,
 .auth-modal-legal {
   margin-top: 1rem;
-  font-size: 0.875rem;
+  font-family: var(--font-body), sans-serif;
+  font-size: var(--figma-body-lg);
+  font-weight: 400;
+  line-height: 0.952rem;
   color: rgb(14 26 20 / 0.62);
+}
+
+.auth-modal-foot .auth-modal-link {
+  font-weight: 600;
 }
 
 .auth-modal-legal {
@@ -4886,9 +5753,14 @@ button {
 .auth-modal-submit {
   display: inline-flex;
   width: 100%;
+  min-height: var(--figma-btn-h);
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
+  font-family: var(--font-body), sans-serif;
+  font-size: var(--figma-body-2xl);
+  font-weight: 600;
+  line-height: 1.088rem;
 }
 
 .auth-phone-row {
@@ -4935,9 +5807,10 @@ button {
   border-radius: 0.75rem;
   background: white;
   text-align: center;
-  font-family: var(--font-mono), monospace;
-  font-size: 1.25rem;
-  font-weight: 600;
+  font-family: var(--font-body), sans-serif;
+  font-size: var(--figma-body-2xl);
+  font-weight: 500;
+  line-height: 1.088rem;
   color: var(--ink);
 }
 

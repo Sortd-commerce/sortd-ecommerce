@@ -57,7 +57,7 @@ function ChoiceCard({
 export function CheckoutAddressSection({ addresses }: { addresses: CheckoutAddress[] }) {
   const router = useRouter();
   const toast = useToast();
-  const { setSelectedAddress } = useCheckoutSelection();
+  const { selectedAddress: contextAddress, setSelectedAddress } = useCheckoutSelection();
   const [settingPrimary, startPrimary] = useTransition();
   const defaultAddress = addresses.find((row) => row.is_default) || addresses[0];
   const [addressId, setAddressId] = useState<number | "">(defaultAddress?.id || "");
@@ -65,8 +65,8 @@ export function CheckoutAddressSection({ addresses }: { addresses: CheckoutAddre
   const [addressOpen, setAddressOpen] = useState(false);
 
   const selectedAddress = useMemo(
-    () => addresses.find((row) => row.id === addressId) || defaultAddress || null,
-    [addressId, addresses, defaultAddress],
+    () => addresses.find((row) => row.id === addressId) || defaultAddress || contextAddress || null,
+    [addressId, addresses, contextAddress, defaultAddress],
   );
 
   useEffect(() => {

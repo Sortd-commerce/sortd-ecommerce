@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
-import { useActionState, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import type { ActionState } from "@/lib/action-state";
 import {
   placeOrderAction,
@@ -12,9 +12,11 @@ import {
 } from "@/lib/actions";
 import { emptyActionState, SubmitButton } from "@/components/ActionForm";
 import { CheckoutAddressSection } from "@/components/CheckoutAddressSection";
+import { CheckoutBasketStep } from "@/components/CheckoutBasketStep";
 import { CheckoutCodPendingOverlay } from "@/components/CheckoutCodPendingOverlay";
+import { CheckoutMobileHeader, type CheckoutStep } from "@/components/CheckoutMobileHeader";
 import { CheckoutProcessingOverlay } from "@/components/CheckoutProcessingOverlay";
-import { CheckoutSelectionProvider } from "@/components/CheckoutSelectionContext";
+import { CheckoutSelectionProvider, useCheckoutSelection } from "@/components/CheckoutSelectionContext";
 import { DeliverySlotPicker } from "@/components/DeliverySlotPicker";
 import { OpenBasketLink } from "@/components/OpenBasketLink";
 import { OrderSummary } from "@/components/OrderSummary";
@@ -39,6 +41,11 @@ function slotKey(slot: CheckoutSlot) {
 
 function lineTotal(unitPrice: string, quantity: number) {
   return (Number(unitPrice) * quantity).toFixed(2);
+}
+
+function money(value: string | number) {
+  const amount = Number(value);
+  return Number.isFinite(amount) ? amount.toFixed(2) : "0.00";
 }
 
 const CHECKOUT_PAYMENT_ORDER = ["apple_pay", "card", "cod"] as const;
@@ -138,7 +145,32 @@ function ChoiceCard({
   );
 }
 
-export function CheckoutForm({
+function useMobileCheckout() {
+  const [mobile, setMobile] = useState(false);
+  useEffect(() => {
+    const query = window.matchMedia("(max-width: 799px)");
+    const update = () => setMobile(query.matches);
+    update();
+    query.addEventListener("change", update);
+    return () => query.removeEventListener("change", update);
+  }, []);
+  return mobile;
+}
+
+function slotSummary(slot: CheckoutSlot | null | undefined) {
+  if (!slot) return "";
+  const parsed = new Date(`${slot.date}T12:00:00`);
+  const day = Number.isNaN(parsed.getTime())
+    ? slot.date
+    : parsed.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
+  const start = slot.start_time.slice(0, 5);
+  const end = slot.end_time.slice(0, 5);
+  const [sh] = start.split(":").map(Number);
+  const [eh] = end.split(":").map(Number);
+  return `${day}, ${sh % 12 || 12}–${eh % 12 || 12} ${eh >= 12 ? "PM" : "AM"}`;
+}
+
+function CheckoutFormInner({
   slots,
   paymentMethods,
   addresses,
@@ -149,13 +181,12 @@ export function CheckoutForm({
 }) {
   const router = useRouter();
   const toast = useToast();
+  const mobile = useMobileCheckout();
+  const [step, setStep] = useState<CheckoutStep>("basket");
   const { items, count, flush } = useCart();
   const itemsRef = useRef(items);
   const { quote, discountCode, syncQuote } = usePricing();
-  const [selectedAddress, setSelectedAddress] = useState<CheckoutAddress | null>(null);
-  const onAddressChange = useCallback((address: CheckoutAddress | null) => {
-    setSelectedAddress(address);
-  }, []);
+  const { selectedAddress } = useCheckoutSelection();
   const walletSupport = useStripeWalletSupport(quote.total);
   const checkoutPayments = useMemo(() => checkoutPaymentMethods(paymentMethods), [paymentMethods]);
   const selectablePayments = useMemo(
@@ -192,16 +223,14 @@ export function CheckoutForm({
   );
   const activeSlot = selectedSlot?.status === "available" ? selectedSlot : firstAvailableSlot(slots);
 
-  async function prepareCheckout(
-    payload: {
-      address_id: number;
-      delivery_date: string;
-      window_id: number;
-      window_source: string;
-      payment_method: string;
-      discount_code: string;
-    },
-  ) {
+  async function prepareCheckout(payload: {
+    address_id: number;
+    delivery_date: string;
+    window_id: number;
+    window_source: string;
+    payment_method: string;
+    discount_code: string;
+  }) {
     const synced = await flush();
     if (!synced.ok) {
       return { ok: false as const, message: synced.message || "Your basket needs updating before checkout." };
@@ -274,6 +303,7 @@ export function CheckoutForm({
   const canPlace = Boolean(
     selectedAddress && activeSlot && paymentMethod && items.length && !payModal && !checkoutLocked,
   );
+  const canContinueDelivery = Boolean(selectedAddress && activeSlot && items.length);
 
   async function openPaymentModal() {
     if (!canPlace || !selectedAddress || !activeSlot) return;
@@ -348,130 +378,226 @@ export function CheckoutForm({
     }
   }
 
-  return (
-    <CheckoutSelectionProvider setSelectedAddress={onAddressChange}>
-      <div className="checkout-intro">
-        <OpenBasketLink className="back-link">Back to basket</OpenBasketLink>
-      </div>
-      <div className="checkout-layout">
-        <div className="checkout-steps-col">
-          <section className="checkout-block">
-            <CheckoutAddressSection addresses={addresses} />
-          </section>
+  function onBack() {
+    if (step === "pay") setStep("delivery");
+    else if (step === "delivery") setStep("basket");
+    else router.push("/");
+  }
 
-          <section className="checkout-block">
-            <p className="step-index">02</p>
-            <h2>Delivery slot</h2>
-            <DeliverySlotPicker
-              slots={slots}
-              value={activeSlot ? slotKey(activeSlot) : slotId}
-              onChange={setSlotId}
+  const deliverySections = (
+    <>
+      <section className="checkout-block">
+        <CheckoutAddressSection addresses={addresses} />
+      </section>
+      <section className="checkout-block">
+        <p className="step-index">02</p>
+        <h2>Delivery slot</h2>
+        <DeliverySlotPicker
+          slots={slots}
+          value={activeSlot ? slotKey(activeSlot) : slotId}
+          onChange={setSlotId}
+        />
+      </section>
+      <section className="checkout-block">
+        <p className="step-index">03</p>
+        <h2>Delivery note</h2>
+        <label className="field">
+          <span className="sr-only">Delivery note</span>
+          <textarea
+            name="note"
+            form="place-order"
+            rows={3}
+            placeholder="Leave at the door, call on arrival…"
+          />
+        </label>
+      </section>
+    </>
+  );
+
+  const paymentSection = (
+    <section className="checkout-block" id="pay">
+      <p className="step-index">03</p>
+      <h2>Pay with</h2>
+      <div className="choice-stack" role="radiogroup" aria-label="Payment methods">
+        {checkoutPayments.map((method) => {
+          const disabled = !isPaymentSelectable(method, walletSupport);
+          return (
+            <ChoiceCard
+              key={method.code}
+              name="saved_payment"
+              value={method.code}
+              checked={paymentMethod === method.code}
+              disabled={disabled}
+              title={PAYMENT_NAME[method.code] || method.name}
+              detail={paymentMethodDetail(method, walletSupport)}
+              onChange={() => {
+                if (disabled) return;
+                paymentTouchedRef.current = true;
+                setPaymentMethod(method.code);
+              }}
             />
-          </section>
+          );
+        })}
+        {!checkoutPayments.length ? <p className="fine-print">No payment methods are available.</p> : null}
+      </div>
+      {showApplePayUnavailable ? (
+        <p className="fine-print checkout-wallet-note">
+          Apple Pay isn&apos;t available on this device. You can pay by card or cash on delivery.
+        </p>
+      ) : null}
+    </section>
+  );
 
-          <section className="checkout-block" id="pay">
-            <p className="step-index">03</p>
-            <h2>Pay with</h2>
-            <div className="choice-stack" role="radiogroup" aria-label="Payment methods">
-              {checkoutPayments.map((method) => {
-                const disabled = !isPaymentSelectable(method, walletSupport);
-                return (
-                  <ChoiceCard
-                    key={method.code}
-                    name="saved_payment"
-                    value={method.code}
-                    checked={paymentMethod === method.code}
-                    disabled={disabled}
-                    title={PAYMENT_NAME[method.code] || method.name}
-                    detail={paymentMethodDetail(method, walletSupport)}
-                    onChange={() => {
-                      if (disabled) return;
-                      paymentTouchedRef.current = true;
-                      setPaymentMethod(method.code);
-                    }}
-                  />
-                );
-              })}
-              {!checkoutPayments.length ? <p className="fine-print">No payment methods are available.</p> : null}
+  const orderForm = (
+    <form id="place-order" ref={formRef} action={formAction} className="order-card">
+      <CheckoutCodPendingOverlay />
+      <input type="hidden" name="address_id" value={selectedAddress?.id || ""} />
+      <input type="hidden" name="delivery_date" value={activeSlot?.date || ""} />
+      <input type="hidden" name="window_id" value={activeSlot?.window_id || ""} />
+      <input type="hidden" name="window_source" value={activeSlot?.source || "weekly"} />
+      <input type="hidden" name="payment_method" value={paymentMethod} />
+      <div className="order-card-head">
+        <h2>Your order</h2>
+        <span>
+          {count} {count === 1 ? "item" : "items"}
+        </span>
+      </div>
+      <ul className="order-lines">
+        {items.map((item) => (
+          <li key={item.variant_id}>
+            <span className="order-thumb">
+              {item.image_url ? (
+                <OptimizedImage src={item.image_url} alt="" fill sizes="54px" className="object-contain" />
+              ) : (
+                <span>{item.title.slice(0, 1)}</span>
+              )}
+            </span>
+            <span>
+              <strong>{item.title}</strong>
+              <small>
+                {item.quantity} × AED {item.unit_price}
+              </small>
+            </span>
+            <b>AED {lineTotal(item.unit_price, item.quantity)}</b>
+          </li>
+        ))}
+        {!items.length ? <li className="order-empty">Your basket is empty.</li> : null}
+      </ul>
+      <OrderSummary showPromo className="checkout-summary" />
+      {paysOnline ? (
+        <button
+          type="button"
+          className="btn btn-primary checkout-submit"
+          disabled={!canPlace}
+          onClick={() => void openPaymentModal()}
+        >
+          <span>{placingOrder ? "Placing your order…" : payPending ? "Getting payment ready…" : "Pay now"}</span>
+          <span>AED {quote.total} →</span>
+        </button>
+      ) : (
+        <SubmitButton className="btn btn-primary checkout-submit" pendingLabel="Placing order…" disabled={!canPlace}>
+          <span>Place order</span>
+          <span>AED {quote.total} →</span>
+        </SubmitButton>
+      )}
+      <p className="fine-print checkout-footnote">
+        Every item in this order passed all four gates. Lab reports are on each product page.
+      </p>
+    </form>
+  );
+
+  if (mobile) {
+    return (
+      <div className="checkout-page checkout-page--mobile">
+        <CheckoutMobileHeader step={step} onBack={onBack} />
+        {step === "basket" ? <CheckoutBasketStep onContinue={() => setStep("delivery")} /> : null}
+        {step === "delivery" ? (
+          <div className="checkout-mobile-step">
+            {deliverySections}
+            <div className="checkout-sticky-foot">
+              <button
+                type="button"
+                className="btn btn-primary checkout-continue-btn"
+                disabled={!canContinueDelivery}
+                onClick={() => setStep("pay")}
+              >
+                <span>
+                  <small>TO PAY</small>
+                  <strong>AED {money(quote.total)}</strong>
+                </span>
+                <span>
+                  Continue to payment
+                  <small>{slotSummary(activeSlot)} · {selectedAddress?.is_default ? "Home" : "Address"}</small>
+                </span>
+              </button>
             </div>
-            {showApplePayUnavailable ? (
-              <p className="fine-print checkout-wallet-note">
-                Apple Pay isn&apos;t available on this device. You can pay by card or cash on delivery.
-              </p>
-            ) : null}
-          </section>
-
-          <section className="checkout-block">
-            <p className="step-index">04</p>
-            <h2>Delivery note</h2>
-            <label className="field">
-              <span className="sr-only">Delivery note</span>
-              <textarea name="note" form="place-order" rows={3} placeholder="Gate code, leave at door, call on arrival…" />
-            </label>
-          </section>
-        </div>
-
-        <form id="place-order" ref={formRef} action={formAction} className="order-card">
+          </div>
+        ) : null}
+        {step === "pay" ? (
+          <div className="checkout-mobile-step">
+            {paymentSection}
+            <div className="checkout-sticky-foot">
+              {paysOnline ? (
+                <button
+                  type="button"
+                  className="btn btn-primary checkout-pay-btn"
+                  disabled={!canPlace}
+                  onClick={() => void openPaymentModal()}
+                >
+                  Pay AED {money(quote.total)}
+                </button>
+              ) : (
+                <button
+                  type="submit"
+                  form="place-order"
+                  className="btn btn-primary checkout-pay-btn"
+                  disabled={!canPlace}
+                >
+                  Pay AED {money(quote.total)}
+                </button>
+              )}
+              <p className="fine-print checkout-footnote">Every item in this order passed all four gates.</p>
+            </div>
+          </div>
+        ) : null}
+        <form id="place-order" ref={formRef} action={formAction} className="sr-only">
           <CheckoutCodPendingOverlay />
           <input type="hidden" name="address_id" value={selectedAddress?.id || ""} />
           <input type="hidden" name="delivery_date" value={activeSlot?.date || ""} />
           <input type="hidden" name="window_id" value={activeSlot?.window_id || ""} />
           <input type="hidden" name="window_source" value={activeSlot?.source || "weekly"} />
           <input type="hidden" name="payment_method" value={paymentMethod} />
-          <div className="order-card-head">
-            <h2>Your order</h2>
-            <span>
-              {count} {count === 1 ? "item" : "items"}
-            </span>
-          </div>
-          <ul className="order-lines">
-            {items.map((item) => (
-              <li key={item.variant_id}>
-                <span className="order-thumb">
-                  {item.image_url ? (
-                    <OptimizedImage
-                      src={item.image_url}
-                      alt=""
-                      fill
-                      sizes="54px"
-                      className="object-contain"
-                    />
-                  ) : (
-                    <span>{item.title.slice(0, 1)}</span>
-                  )}
-                </span>
-                <span>
-                  <strong>{item.title}</strong>
-                  <small>
-                    {item.quantity} × AED {item.unit_price}
-                  </small>
-                </span>
-                <b>AED {lineTotal(item.unit_price, item.quantity)}</b>
-              </li>
-            ))}
-            {!items.length ? <li className="order-empty">Your basket is empty.</li> : null}
-          </ul>
-          <OrderSummary showPromo className="checkout-summary" />
-          {paysOnline ? (
-            <button
-              type="button"
-              className="btn btn-primary checkout-submit"
-              disabled={!canPlace}
-              onClick={() => void openPaymentModal()}
-            >
-              <span>{placingOrder ? "Placing your order…" : payPending ? "Getting payment ready…" : "Pay now"}</span>
-              <span>AED {quote.total} →</span>
-            </button>
-          ) : (
-            <SubmitButton className="btn btn-primary checkout-submit" pendingLabel="Placing order…" disabled={!canPlace}>
-              <span>Place order</span>
-              <span>AED {quote.total} →</span>
-            </SubmitButton>
-          )}
-          <p className="fine-print checkout-footnote">
-            Every item in this order passed all four gates. Lab reports are on each product page.
-          </p>
+          <textarea name="note" defaultValue="" />
         </form>
+        {payModal ? (
+          <CheckoutPaymentModal
+            clientSecret={payModal.clientSecret}
+            preferWallet={payModal.preferWallet}
+            total={payModal.total}
+            locked={checkoutLocked}
+            onProcessingChange={setPayProcessing}
+            onSuccess={(paymentIntentId) => void onPaymentSuccess(paymentIntentId)}
+            onClose={() => {
+              if (!checkoutLocked) setPayModal(null);
+            }}
+          />
+        ) : null}
+        {processingMessage ? <CheckoutProcessingOverlay message={processingMessage} /> : null}
+      </div>
+    );
+  }
+
+  return (
+    <div className="checkout-page">
+      <div className="checkout-intro">
+        <OpenBasketLink className="back-link">Back to basket</OpenBasketLink>
+      </div>
+      <div className="checkout-layout">
+        <div className="checkout-steps-col">
+          {deliverySections}
+          {paymentSection}
+        </div>
+        {orderForm}
       </div>
       {payModal ? (
         <CheckoutPaymentModal
@@ -487,6 +613,18 @@ export function CheckoutForm({
         />
       ) : null}
       {processingMessage ? <CheckoutProcessingOverlay message={processingMessage} /> : null}
+    </div>
+  );
+}
+
+export function CheckoutForm(props: {
+  slots: CheckoutSlot[];
+  paymentMethods: CheckoutPaymentMethod[];
+  addresses: CheckoutAddress[];
+}) {
+  return (
+    <CheckoutSelectionProvider>
+      <CheckoutFormInner {...props} />
     </CheckoutSelectionProvider>
   );
 }

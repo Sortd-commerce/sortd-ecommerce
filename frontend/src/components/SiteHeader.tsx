@@ -5,6 +5,7 @@ import { AuthOpenButton } from "@/components/auth/AuthOpenButton";
 import type { AuthUser } from "@/components/auth/AuthProvider";
 import { BrandMark } from "@/components/BrandMark";
 import { CartLink } from "@/components/CartLink";
+import { MobileAccountTrigger } from "@/components/MobileAccountTrigger";
 import { CaretDownIcon, DeliverPinIcon } from "@/components/HeaderIcons";
 import { SearchField } from "@/components/SearchField";
 import { DeliverBarSkeleton, SearchFormSkeleton } from "@/components/loading/StorefrontSkeletons";
@@ -42,7 +43,8 @@ async function DeliverBar({ signedIn }: { signedIn: boolean }) {
       <div className="header-inner deliver-row">
         <div className="deliver-location">
           <DeliverPinIcon />
-          <span className="deliver-label">Delivering to</span>
+          <span className="deliver-label deliver-label--desktop">Delivering to</span>
+          <span className="deliver-label deliver-label--mobile">To</span>
           {deliverTo ? (
             <Link href="/checkout" className="deliver-place">
               {deliverTo}
@@ -92,7 +94,7 @@ export function SiteHeader({ signedIn, user }: { signedIn: boolean; user: AuthUs
           <Suspense fallback={<SearchFormSkeleton />}>
             <HeaderSearch />
           </Suspense>
-          <nav className="header-nav" aria-label="Account">
+          <nav className="header-nav header-nav--desktop" aria-label="Account">
             {signedIn ? (
               <Link href="/account" className="header-link">
                 Membership
@@ -105,6 +107,10 @@ export function SiteHeader({ signedIn, user }: { signedIn: boolean; user: AuthUs
             <span className="header-link header-link-static">What we reject</span>
             <AccountMenu user={user} />
             <CartLink />
+          </nav>
+          <nav className="header-nav header-nav--mobile" aria-label="Account">
+            <MobileAccountTrigger user={user} />
+            <CartLink compact />
           </nav>
         </div>
       </div>

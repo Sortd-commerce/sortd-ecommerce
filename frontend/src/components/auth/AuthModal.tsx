@@ -1,6 +1,7 @@
 "use client";
 
 import { ArrowRight, X } from "@phosphor-icons/react";
+import { BrandMark } from "@/components/BrandMark";
 import { useActionState, useEffect, useState } from "react";
 import { OtpInput } from "@/components/auth/OtpInput";
 import { SubmitButton } from "@/components/ActionForm";
@@ -156,28 +157,34 @@ export function AuthModal({
     <div className="auth-modal-layer">
       <button type="button" className="auth-modal-scrim" aria-label="Close sign in" onClick={onClose} />
       <div className="auth-modal" role="dialog" aria-modal="true" aria-labelledby="auth-modal-title">
-        <button type="button" className="auth-modal-close" aria-label="Close" onClick={onClose}>
-          <X size={18} weight="bold" />
-        </button>
+        <span className="sheet-handle auth-modal-handle" aria-hidden />
+        <div className="auth-modal-brand-row">
+          <BrandMark size="sm" />
+          <button type="button" className="auth-modal-close" aria-label="Close" onClick={onClose}>
+            <X size={18} weight="bold" />
+          </button>
+        </div>
 
         {step === "signup" ? (
           <>
             <h2 id="auth-modal-title" className="auth-modal-title">
               Create your account
             </h2>
-            <p className="auth-modal-copy">Track orders and checkout faster.</p>
+            <p className="auth-modal-copy">
+              So you can pay and track this order. All three fields are required.
+            </p>
             <form action={signupFormAction} className="auth-modal-form">
               <label className="field">
-                <span>Full name</span>
+                <span>Full name *</span>
                 <input name="full_name" autoComplete="name" required />
               </label>
               <label className="field">
-                <span>Email</span>
+                <span>Email *</span>
                 <input name="email" type="email" autoComplete="email" spellCheck={false} required />
-                <small className="field-hint">We&apos;ll send a sign-in code here.</small>
+                <small className="field-hint">We&apos;ll send your login code here.</small>
               </label>
               <label className="field">
-                <span>Phone</span>
+                <span>Phone *</span>
                 <div className="auth-phone-row">
                   <span className="auth-phone-prefix" aria-label="Dubai country code">
                     {dubaiCode}
@@ -194,7 +201,7 @@ export function AuthModal({
                   />
                 </div>
                 <input type="hidden" name="phone" value={normalizePhone(dubaiCode, phoneLocal)} readOnly />
-                <small className="field-hint">For delivery updates from your rider.</small>
+                <small className="field-hint">For delivery updates from the rider.</small>
               </label>
               {signupState.ok === false && signupState.message ? (
                 <p className="auth-modal-error" role="alert">
@@ -221,9 +228,13 @@ export function AuthModal({
         {step === "login" ? (
           <>
             <h2 id="auth-modal-title" className="auth-modal-title">
-              Welcome back
+              {nextPath.startsWith("/checkout") ? "Log in to check out" : "Welcome back"}
             </h2>
-            <p className="auth-modal-copy">Enter your email and we&apos;ll send you a code. No password needed.</p>
+            <p className="auth-modal-copy">
+              {nextPath.startsWith("/checkout")
+                ? "We'll email you a 6-digit code. Your basket and coupon are saved."
+                : "Enter your email and we'll send you a code. No password needed."}
+            </p>
             <form action={loginFormAction} className="auth-modal-form">
               <input type="hidden" name="next" value={nextPath} />
               <label className="field">
@@ -255,7 +266,7 @@ export function AuthModal({
             email={email}
             nextPath={nextPath}
             title="Check your email"
-            submitLabel="Verify and create account"
+            submitLabel="Verify and continue"
             onVerified={onVerified}
             onChangeEmail={onChangeEmail}
           />
@@ -267,7 +278,7 @@ export function AuthModal({
             email={email}
             nextPath={nextPath}
             title="Check your email"
-            submitLabel="Log in"
+            submitLabel="Verify and continue"
             onVerified={onVerified}
             onChangeEmail={onChangeEmail}
           />

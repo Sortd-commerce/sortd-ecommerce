@@ -2,8 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import { CartDrawer } from "@/components/CartDrawer";
-import { CheckoutHeader } from "@/components/CheckoutHeader";
-import { MobileTabBar } from "@/components/MobileTabBar";
+import { FloatingCartBar } from "@/components/FloatingCartBar";
 
 export function Chrome({
   header,
@@ -19,12 +18,12 @@ export function Chrome({
 
   return (
     <>
-      {checkout ? <CheckoutHeader /> : header}
+      {checkout ? null : header}
       <main id="main" className={`store-main ${checkout ? "store-checkout" : ""}`}>
         {children}
       </main>
       <CartDrawer signedIn={signedIn} />
-      <MobileTabBar signedIn={signedIn} />
+      <FloatingCartBar />
     </>
   );
 }

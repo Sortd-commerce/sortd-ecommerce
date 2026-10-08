@@ -96,6 +96,9 @@ export default async function HomePage({
           <div className="home-inner aisle-picker">
             <div className="aisle-head">
               <h2>Shop by aisle</h2>
+              <a href="#catalog" className="aisle-all">
+                ALL {aisleGroups.length} →
+              </a>
             </div>
             <div className="aisle-row">
               {aisleGroups.map((category, index) => (
@@ -106,7 +109,7 @@ export default async function HomePage({
                         src={category.image_url}
                         alt=""
                         fill
-                        sizes="110px"
+                        sizes="80px"
                         className="object-contain"
                       />
                     ) : (
@@ -153,6 +156,9 @@ export default async function HomePage({
           <div className="home-inner brand-picker">
             <div className="aisle-head">
               <h2>Shop by brand</h2>
+              <a href="#catalog" className="aisle-all">
+                ALL {brandGroups.length} →
+              </a>
             </div>
             <div className="brand-row">
               {brandGroups.map((group, index) => (
@@ -163,7 +169,7 @@ export default async function HomePage({
                         src={group.image_url}
                         alt=""
                         fill
-                        sizes="120px"
+                        sizes="80px"
                         className="object-contain"
                       />
                     ) : (

@@ -196,31 +196,46 @@ async function main() {
   }
 
   console.log("Rendering PNG…");
-  const images = await figmaFetch(
-    token,
-    `/images/${file}?ids=${encodeURIComponent(node)}&format=png&scale=${args.scale}`,
-  );
-  const imageUrl = images.images?.[node];
   const pngOut = path.join(OUT_DIR, `${file}-${nodeSlug}-${stamp}.png`);
+  let imageUrl = null;
 
-  if (!imageUrl) {
-    console.warn("No PNG URL returned (node may be empty or inaccessible).");
-    if (nodes?.thumbnailUrl) {
-      const thumbOut = path.join(OUT_DIR, `${file}-${nodeSlug}-${stamp}-thumbnail.png`);
-      await downloadBinary(nodes.thumbnailUrl, thumbOut);
-      console.log(`Saved fallback thumbnail ${thumbOut}`);
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    try {
+      const images = await figmaFetch(
+        token,
+        `/images/${file}?ids=${encodeURIComponent(node)}&format=png&scale=${args.scale}`,
+      );
+      imageUrl = images.images?.[node] || null;
+      if (imageUrl) break;
+      console.warn("No PNG URL returned (node may be empty or inaccessible).");
+      break;
+    } catch (err) {
+      const retryable = /500|502|503|429/.test(String(err.message));
+      if (retryable && attempt < 3) {
+        console.warn(`PNG API error (attempt ${attempt}/3): ${err.message}`);
+        await new Promise((r) => setTimeout(r, attempt * 1000));
+        continue;
+      }
+      console.warn(`PNG export failed: ${err.message}`);
+      break;
     }
-    return;
   }
 
-  try {
-    await downloadBinary(imageUrl, pngOut);
-    console.log(`Saved ${pngOut}`);
-  } catch (err) {
-    console.warn(`PNG export failed: ${err.message}`);
-    if (nodes?.thumbnailUrl) {
+  if (imageUrl) {
+    try {
+      await downloadBinary(imageUrl, pngOut);
+      console.log(`Saved ${pngOut}`);
+    } catch (err) {
+      console.warn(`PNG download failed: ${err.message}`);
+      imageUrl = null;
+    }
+  }
+
+  if (!imageUrl) {
+    const thumbUrl = nodes?.nodes?.[node]?.document?.thumbnailUrl || nodes?.thumbnailUrl;
+    if (thumbUrl) {
       const thumbOut = path.join(OUT_DIR, `${file}-${nodeSlug}-${stamp}-thumbnail.png`);
-      await downloadBinary(nodes.thumbnailUrl, thumbOut);
+      await downloadBinary(thumbUrl, thumbOut);
       console.log(`Saved fallback thumbnail ${thumbOut}`);
     }
   }

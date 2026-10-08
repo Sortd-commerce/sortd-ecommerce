@@ -88,7 +88,7 @@ export function SearchField({
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           onFocus={() => suggestions.length && setOpen(true)}
-          placeholder="Search products…"
+          placeholder="Search nut butter, protein bars…"
           autoComplete="off"
           role="combobox"
           aria-expanded={open}

@@ -93,7 +93,7 @@ export function BasketView({
                     src={item.image_url}
                     alt=""
                     fill
-                    sizes="54px"
+                    sizes="68px"
                     className="object-contain"
                   />
                 ) : (

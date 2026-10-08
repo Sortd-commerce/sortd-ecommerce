@@ -1,23 +1,19 @@
 "use client";
 
-import { createContext, useContext } from "react";
+import { createContext, useContext, useState } from "react";
 import type { CheckoutAddress } from "@/lib/checkout";
 
 type CheckoutSelectionContextValue = {
+  selectedAddress: CheckoutAddress | null;
   setSelectedAddress: (address: CheckoutAddress | null) => void;
 };
 
 const CheckoutSelectionContext = createContext<CheckoutSelectionContextValue | null>(null);
 
-export function CheckoutSelectionProvider({
-  setSelectedAddress,
-  children,
-}: {
-  setSelectedAddress: (address: CheckoutAddress | null) => void;
-  children: React.ReactNode;
-}) {
+export function CheckoutSelectionProvider({ children }: { children: React.ReactNode }) {
+  const [selectedAddress, setSelectedAddress] = useState<CheckoutAddress | null>(null);
   return (
-    <CheckoutSelectionContext.Provider value={{ setSelectedAddress }}>
+    <CheckoutSelectionContext.Provider value={{ selectedAddress, setSelectedAddress }}>
       {children}
     </CheckoutSelectionContext.Provider>
   );
