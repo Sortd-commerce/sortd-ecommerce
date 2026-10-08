@@ -6,12 +6,6 @@ import type { AuthUser } from "@/components/auth/AuthProvider";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { MobileAccountSheet } from "@/components/MobileAccountSheet";
 
-function initial(user: AuthUser) {
-  const name = `${user.first_name} ${user.last_name}`.trim();
-  const source = name || user.email;
-  return source.slice(0, 1).toUpperCase();
-}
-
 export function MobileAccountTrigger({ user }: { user: AuthUser | null }) {
   const { openAuth } = useAuth();
   const [open, setOpen] = useState(false);
@@ -24,7 +18,7 @@ export function MobileAccountTrigger({ user }: { user: AuthUser | null }) {
         aria-label="Account"
         onClick={() => openAuth("login", "/account")}
       >
-        <User size={18} weight="bold" />
+        <User size={20} weight="regular" aria-hidden />
       </button>
     );
   }
@@ -39,7 +33,7 @@ export function MobileAccountTrigger({ user }: { user: AuthUser | null }) {
         aria-expanded={open}
         onClick={() => setOpen(true)}
       >
-        {initial(user)}
+        <User size={20} weight="regular" aria-hidden />
       </button>
       <MobileAccountSheet user={user} open={open} onClose={() => setOpen(false)} />
     </>

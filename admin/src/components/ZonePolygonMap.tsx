@@ -1,8 +1,15 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import "leaflet/dist/leaflet.css";
+import { useEffect, useMemo, useRef, useState } from "react";
 
-type LatLngTuple = [number, number];
+export type LatLngTuple = [number, number];
+
+export function normalizePolygon(polygon: number[][]): LatLngTuple[] {
+  return polygon
+    .filter((point): point is LatLngTuple => point.length >= 2)
+    .map(([a, b]) => [a, b]);
+}
 
 type ZonePolygonMapProps = {
   initialPolygon?: LatLngTuple[];
@@ -23,7 +30,8 @@ export function ZonePolygonMap({ initialPolygon = [], onChange }: ZonePolygonMap
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<import("leaflet").Map | null>(null);
   const layerRef = useRef<import("leaflet").LayerGroup | null>(null);
-  const [points, setPoints] = useState<LatLngTuple[]>(() => toLatLng(initialPolygon));
+  const seededPoints = useMemo(() => toLatLng(initialPolygon), [initialPolygon]);
+  const [points, setPoints] = useState<LatLngTuple[]>(() => seededPoints);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
@@ -35,13 +43,12 @@ export function ZonePolygonMap({ initialPolygon = [], onChange }: ZonePolygonMap
 
     async function mountMap() {
       const L = await import("leaflet");
-      await import("leaflet/dist/leaflet.css");
 
       if (cancelled || !containerRef.current || mapRef.current) return;
 
       const map = L.map(containerRef.current, {
-        center: points[0] || DUBAI_CENTER,
-        zoom: points.length ? 13 : 11,
+        center: seededPoints[0] || DUBAI_CENTER,
+        zoom: seededPoints.length ? 13 : 11,
       });
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
@@ -64,7 +71,7 @@ export function ZonePolygonMap({ initialPolygon = [], onChange }: ZonePolygonMap
       mapRef.current = null;
       layerRef.current = null;
     };
-  }, []);
+  }, [seededPoints]);
 
   useEffect(() => {
     if (!ready || !layerRef.current) return;

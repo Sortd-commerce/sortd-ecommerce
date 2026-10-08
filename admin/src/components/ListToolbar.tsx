@@ -1,6 +1,5 @@
 import Link from "next/link";
 import type { ListQuery } from "@/lib/list-query";
-import { listPath } from "@/lib/list-query";
 
 type Field =
   | {

@@ -79,10 +79,12 @@ export function AddressPicker({
     };
   });
   const [locating, setLocating] = useState(false);
+  const [verifying, setVerifying] = useState(false);
   const [makePrimary, setMakePrimary] = useState(isDefault);
   const [pending, startTransition] = useTransition();
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const skipSuggest = useRef(Boolean(initialPlace || initialQuery));
+  const rootRef = useRef<HTMLDivElement | null>(null);
 
   const [state, formAction] = useActionState(async (prev: ActionState, formData: FormData) => {
     if (!selected) {
@@ -129,6 +131,16 @@ export function AddressPicker({
     };
   }, [query]);
 
+  useEffect(() => {
+    function onPointer(event: PointerEvent) {
+      if (!rootRef.current?.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    }
+    window.addEventListener("pointerdown", onPointer);
+    return () => window.removeEventListener("pointerdown", onPointer);
+  }, []);
+
   function applyCheck(result: { ok: boolean; message: string; data?: DeliveryCheck }, fallbackLabel = "") {
     if (!result.ok || !result.data) {
       setSelected(null);
@@ -148,15 +160,24 @@ export function AddressPicker({
     }
   }
 
-  function onPick(suggestion: PlaceSuggestion) {
-    startTransition(async () => {
+  async function onPick(suggestion: PlaceSuggestion) {
+    setOpen(false);
+    setSuggestions([]);
+    setVerifying(true);
+    try {
       const result = await checkDeliveryPlace({
         place_id: suggestion.place_id,
         latitude: suggestion.latitude || undefined,
         longitude: suggestion.longitude || undefined,
+        address: suggestion.label,
       });
       applyCheck(result, suggestion.label);
-    });
+    } catch {
+      setSelected(null);
+      toast.error("Could not verify that address.");
+    } finally {
+      setVerifying(false);
+    }
   }
 
   function useMyLocation() {
@@ -189,10 +210,10 @@ export function AddressPicker({
     selected?.serviceable === true ? "valid" : selected && !selected.serviceable ? "invalid" : query.trim() && !selected ? "pending" : "";
 
   return (
-    <div className="mt-4 grid gap-3">
+    <div className="mt-4 grid gap-3" ref={rootRef}>
       <label className="field">
         <span>Search address</span>
-        <span className="relative block">
+        <span className="address-search-wrap relative block">
           <input
             value={query}
             onChange={(event) => {
@@ -200,6 +221,16 @@ export function AddressPicker({
               setSelected(null);
             }}
             onFocus={() => suggestions.length && setOpen(true)}
+            onKeyDown={(event) => {
+              if (event.key === "Escape") {
+                setOpen(false);
+                return;
+              }
+              if (event.key === "Enter" && open && suggestions[0]) {
+                event.preventDefault();
+                void onPick(suggestions[0]);
+              }
+            }}
             placeholder="Search for your building or area"
             autoComplete="off"
             role="combobox"
@@ -207,18 +238,46 @@ export function AddressPicker({
             aria-controls={listId}
             aria-autocomplete="list"
             aria-invalid={validity === "invalid" || undefined}
+            aria-busy={verifying || undefined}
             className={`pr-12 ${validity === "valid" ? "field-valid" : validity === "invalid" ? "field-invalid" : ""}`}
           />
           <button
             type="button"
             className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-forest transition hover:bg-sand disabled:opacity-50"
             onClick={useMyLocation}
-            disabled={locating || pending}
+            disabled={locating || pending || verifying}
             aria-label={locating ? "Locating" : "Use my location"}
             title="Use my location"
           >
-            {locating || pending ? <SpinnerGap size={20} className="animate-spin" /> : <Crosshair size={20} weight="bold" />}
+            {locating || pending || verifying ? (
+              <SpinnerGap size={20} className="animate-spin" />
+            ) : (
+              <Crosshair size={20} weight="bold" />
+            )}
           </button>
+          {open && suggestions.length ? (
+            <ul
+              id={listId}
+              role="listbox"
+              className="address-suggestions max-h-56 overflow-auto rounded-xl border border-line bg-paper p-1 text-sm shadow-lg"
+            >
+              {suggestions.map((item) => (
+                <li key={item.place_id}>
+                  <button
+                    type="button"
+                    role="option"
+                    className="w-full rounded-lg px-3 py-2 text-left hover:bg-sand focus-visible:bg-sand"
+                    onPointerDown={(event) => {
+                      event.preventDefault();
+                      void onPick(item);
+                    }}
+                  >
+                    {item.label}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : null}
         </span>
         {validity === "valid" ? (
           <p className="text-sm font-medium text-leaf">We deliver to this address.</p>
@@ -226,28 +285,8 @@ export function AddressPicker({
         {validity === "invalid" ? (
           <p className="text-sm font-medium text-citrus">We do not deliver to this address yet.</p>
         ) : null}
+        {verifying ? <p className="text-sm text-ink/55">Checking delivery area…</p> : null}
       </label>
-
-      {open && suggestions.length ? (
-        <ul
-          id={listId}
-          role="listbox"
-          className="max-h-56 overflow-auto rounded-xl border border-line bg-paper p-1 text-sm"
-        >
-          {suggestions.map((item) => (
-            <li key={item.place_id}>
-              <button
-                type="button"
-                role="option"
-                className="w-full rounded-lg px-3 py-2 text-left hover:bg-sand"
-                onClick={() => onPick(item)}
-              >
-                {item.label}
-              </button>
-            </li>
-          ))}
-        </ul>
-      ) : null}
 
       <form action={formAction} className="grid gap-3">
         {addressId ? <input type="hidden" name="address_id" value={addressId} /> : null}
@@ -269,10 +308,10 @@ export function AddressPicker({
         <input type="hidden" name="postal_code" value={selected?.postal_code || ""} />
         <input type="hidden" name="line1" value={selected?.formatted_address || query} />
         <input type="hidden" name="city" value="Dubai" />
-        <SubmitButton className="btn btn-secondary" disabled={!canSave} pendingLabel="Saving…">
+        <SubmitButton className="btn btn-secondary" disabled={!canSave || verifying} pendingLabel="Saving…">
           {submitLabel}
         </SubmitButton>
-        {!selected && query.trim() ? (
+        {!selected && query.trim() && !verifying ? (
           <p className="text-sm text-ink/55">Select an address from the list.</p>
         ) : null}
       </form>

@@ -39,7 +39,7 @@ export function CartLink({ compact = false }: { compact?: boolean }) {
       <CartBagIcon />
       {compact ? (
         <span className="cart-pill-compact">
-          {count} · AED {money(displayAmount)}
+          {count} <span aria-hidden="true">•</span> AED {money(displayAmount)}
         </span>
       ) : (
         <span className="cart-pill-copy">

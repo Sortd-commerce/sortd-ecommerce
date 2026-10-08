@@ -24,15 +24,13 @@ const PROMISES = [
 export function TrustStrip() {
   return (
     <section className="trust-strip" aria-label="How Sortd checks products">
-      <div className="trust-strip-inner">
-        {PROMISES.map((item, position) => (
-          <article key={item.index} className={position ? "trust-promise trust-promise-divided" : "trust-promise"}>
-            <p className="trust-index">{item.index}</p>
-            <h3>{item.title}</h3>
-            <p>{item.detail}</p>
-          </article>
-        ))}
-      </div>
+      {PROMISES.map((item, position) => (
+        <article key={item.index} className={position ? "trust-promise trust-promise-divided" : "trust-promise"}>
+          <p className="trust-index">{item.index}</p>
+          <h3>{item.title}</h3>
+          <p>{item.detail}</p>
+        </article>
+      ))}
     </section>
   );
 }

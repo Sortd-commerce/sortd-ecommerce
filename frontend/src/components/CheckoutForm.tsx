@@ -27,6 +27,7 @@ import { useCart } from "@/components/CartProvider";
 import { useStripeWalletSupport } from "@/components/useStripeWalletSupport";
 import type { CheckoutAddress, CheckoutPaymentMethod, CheckoutSlot } from "@/lib/checkout";
 import { toSyncPayload } from "@/lib/cart-store";
+import { useMobileViewport } from "@/lib/use-mobile-viewport";
 
 const CheckoutPaymentModal = dynamic(
   () => import("@/components/CheckoutPaymentModal").then((mod) => mod.CheckoutPaymentModal),
@@ -145,18 +146,6 @@ function ChoiceCard({
   );
 }
 
-function useMobileCheckout() {
-  const [mobile, setMobile] = useState(false);
-  useEffect(() => {
-    const query = window.matchMedia("(max-width: 799px)");
-    const update = () => setMobile(query.matches);
-    update();
-    query.addEventListener("change", update);
-    return () => query.removeEventListener("change", update);
-  }, []);
-  return mobile;
-}
-
 function slotSummary(slot: CheckoutSlot | null | undefined) {
   if (!slot) return "";
   const parsed = new Date(`${slot.date}T12:00:00`);
@@ -181,7 +170,7 @@ function CheckoutFormInner({
 }) {
   const router = useRouter();
   const toast = useToast();
-  const mobile = useMobileCheckout();
+  const mobile = useMobileViewport();
   const [step, setStep] = useState<CheckoutStep>("basket");
   const { items, count, flush } = useCart();
   const itemsRef = useRef(items);
@@ -384,34 +373,38 @@ function CheckoutFormInner({
     else router.push("/");
   }
 
-  const deliverySections = (
-    <>
-      <section className="checkout-block">
-        <CheckoutAddressSection addresses={addresses} />
-      </section>
-      <section className="checkout-block">
-        <p className="step-index">02</p>
-        <h2>Delivery slot</h2>
-        <DeliverySlotPicker
-          slots={slots}
-          value={activeSlot ? slotKey(activeSlot) : slotId}
-          onChange={setSlotId}
+  const addressSection = (
+    <section className="checkout-block">
+      <CheckoutAddressSection addresses={addresses} />
+    </section>
+  );
+
+  const slotSection = (
+    <section className="checkout-block">
+      <p className="step-index">02</p>
+      <h2>Delivery slot</h2>
+      <DeliverySlotPicker
+        slots={slots}
+        value={activeSlot ? slotKey(activeSlot) : slotId}
+        onChange={setSlotId}
+      />
+    </section>
+  );
+
+  const noteSection = (step: string) => (
+    <section className="checkout-block">
+      <p className="step-index">{step}</p>
+      <h2>Delivery note</h2>
+      <label className="field">
+        <span className="sr-only">Delivery note</span>
+        <textarea
+          name="note"
+          form="place-order"
+          rows={3}
+          placeholder={mobile ? "Leave at the door, call on arrival…" : "Gate code, leave at door, call on arrival…"}
         />
-      </section>
-      <section className="checkout-block">
-        <p className="step-index">03</p>
-        <h2>Delivery note</h2>
-        <label className="field">
-          <span className="sr-only">Delivery note</span>
-          <textarea
-            name="note"
-            form="place-order"
-            rows={3}
-            placeholder="Leave at the door, call on arrival…"
-          />
-        </label>
-      </section>
-    </>
+      </label>
+    </section>
   );
 
   const paymentSection = (
@@ -513,7 +506,9 @@ function CheckoutFormInner({
         {step === "basket" ? <CheckoutBasketStep onContinue={() => setStep("delivery")} /> : null}
         {step === "delivery" ? (
           <div className="checkout-mobile-step">
-            {deliverySections}
+            {addressSection}
+            {slotSection}
+            {noteSection("03")}
             <div className="checkout-sticky-foot">
               <button
                 type="button"
@@ -594,8 +589,10 @@ function CheckoutFormInner({
       </div>
       <div className="checkout-layout">
         <div className="checkout-steps-col">
-          {deliverySections}
+          {addressSection}
+          {slotSection}
           {paymentSection}
+          {noteSection("04")}
         </div>
         {orderForm}
       </div>

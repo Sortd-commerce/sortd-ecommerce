@@ -2,11 +2,11 @@
 
 import { useState } from "react";
 import { ActionForm, SubmitButton } from "@/components/ActionForm";
-import { ZonePolygonMap } from "@/components/ZonePolygonMap";
+import { ZonePolygonMap, type LatLngTuple } from "@/components/ZonePolygonMap";
 import { createDeliveryZoneAction } from "@/lib/actions";
 
 export function CreateZoneForm() {
-  const [polygon, setPolygon] = useState<number[][]>([]);
+  const [polygon, setPolygon] = useState<LatLngTuple[]>([]);
 
   return (
     <ActionForm action={createDeliveryZoneAction} className="mt-3 grid gap-4" successLabel="Delivery zone added.">

@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { useBasket } from "@/components/BasketProvider";
 import { useCart } from "@/components/CartProvider";
+import { useMobileViewport } from "@/lib/use-mobile-viewport";
 
 function money(value: string) {
   const amount = Number(value);
@@ -14,8 +15,8 @@ export function FloatingCartBar() {
   const pathname = usePathname();
   const { count, subtotal } = useCart();
   const { open, openBasket } = useBasket();
-
-  const visible = !pathname.startsWith("/checkout") && count > 0 && !open;
+  const mobile = useMobileViewport();
+  const visible = mobile && !pathname.startsWith("/checkout") && count > 0 && !open;
 
   useEffect(() => {
     document.body.classList.toggle("has-floating-cart", visible);

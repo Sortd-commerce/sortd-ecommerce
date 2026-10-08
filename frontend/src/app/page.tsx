@@ -4,6 +4,7 @@ import { OptimizedImage } from "@/components/OptimizedImage";
 import { TrustStrip } from "@/components/TrustStrip";
 import { ProductCard } from "@/components/ProductCard";
 import { ProductRail } from "@/components/ProductRail";
+import { PromoCarousel } from "@/components/PromoCarousel";
 import type { CardProduct } from "@/components/catalog";
 import { fetchCategories, fetchProductCatalog } from "@/lib/catalog";
 import { aisleTint } from "@/lib/tints";
@@ -126,27 +127,29 @@ export default async function HomePage({
 
       {showLanding && (breakfast || chocolate) ? (
         <section className="home-section home-section--promo">
-          <div className="home-inner promo-row">
-            {breakfast ? (
-              <a href={`#aisle-${breakfast.slug}`} className="promo promo-breakfast">
-                <OptimizedImage src="/images/promo-breakfast.png" alt="" fill className="promo-bg" sizes="(max-width: 768px) 100vw, 50vw" />
-                <div className="promo-copy">
-                  <p>Breakfast</p>
-                  <h2>Breakfast, sorted.</h2>
-                  <strong>Shop breakfast →</strong>
-                </div>
-              </a>
-            ) : null}
-            {chocolate ? (
-              <a href={`#aisle-${chocolate.slug}`} className="promo promo-chocolate">
-                <OptimizedImage src="/images/promo-chocolate.png" alt="" fill className="promo-bg" sizes="(max-width: 768px) 100vw, 50vw" />
-                <div className="promo-copy">
-                  <p>Chocolate</p>
-                  <h2>Chocolate, chosen carefully.</h2>
-                  <strong>Shop chocolate →</strong>
-                </div>
-              </a>
-            ) : null}
+          <div className="home-inner">
+            <PromoCarousel>
+              {breakfast ? (
+                <a href={`#aisle-${breakfast.slug}`} className="promo promo-breakfast">
+                  <OptimizedImage src="/images/promo-breakfast.png" alt="" fill className="promo-bg" sizes="(max-width: 768px) 100vw, 50vw" />
+                  <div className="promo-copy">
+                    <p>Breakfast</p>
+                    <h2>Breakfast, sorted.</h2>
+                    <strong>Shop breakfast →</strong>
+                  </div>
+                </a>
+              ) : null}
+              {chocolate ? (
+                <a href={`#aisle-${chocolate.slug}`} className="promo promo-chocolate">
+                  <OptimizedImage src="/images/promo-chocolate.png" alt="" fill className="promo-bg" sizes="(max-width: 768px) 100vw, 50vw" />
+                  <div className="promo-copy">
+                    <p>Chocolate</p>
+                    <h2>Chocolate, chosen carefully.</h2>
+                    <strong>Shop chocolate →</strong>
+                  </div>
+                </a>
+              ) : null}
+            </PromoCarousel>
           </div>
         </section>
       ) : null}

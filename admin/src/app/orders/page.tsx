@@ -4,7 +4,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { Pagination } from "@/components/Pagination";
 import { StatusBadge } from "@/components/StatusBadge";
 import { apiFetch } from "@/lib/api";
-import { apiListQuery, parseListQuery, type ListQuery } from "@/lib/list-query";
+import { apiListQuery, parseListQuery } from "@/lib/list-query";
 import { ADMIN_PAGE_SIZE, pageFromParam, type Paginated } from "@/lib/pagination";
 import { paymentMethodLabel } from "@/lib/payments";
 import { requireStaff } from "@/lib/staff";

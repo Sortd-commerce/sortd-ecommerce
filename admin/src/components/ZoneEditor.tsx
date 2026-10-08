@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { ActionForm, SubmitButton } from "@/components/ActionForm";
 import { StatusBadge } from "@/components/StatusBadge";
-import { ZonePolygonMap } from "@/components/ZonePolygonMap";
+import { normalizePolygon, ZonePolygonMap, type LatLngTuple } from "@/components/ZonePolygonMap";
 import { deleteDeliveryZoneAction, toggleDeliveryZoneAction, updateDeliveryZoneAction } from "@/lib/actions";
 
 export type DeliveryZoneRow = {
@@ -18,7 +18,7 @@ export type DeliveryZoneRow = {
 
 export function ZoneEditor({ zone }: { zone: DeliveryZoneRow }) {
   const [editing, setEditing] = useState(false);
-  const [polygon, setPolygon] = useState<number[][]>(zone.polygon);
+  const [polygon, setPolygon] = useState<LatLngTuple[]>(() => normalizePolygon(zone.polygon));
 
   if (!editing) {
     return (
@@ -84,7 +84,7 @@ export function ZoneEditor({ zone }: { zone: DeliveryZoneRow }) {
         </label>
         <div>
           <p className="mb-2 text-sm font-medium">Boundary</p>
-          <ZonePolygonMap initialPolygon={zone.polygon} onChange={setPolygon} />
+          <ZonePolygonMap initialPolygon={normalizePolygon(zone.polygon)} onChange={setPolygon} />
         </div>
         <input type="hidden" name="polygon" value={JSON.stringify(polygon)} />
         <div className="flex gap-2">
