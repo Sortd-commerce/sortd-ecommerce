@@ -26,16 +26,20 @@ export function CheckoutPaySheet({
   onPay: () => void;
   children: ReactNode;
 }) {
+  const showUpsell = upsellProducts.length > 0;
+
   return (
     <div className="checkout-pay-step-shell">
       <div className="checkout-pay-step-scrim" aria-hidden />
       <div className="checkout-pay-sheet" role="region" aria-label="Pay for order">
         <div className="checkout-pay-sheet-handle" aria-hidden />
-        <div className="checkout-pay-sheet-scroll">
-          <CheckoutPayUpsell products={upsellProducts} />
-          <div className="checkout-pay-sheet-panel">{children}</div>
-        </div>
+        {showUpsell ? (
+          <div className="checkout-pay-sheet-scroll">
+            <CheckoutPayUpsell products={upsellProducts} />
+          </div>
+        ) : null}
         <div className="checkout-pay-sheet-foot">
+          <div className="checkout-pay-sheet-pay">{children}</div>
           {paysOnline ? (
             <button
               type="button"

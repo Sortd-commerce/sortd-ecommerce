@@ -41,7 +41,8 @@ export function CheckoutBasketStep({ onContinue }: { onContinue: () => void }) {
         </p>
       </section>
 
-      <ul className="checkout-basket-lines">
+      <section className="checkout-panel checkout-panel--items" aria-label="Basket items">
+        <ul className="checkout-basket-lines">
         {items.map((item) => {
           const max = item.on_hand;
           return (
@@ -83,7 +84,8 @@ export function CheckoutBasketStep({ onContinue }: { onContinue: () => void }) {
             </li>
           );
         })}
-      </ul>
+        </ul>
+      </section>
 
       <p className="checkout-forgot">
         Forgot something?{" "}
@@ -104,7 +106,7 @@ export function CheckoutBasketStep({ onContinue }: { onContinue: () => void }) {
         </div>
       ) : null}
 
-      <section className="checkout-coupons">
+      <section className="checkout-panel checkout-coupons">
         <h3>Coupons &amp; offers</h3>
         <CouponField />
         {couponPreviews.length ? (
@@ -114,7 +116,7 @@ export function CheckoutBasketStep({ onContinue }: { onContinue: () => void }) {
         ) : null}
       </section>
 
-      <section className="checkout-bill-block">
+      <section className="checkout-panel checkout-bill-block">
         <h3>Bill summary</h3>
         <OrderSummary className="checkout-summary" />
       </section>
