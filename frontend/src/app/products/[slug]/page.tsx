@@ -19,6 +19,7 @@ type ProductDetail = {
   tags: string[];
   has_passed_report: boolean;
   has_lab_report: boolean;
+  lab_report_url: string | null;
   category: { name: string; slug: string };
   images: Array<{ url: string; alt: string; role: string }>;
   variants: Array<{
@@ -145,7 +146,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
             <ProductGallery
               title={product.title}
               images={product.images || []}
-              hasLabReport={product.has_lab_report || product.has_passed_report}
+              labReportUrl={product.lab_report_url}
             />
             <BuyBox
               title={product.title}
@@ -163,9 +164,9 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
 
           {product.label ? (
             <LabelChecked
-              slug={product.slug}
               label={product.label}
               hasLabReport={product.has_lab_report || product.has_passed_report}
+              labReportUrl={product.lab_report_url}
               templateLabel={product.category.name}
             />
           ) : null}

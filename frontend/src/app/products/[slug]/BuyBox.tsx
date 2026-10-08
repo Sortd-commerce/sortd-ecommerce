@@ -120,9 +120,8 @@ export function BuyBox({
                   <OptimizedImage
                     src={flavor.image}
                     alt=""
-                    width={64}
-                    height={64}
-                    sizes="64px"
+                    fill
+                    sizes="80px"
                     className="flavor-thumb__img"
                   />
                 ) : (

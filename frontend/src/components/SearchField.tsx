@@ -108,7 +108,7 @@ export function SearchField({
                 <Link href={href} className="search-suggestion" onClick={closeAndNavigate}>
                   <span className="search-suggestion-thumb">
                     {item.image_url ? (
-                      <OptimizedImage src={item.image_url} alt="" width={36} height={36} sizes="36px" className="object-contain" />
+                      <OptimizedImage src={item.image_url} alt="" width={36} height={36} sizes="36px" className="object-cover" />
                     ) : (
                       <span>{item.label.slice(0, 1)}</span>
                     )}

@@ -94,7 +94,7 @@ export function BasketView({
                     alt=""
                     fill
                     sizes="68px"
-                    className="object-contain"
+                    className="object-cover"
                   />
                 ) : (
                   <span>{item.title.slice(0, 1)}</span>

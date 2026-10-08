@@ -29,7 +29,7 @@ export function Manifesto() {
             <div className="manifesto-foot">
               <nav className="manifesto-links manifesto-links--mobile" aria-label="Footer">
                 <Link href="/">Home</Link>
-                <a href={aboutHref} target="_blank" rel="noreferrer">
+                <a href={aboutHref} target="_blank" rel="noopener noreferrer">
                   About Us
                 </a>
                 <Link href="/#catalog">Products</Link>
@@ -42,7 +42,7 @@ export function Manifesto() {
                 <p className="manifesto-tagline">Only what passes.</p>
                 <nav className="manifesto-links" aria-label="Footer">
                   <Link href="/">Home</Link>
-                  <a href={aboutHref} target="_blank" rel="noreferrer">
+                  <a href={aboutHref} target="_blank" rel="noopener noreferrer">
                     About Us
                   </a>
                   <Link href="/#catalog">Products</Link>

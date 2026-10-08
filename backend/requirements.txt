@@ -12,4 +12,5 @@ PyJWT==2.15.1
 cryptography==50.0.2
 gunicorn==23.0.0
 openpyxl==3.1.5
+Pillow==11.3.0
 stripe==11.6.0

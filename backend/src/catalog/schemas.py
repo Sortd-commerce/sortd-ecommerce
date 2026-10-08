@@ -142,6 +142,7 @@ class ProductDetailOut(Schema):
     label: LabelOut | None
     has_passed_report: bool
     has_lab_report: bool
+    lab_report_url: str | None = None
 
 
 class LabResultOut(Schema):

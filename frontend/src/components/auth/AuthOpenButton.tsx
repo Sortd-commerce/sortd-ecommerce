@@ -17,7 +17,7 @@ export function AuthOpenButton({
   const { openAuth, user } = useAuth();
   if (user) {
     return (
-      <Link href={next || "/account"} className={className}>
+      <Link href={next || "/orders"} className={className}>
         {children}
       </Link>
     );

@@ -624,7 +624,9 @@ class ExcelCatalogImporter:
             return
         if not self._is_media_ref(url):
             return
-        content, filename, _byte_size = load_pdf(url, base_dir=self._media_root)
+        from catalog.image_fetch import load_report
+
+        content, filename, _byte_size = load_report(url, base_dir=self._media_root)
         for old in product.lab_reports.all():
             if old.pdf:
                 old.pdf.delete(save=False)

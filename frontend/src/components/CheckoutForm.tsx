@@ -460,7 +460,7 @@ function CheckoutFormInner({
           <li key={item.variant_id}>
             <span className="order-thumb">
               {item.image_url ? (
-                <OptimizedImage src={item.image_url} alt="" fill sizes="54px" className="object-contain" />
+                <OptimizedImage src={item.image_url} alt="" fill sizes="54px" className="object-cover" />
               ) : (
                 <span>{item.title.slice(0, 1)}</span>
               )}

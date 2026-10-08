@@ -82,6 +82,26 @@ def load_image(raw: str, *, base_dir: Path | None = None) -> tuple[ContentFile, 
     return fetch_image(raw)
 
 
+REPORT_EXTENSIONS = PDF_EXTENSIONS | IMAGE_EXTENSIONS
+MAX_REPORT_BYTES = MAX_PDF_BYTES
+
+
+def load_report(raw: str, *, base_dir: Path | None = None) -> tuple[ContentFile, str, int]:
+    local = resolve_local_path(raw, base_dir)
+    if local is not None:
+        payload = local.read_bytes()
+        if len(payload) > MAX_REPORT_BYTES:
+            raise ImageFetchError("Lab report file is larger than 10 MB.")
+        suffix = local.suffix.lower()
+        if suffix not in REPORT_EXTENSIONS:
+            raise ImageFetchError("Upload a PDF or image file for the lab report.")
+        return ContentFile(payload, name=local.name), local.name, len(payload)
+    suffix = Path(urlparse(normalize_document_url(raw)).path).suffix.lower()
+    if suffix in IMAGE_EXTENSIONS:
+        return fetch_image(raw)
+    return fetch_pdf(raw)
+
+
 def load_pdf(raw: str, *, base_dir: Path | None = None) -> tuple[ContentFile, str, int]:
     local = resolve_local_path(raw, base_dir)
     if local is not None:

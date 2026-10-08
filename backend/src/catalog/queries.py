@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db.models import Prefetch
 
 from catalog.models import LabReport, Product, ProductStatus
@@ -26,6 +27,13 @@ def report_has_passed(report: LabReport | None) -> bool:
 
 def product_has_lab_report(report: LabReport | None) -> bool:
     return report is not None and report.is_current and bool(report.pdf)
+
+
+def lab_report_file_url(slug: str, report: LabReport | None = None) -> str | None:
+    if report is None or not report.is_current or not report.pdf:
+        return None
+    origin = settings.PUBLIC_API_ORIGIN.rstrip("/")
+    return f"{origin}/api/v1/products/{slug}/report/file"
 
 
 def active_products():

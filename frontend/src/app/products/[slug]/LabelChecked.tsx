@@ -264,14 +264,14 @@ function buildCheckRows(
 }
 
 export function LabelChecked({
-  slug,
   label,
   hasLabReport,
+  labReportUrl,
   templateLabel,
 }: {
-  slug: string;
   label: Label;
   hasLabReport: boolean;
+  labReportUrl: string | null;
   templateLabel: string;
 }) {
   const [tab, setTab] = useState<Tab>("nutrition");
@@ -506,10 +506,15 @@ export function LabelChecked({
                         <p className="label-checks__title">{row.title}</p>
                         <p className={checkDetailClass(row.state)}>{row.detail}</p>
                       </div>
-                      {row.showReport ? (
-                        <Link href={`/products/${slug}/report`} className="label-checks__report-btn">
+                      {row.showReport && labReportUrl ? (
+                        <a
+                          href={labReportUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="label-checks__report-btn"
+                        >
                           View report
-                        </Link>
+                        </a>
                       ) : null}
                     </li>
                   ))}

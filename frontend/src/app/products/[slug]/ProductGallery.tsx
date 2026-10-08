@@ -19,11 +19,11 @@ function LabReportIcon() {
 export function ProductGallery({
   title,
   images,
-  hasLabReport = false,
+  labReportUrl,
 }: {
   title: string;
   images: GalleryImage[];
-  hasLabReport?: boolean;
+  labReportUrl?: string | null;
 }) {
   const usable = images.filter((image) => image.url);
   const [active, setActive] = useState(0);
@@ -98,11 +98,11 @@ export function ProductGallery({
             />
           </div>
         ))}
-        {hasLabReport ? (
-          <div className="gallery-lab-badge">
+        {labReportUrl ? (
+          <a href={labReportUrl} target="_blank" rel="noopener noreferrer" className="gallery-lab-badge">
             <LabReportIcon />
             <span>Lab report</span>
-          </div>
+          </a>
         ) : null}
         {usable.length > 1 ? (
           <div className="gallery-dots" role="tablist" aria-label="Choose photo">
@@ -139,7 +139,7 @@ export function ProductGallery({
                 alt=""
                 fill
                 sizes="118px"
-                className={index === active ? "gallery-thumb__img gallery-thumb__img--inset" : "gallery-thumb__img"}
+                className="gallery-thumb__img"
               />
             </button>
           ))}

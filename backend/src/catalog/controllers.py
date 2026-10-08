@@ -1,10 +1,12 @@
+import mimetypes
+
 from django.http import FileResponse, Http404
 from ninja import Query
 from ninja_extra import ControllerBase, api_controller, route
 from ninja_extra.permissions import AllowAny
 
 from catalog.models import Category, Product, ProductStatus
-from catalog.queries import active_products, current_report, product_has_lab_report, report_has_passed
+from catalog.queries import active_products, current_report, lab_report_file_url, product_has_lab_report, report_has_passed
 from catalog.search import search_suggestions
 from catalog.schemas import (
     CategoryOut,
@@ -56,6 +58,7 @@ def _serialize_detail(product: Product) -> dict:
         "label": label,
         "has_passed_report": report_has_passed(report),
         "has_lab_report": product_has_lab_report(report),
+        "lab_report_url": lab_report_file_url(product.slug, report),
     }
 
 
@@ -164,12 +167,20 @@ class ProductController(ControllerBase):
         }
         return success("Lab report retrieved.", payload)
 
-    @route.get("/{slug}/report/pdf", summary="Download the current lab report PDF")
-    def report_pdf(self, slug: str):
+    @route.get("/{slug}/report/file", summary="Open the current lab report file")
+    @route.get("/{slug}/report/pdf", summary="Open the current lab report file")
+    def report_file(self, slug: str):
         product = Product.objects.filter(slug=slug, status=ProductStatus.ACTIVE).first()
         if product is None:
             raise Http404()
         report = current_report(product)
         if report is None or not report.pdf:
             raise Http404()
-        return FileResponse(report.pdf.open("rb"), as_attachment=True, filename=report.pdf.name.split("/")[-1])
+        filename = report.pdf.name.split("/")[-1]
+        content_type = mimetypes.guess_type(filename)[0] or "application/octet-stream"
+        return FileResponse(
+            report.pdf.open("rb"),
+            as_attachment=False,
+            filename=filename,
+            content_type=content_type,
+        )

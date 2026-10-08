@@ -2,7 +2,7 @@ from django.db import models
 from django.utils.text import slugify
 
 from core.assets import private_media_storage, public_media_storage
-from core.uploads import validate_image_file, validate_pdf_file
+from core.uploads import validate_image_file, validate_report_file
 
 
 class ProductStatus(models.TextChoices):
@@ -205,7 +205,7 @@ class LabReport(models.Model):
     pdf = models.FileField(
         upload_to="products/reports/",
         storage=private_media_storage,
-        validators=[validate_pdf_file],
+        validators=[validate_report_file],
     )
     is_current = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)

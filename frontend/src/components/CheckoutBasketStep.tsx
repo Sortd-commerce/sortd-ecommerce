@@ -48,7 +48,7 @@ export function CheckoutBasketStep({ onContinue }: { onContinue: () => void }) {
             <li key={item.variant_id} className="checkout-basket-line">
               <div className="checkout-basket-thumb">
                 {item.image_url ? (
-                  <OptimizedImage src={item.image_url} alt="" fill sizes="58px" className="object-contain" />
+                  <OptimizedImage src={item.image_url} alt="" fill sizes="58px" className="object-cover" />
                 ) : (
                   <span>{item.title.slice(0, 1)}</span>
                 )}

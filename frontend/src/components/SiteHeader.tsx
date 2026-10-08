@@ -57,7 +57,9 @@ async function DeliverBar({ signedIn }: { signedIn: boolean }) {
         <div className="deliver-location">
           <DeliverPinIcon />
           <span className="deliver-label deliver-label--desktop">Delivering to</span>
-          <span className="deliver-label deliver-label--mobile">To</span>
+          {deliverTo && saved ? (
+            <span className="deliver-label deliver-label--mobile">To</span>
+          ) : null}
           {deliverTo && saved ? (
             <Link href="/checkout" className="deliver-place">
               <span className="deliver-place-full">{deliverTo}</span>
@@ -109,16 +111,6 @@ export function SiteHeader({ signedIn, user }: { signedIn: boolean; user: AuthUs
             <HeaderSearch />
           </Suspense>
           <nav className="header-nav header-nav--desktop" aria-label="Account">
-            {signedIn ? (
-              <Link href="/account" className="header-link">
-                Membership
-              </Link>
-            ) : (
-              <AuthOpenButton mode="login" next="/account" className="header-link">
-                Membership
-              </AuthOpenButton>
-            )}
-            <span className="header-link header-link-static">What we reject</span>
             <AccountMenu user={user} />
             <CartLink />
           </nav>

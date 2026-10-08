@@ -59,7 +59,7 @@ export function AccountMenu({ user }: { user: AuthUser | null }) {
         type="button"
         className="header-account"
         aria-label="Account"
-        onClick={() => openAuth("login", "/account")}
+        onClick={() => openAuth("login", "/")}
       >
         <AccountIcon />
       </button>

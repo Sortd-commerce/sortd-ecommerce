@@ -7,11 +7,15 @@ import type { AuthUser } from "@/components/auth/AuthProvider";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { MobileAccountSheet } from "@/components/MobileAccountSheet";
 
+function firstName(user: AuthUser) {
+  return user.first_name.trim() || user.email.split("@")[0];
+}
+
 export function MobileAccountTrigger({ user }: { user: AuthUser | null }) {
   const { openAuth } = useAuth();
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
-  const authNext = pathname.startsWith("/checkout") ? "/checkout" : pathname || "/account";
+  const authNext = pathname.startsWith("/checkout") ? "/checkout" : pathname || "/";
 
   if (!user) {
     return (
@@ -30,13 +34,14 @@ export function MobileAccountTrigger({ user }: { user: AuthUser | null }) {
     <>
       <button
         type="button"
-        className="mobile-account-btn"
+        className="mobile-account-btn mobile-account-btn--member"
         aria-label="Account menu"
         aria-haspopup="dialog"
         aria-expanded={open}
         onClick={() => setOpen(true)}
       >
-        <User size={20} weight="regular" aria-hidden />
+        <User size={18} weight="regular" aria-hidden />
+        <span className="mobile-account-btn__label">Hi, {firstName(user)}</span>
       </button>
       <MobileAccountSheet user={user} open={open} onClose={() => setOpen(false)} />
     </>
