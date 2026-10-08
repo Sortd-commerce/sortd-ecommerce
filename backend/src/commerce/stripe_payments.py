@@ -41,6 +41,49 @@ def _amount_minor(total: Decimal, currency: str) -> int:
     return int(total * 100)
 
 
+def create_hosted_checkout_session(
+    *,
+    total: Decimal,
+    currency: str,
+    user_id: int,
+    metadata: dict[str, str],
+    success_url: str,
+    cancel_url: str,
+) -> stripe.checkout.Session:
+    client = _client()
+    return client.checkout.Session.create(
+        mode="payment",
+        line_items=[
+            {
+                "price_data": {
+                    "currency": currency.lower(),
+                    "unit_amount": _amount_minor(total, currency),
+                    "product_data": {"name": "Sortd order"},
+                },
+                "quantity": 1,
+            }
+        ],
+        metadata=metadata,
+        payment_intent_data={"metadata": metadata},
+        success_url=success_url,
+        cancel_url=cancel_url,
+    )
+
+
+def retrieve_checkout_session(session_id: str) -> stripe.checkout.Session:
+    client = _client()
+    return client.checkout.Session.retrieve(session_id, expand=["payment_intent"])
+
+
+def payment_intent_id_from_session(session: stripe.checkout.Session) -> str:
+    intent = session.payment_intent
+    if intent is None:
+        return ""
+    if isinstance(intent, str):
+        return intent
+    return str(intent.id)
+
+
 def create_checkout_intent(*, total: Decimal, currency: str, user_id: int) -> stripe.PaymentIntent:
     client = _client()
     return client.PaymentIntent.create(

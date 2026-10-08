@@ -11,8 +11,11 @@ from commerce.orders import PlaceOrderCommand, request_hash_for, serialize_order
 from commerce.stripe_payments import (
     StripeNotConfigured,
     create_checkout_intent,
+    create_hosted_checkout_session,
     mark_order_paid,
+    payment_intent_id_from_session,
     require_stripe_available,
+    retrieve_checkout_session,
     retrieve_payment_intent,
     stripe_enabled,
     stripe_publishable_key,
@@ -31,6 +34,8 @@ from commerce.schemas import (
     DeliveryCheckIn,
     PlaceOrderIn,
     PriceQuoteIn,
+    StripeCheckoutCompleteIn,
+    StripeCheckoutSessionIn,
     StripeIntentIn,
 )
 from core.exceptions import Conflict
@@ -199,6 +204,115 @@ class PaymentController(ControllerBase):
             "Payment session ready.",
             {"client_secret": intent.client_secret, "payment_intent_id": intent.id},
         )
+
+    @route.post(
+        "/stripe/checkout-session",
+        auth=SessionJWTAuth(),
+        permissions=[IsAuthenticated],
+        response={200: SuccessResponse, **_ERROR_RESPONSES},
+        summary="Start Stripe hosted checkout",
+    )
+    def stripe_checkout_session(self, payload: StripeCheckoutSessionIn):
+        from django.conf import settings
+
+        require_stripe_available()
+        if not uses_stripe_payment(payload.payment_method):
+            raise ValidationError({"payment_method": "That payment method does not use Stripe checkout."})
+
+        user = self.context.request.user
+        command = PlaceOrderCommand(
+            address_id=payload.address_id,
+            delivery_date=payload.delivery_date,
+            window_id=payload.window_id,
+            window_source=payload.window_source,
+            note=payload.note,
+            expected_total=payload.expected_total,
+            discount_code=payload.discount_code,
+            payment_method=payload.payment_method,
+        )
+        quote = build_order_service().validate(user, command, match_total=True)
+        metadata = {
+            "user_id": str(user.id),
+            "address_id": str(payload.address_id),
+            "delivery_date": payload.delivery_date.isoformat(),
+            "window_id": str(payload.window_id),
+            "window_source": payload.window_source,
+            "payment_method": payload.payment_method,
+            "discount_code": (payload.discount_code or "").strip(),
+            "note": payload.note,
+            "expected_total": str(quote.total),
+        }
+        base = settings.FRONTEND_URL.rstrip("/")
+        session = create_hosted_checkout_session(
+            total=quote.total,
+            currency=settings.DEFAULT_CURRENCY,
+            user_id=user.id,
+            metadata=metadata,
+            success_url=f"{base}/checkout/complete?session_id={{CHECKOUT_SESSION_ID}}",
+            cancel_url=f"{base}/checkout?cancelled=1",
+        )
+        if not session.url:
+            raise ValidationError({"stripe": "Stripe checkout could not be started."})
+        return success("Stripe checkout ready.", {"url": session.url, "session_id": session.id})
+
+    @route.post(
+        "/stripe/checkout-complete",
+        auth=SessionJWTAuth(),
+        permissions=[IsAuthenticated],
+        response={200: SuccessResponse, **_ERROR_RESPONSES},
+        summary="Complete order after Stripe hosted checkout",
+    )
+    def stripe_checkout_complete(self, payload: StripeCheckoutCompleteIn):
+        from datetime import date
+
+        from commerce.models import Order
+
+        user = self.context.request.user
+        session = retrieve_checkout_session(payload.session_id)
+        metadata = session.metadata or {}
+        if str(metadata.get("user_id")) != str(user.id):
+            raise ValidationError({"session": "Invalid payment session."})
+        if session.payment_status != "paid":
+            raise ValidationError({"payment": "Payment has not completed yet."})
+
+        intent_id = payment_intent_id_from_session(session)
+        if not intent_id:
+            raise ValidationError({"payment": "Payment could not be confirmed."})
+
+        existing = Order.objects.filter(stripe_payment_intent_id=intent_id).first()
+        if existing is not None:
+            return success("Order placed.", serialize_order(existing))
+
+        discount_code = (metadata.get("discount_code") or "").strip() or None
+        command = PlaceOrderCommand(
+            address_id=int(metadata["address_id"]),
+            delivery_date=date.fromisoformat(metadata["delivery_date"]),
+            window_id=int(metadata["window_id"]),
+            window_source=metadata.get("window_source") or "weekly",
+            note=metadata.get("note") or "",
+            expected_total=money(metadata["expected_total"]),
+            discount_code=discount_code,
+            payment_method=metadata.get("payment_method") or "card",
+            stripe_payment_intent_id=intent_id,
+        )
+        body = {
+            "address_id": command.address_id,
+            "delivery_date": command.delivery_date.isoformat(),
+            "window_id": command.window_id,
+            "window_source": command.window_source,
+            "note": command.note,
+            "expected_total": str(command.expected_total),
+            "discount_code": command.discount_code,
+            "payment_method": command.payment_method,
+            "stripe_payment_intent_id": intent_id,
+        }
+        order = build_order_service().place(
+            user,
+            command,
+            idempotency_key=f"stripe-session-{payload.session_id}",
+            request_hash=request_hash_for(body),
+        )
+        return success("Order placed.", serialize_order(order))
 
     @route.post("/stripe/webhook", auth=None, permissions=[AllowAny], summary="Stripe webhook")
     def stripe_webhook(self):

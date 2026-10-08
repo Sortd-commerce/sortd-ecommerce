@@ -1,18 +1,18 @@
 "use client";
 
-import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import type { ActionState } from "@/lib/action-state";
 import {
   placeOrderAction,
-  placePaidOrderAction,
-  prepareStripePaymentAction,
+  startStripeCheckoutSessionAction,
   validateCheckoutAction,
 } from "@/lib/actions";
 import { emptyActionState, SubmitButton } from "@/components/ActionForm";
 import { CheckoutAddressSection } from "@/components/CheckoutAddressSection";
 import { CheckoutBasketStep } from "@/components/CheckoutBasketStep";
+import { CheckoutPaySheet } from "@/components/CheckoutPaySheet";
+import type { CardProduct } from "@/components/catalog";
 import { CheckoutCodPendingOverlay } from "@/components/CheckoutCodPendingOverlay";
 import { CheckoutMobileHeader, type CheckoutStep } from "@/components/CheckoutMobileHeader";
 import { CheckoutProcessingOverlay } from "@/components/CheckoutProcessingOverlay";
@@ -28,11 +28,6 @@ import { useStripeWalletSupport } from "@/components/useStripeWalletSupport";
 import type { CheckoutAddress, CheckoutPaymentMethod, CheckoutSlot } from "@/lib/checkout";
 import { toSyncPayload } from "@/lib/cart-store";
 import { useMobileViewport } from "@/lib/use-mobile-viewport";
-
-const CheckoutPaymentModal = dynamic(
-  () => import("@/components/CheckoutPaymentModal").then((mod) => mod.CheckoutPaymentModal),
-  { ssr: false },
-);
 
 export type { CheckoutAddress, CheckoutPaymentMethod, CheckoutSlot };
 
@@ -170,10 +165,12 @@ function CheckoutFormInner({
   slots,
   paymentMethods,
   addresses,
+  upsellProducts = [],
 }: {
   slots: CheckoutSlot[];
   paymentMethods: CheckoutPaymentMethod[];
   addresses: CheckoutAddress[];
+  upsellProducts?: CardProduct[];
 }) {
   const router = useRouter();
   const toast = useToast();
@@ -198,14 +195,7 @@ function CheckoutFormInner({
   });
   const [paymentMethod, setPaymentMethod] = useState(() => initialPaymentMethod(paymentMethods));
   const paymentTouchedRef = useRef(false);
-  const [payModal, setPayModal] = useState<{
-    clientSecret: string;
-    preferWallet: "apple_pay" | "card";
-    total: string;
-  } | null>(null);
   const [payPending, setPayPending] = useState(false);
-  const [payProcessing, setPayProcessing] = useState(false);
-  const [placingOrder, setPlacingOrder] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
   const toastedRef = useRef("");
 
@@ -288,20 +278,12 @@ function CheckoutFormInner({
   }, [state, toast]);
 
   const paysOnline = usesStripePayment(paymentMethod);
-  const checkoutLocked = payPending || payProcessing || placingOrder;
-  const processingMessage = placingOrder
-    ? "Placing your order…"
-    : payProcessing
-      ? "Processing your payment…"
-      : payPending
-        ? "Getting payment ready…"
-        : null;
-  const canPlace = Boolean(
-    selectedAddress && activeSlot && paymentMethod && items.length && !payModal && !checkoutLocked,
-  );
+  const checkoutLocked = payPending;
+  const processingMessage = payPending ? "Redirecting to Stripe…" : null;
+  const canPlace = Boolean(selectedAddress && activeSlot && paymentMethod && items.length && !checkoutLocked);
   const canContinueDelivery = Boolean(selectedAddress && activeSlot && items.length);
 
-  async function openPaymentModal() {
+  async function openStripeCheckout() {
     if (!canPlace || !selectedAddress || !activeSlot) return;
     setPayPending(true);
     const prepared = await prepareCheckout({
@@ -317,61 +299,23 @@ function CheckoutFormInner({
       toast.error(prepared.message);
       return;
     }
-    const result = await prepareStripePaymentAction(prepared.total, discountCode);
-    setPayPending(false);
-    if (!result.ok || !result.clientSecret) {
+    const note = formRef.current ? String(new FormData(formRef.current).get("note") || "") : "";
+    const result = await startStripeCheckoutSessionAction({
+      address_id: selectedAddress.id,
+      delivery_date: activeSlot.date,
+      window_id: activeSlot.window_id,
+      window_source: activeSlot.source,
+      payment_method: paymentMethod,
+      discount_code: discountCode.trim() || null,
+      expected_total: prepared.total,
+      note,
+    });
+    if (!result.ok || !result.url) {
+      setPayPending(false);
       toast.error(result.message || "Payment could not be started.");
       return;
     }
-    setPayModal({
-      clientSecret: result.clientSecret,
-      preferWallet: paymentMethod === "apple_pay" ? "apple_pay" : "card",
-      total: prepared.total,
-    });
-  }
-
-  async function onPaymentSuccess(paymentIntentId: string) {
-    if (!selectedAddress || !activeSlot) return;
-    setPayModal(null);
-    setPayProcessing(false);
-    setPlacingOrder(true);
-    try {
-      const prepared = await prepareCheckout({
-        address_id: selectedAddress.id,
-        delivery_date: activeSlot.date,
-        window_id: activeSlot.window_id,
-        window_source: activeSlot.source,
-        payment_method: paymentMethod,
-        discount_code: discountCode.trim(),
-      });
-      if (!prepared.ok) {
-        toast.error(prepared.message);
-        setPlacingOrder(false);
-        return;
-      }
-      const note = formRef.current ? String(new FormData(formRef.current).get("note") || "") : "";
-      const result = await placePaidOrderAction({
-        address_id: selectedAddress.id,
-        delivery_date: activeSlot.date,
-        window_id: activeSlot.window_id,
-        window_source: activeSlot.source,
-        note,
-        expected_total: prepared.total,
-        payment_method: paymentMethod,
-        discount_code: discountCode.trim() || null,
-        stripe_payment_intent_id: paymentIntentId,
-        cart_json: JSON.stringify(toSyncPayload(itemsRef.current)),
-      });
-      if (!result.ok || !result.orderNumber) {
-        toast.error(result.message || "Order could not be placed after payment.");
-        setPlacingOrder(false);
-        return;
-      }
-      toast.success("Thank you — your order is placed.");
-      router.push(`/orders/${result.orderNumber}`);
-    } catch {
-      setPlacingOrder(false);
-    }
+    window.location.assign(result.url);
   }
 
   function onBack() {
@@ -414,10 +358,16 @@ function CheckoutFormInner({
     </section>
   );
 
-  const paymentSection = (
-    <section className="checkout-block" id="pay">
-      <p className="step-index">03</p>
-      <h2>Pay with</h2>
+  const paymentPicker = (variant: "block" | "sheet") => (
+    <>
+      {variant === "block" ? (
+        <>
+          <p className="step-index">03</p>
+          <h2>Pay with</h2>
+        </>
+      ) : (
+        <p className="checkout-pay-sheet-kicker">Pay with</p>
+      )}
       <div className="choice-stack" role="radiogroup" aria-label="Payment methods">
         {checkoutPayments.map((method) => {
           const disabled = !isPaymentSelectable(method, walletSupport);
@@ -445,6 +395,12 @@ function CheckoutFormInner({
           Apple Pay isn&apos;t available on this device. You can pay by card or cash on delivery.
         </p>
       ) : null}
+    </>
+  );
+
+  const paymentSection = (
+    <section className="checkout-block" id="pay">
+      {paymentPicker("block")}
     </section>
   );
 
@@ -489,9 +445,9 @@ function CheckoutFormInner({
           type="button"
           className="btn btn-primary checkout-submit"
           disabled={!canPlace}
-          onClick={() => void openPaymentModal()}
+          onClick={() => void openStripeCheckout()}
         >
-          <span>{placingOrder ? "Placing your order…" : payPending ? "Getting payment ready…" : "Pay now"}</span>
+          <span>{payPending ? "Redirecting to Stripe…" : "Pay now"}</span>
           <span>AED {quote.total} →</span>
         </button>
       ) : (
@@ -508,7 +464,7 @@ function CheckoutFormInner({
 
   if (mobile) {
     return (
-      <div className="checkout-page checkout-page--mobile">
+      <div className={`checkout-page checkout-page--mobile${step === "pay" ? " checkout-page--pay" : ""}`}>
         <CheckoutMobileHeader step={step} onBack={onBack} />
         {step === "basket" ? <CheckoutBasketStep onContinue={() => setStep("delivery")} /> : null}
         {step === "delivery" ? (
@@ -541,33 +497,16 @@ function CheckoutFormInner({
           </div>
         ) : null}
         {step === "pay" ? (
-          <div className="checkout-mobile-step">
-            {paymentSection}
-            <div className="checkout-sticky-foot checkout-sticky-foot--pay">
-              {paysOnline ? (
-                <button
-                  type="button"
-                  className="btn btn-primary checkout-pay-btn"
-                  disabled={!canPlace}
-                  onClick={() => void openPaymentModal()}
-                >
-                  Pay AED {money(quote.total)}
-                </button>
-              ) : (
-                <button
-                  type="submit"
-                  form="place-order"
-                  className="btn btn-primary checkout-pay-btn"
-                  disabled={!canPlace}
-                >
-                  Pay AED {money(quote.total)}
-                </button>
-              )}
-              <p className="fine-print checkout-footnote checkout-footnote--sticky">
-                Every item in this order passed all four gates.
-              </p>
-            </div>
-          </div>
+          <CheckoutPaySheet
+            upsellProducts={upsellProducts}
+            total={quote.total}
+            canPlace={canPlace}
+            paysOnline={paysOnline}
+            formId="place-order"
+            onPay={() => void openStripeCheckout()}
+          >
+            {paymentPicker("sheet")}
+          </CheckoutPaySheet>
         ) : null}
         <form id="place-order" ref={formRef} action={formAction} className="sr-only">
           <CheckoutCodPendingOverlay />
@@ -578,19 +517,6 @@ function CheckoutFormInner({
           <input type="hidden" name="payment_method" value={paymentMethod} />
           <textarea name="note" defaultValue="" />
         </form>
-        {payModal ? (
-          <CheckoutPaymentModal
-            clientSecret={payModal.clientSecret}
-            preferWallet={payModal.preferWallet}
-            total={payModal.total}
-            locked={checkoutLocked}
-            onProcessingChange={setPayProcessing}
-            onSuccess={(paymentIntentId) => void onPaymentSuccess(paymentIntentId)}
-            onClose={() => {
-              if (!checkoutLocked) setPayModal(null);
-            }}
-          />
-        ) : null}
         {processingMessage ? <CheckoutProcessingOverlay message={processingMessage} /> : null}
       </div>
     );
@@ -610,19 +536,6 @@ function CheckoutFormInner({
         </div>
         {orderForm}
       </div>
-      {payModal ? (
-        <CheckoutPaymentModal
-          clientSecret={payModal.clientSecret}
-          preferWallet={payModal.preferWallet}
-          total={payModal.total}
-          locked={checkoutLocked}
-          onProcessingChange={setPayProcessing}
-          onSuccess={(paymentIntentId) => void onPaymentSuccess(paymentIntentId)}
-          onClose={() => {
-            if (!checkoutLocked) setPayModal(null);
-          }}
-        />
-      ) : null}
       {processingMessage ? <CheckoutProcessingOverlay message={processingMessage} /> : null}
     </div>
   );
@@ -632,6 +545,7 @@ export function CheckoutForm(props: {
   slots: CheckoutSlot[];
   paymentMethods: CheckoutPaymentMethod[];
   addresses: CheckoutAddress[];
+  upsellProducts?: CardProduct[];
 }) {
   return (
     <CheckoutSelectionProvider>

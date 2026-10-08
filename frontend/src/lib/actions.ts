@@ -186,6 +186,41 @@ export async function prepareStripePaymentAction(
   };
 }
 
+export async function startStripeCheckoutSessionAction(
+  payload: CheckoutValidatePayload & { note: string; expected_total: string },
+): Promise<{ ok: boolean; url?: string; message?: string }> {
+  const result = await apiFetch<{ url: string; session_id: string }>("/payments/stripe/checkout-session", {
+    method: "POST",
+    body: {
+      address_id: payload.address_id,
+      delivery_date: payload.delivery_date,
+      window_id: payload.window_id,
+      window_source: payload.window_source,
+      payment_method: payload.payment_method,
+      discount_code: payload.discount_code?.trim() || null,
+      expected_total: payload.expected_total,
+      note: payload.note,
+    },
+  });
+  if (!result.ok || !result.data?.url) {
+    return { ok: false, message: result.message };
+  }
+  return { ok: true, url: result.data.url };
+}
+
+export async function completeStripeCheckoutAction(
+  sessionId: string,
+): Promise<{ ok: boolean; orderNumber?: string; message?: string }> {
+  const result = await apiFetch<{ number: string }>("/payments/stripe/checkout-complete", {
+    method: "POST",
+    body: { session_id: sessionId },
+  });
+  if (!result.ok || !result.data) {
+    return { ok: false, message: result.message };
+  }
+  return { ok: true, orderNumber: result.data.number };
+}
+
 export type CheckoutValidatePayload = {
   address_id: number;
   delivery_date: string;

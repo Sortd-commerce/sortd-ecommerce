@@ -7,6 +7,7 @@ import {
 } from "@/lib/checkout";
 import { apiFetch } from "@/lib/api";
 import { hasAuthSession } from "@/lib/auth";
+import { fetchProductCatalog } from "@/lib/catalog";
 
 export default async function CheckoutPage() {
   const signedIn = await hasAuthSession();
@@ -14,10 +15,11 @@ export default async function CheckoutPage() {
     return <CheckoutGuestGate />;
   }
 
-  const [windows, payments, addresses] = await Promise.all([
+  const [windows, payments, addresses, catalog] = await Promise.all([
     fetchCheckoutWindows(),
     fetchCheckoutPaymentMethods(),
     apiFetch<CheckoutAddress[]>("/addresses"),
+    fetchProductCatalog(),
   ]);
 
   const slots = windows.data || [];
@@ -26,7 +28,12 @@ export default async function CheckoutPage() {
 
   return (
     <div className="checkout-page">
-      <CheckoutForm slots={slots} paymentMethods={methods} addresses={savedAddresses} />
+      <CheckoutForm
+        slots={slots}
+        paymentMethods={methods}
+        addresses={savedAddresses}
+        upsellProducts={catalog.data?.results || []}
+      />
     </div>
   );
 }

@@ -4566,6 +4566,129 @@ aside.basket-drawer {
   padding-bottom: calc(7.25rem + env(safe-area-inset-bottom));
 }
 
+.checkout-page--mobile.checkout-page--pay {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  padding-bottom: 0;
+  overflow: hidden;
+}
+
+.checkout-pay-step-shell {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 8rem;
+}
+
+.checkout-pay-step-scrim {
+  position: absolute;
+  inset: 0;
+  background: rgb(14 26 20 / 0.42);
+  pointer-events: none;
+}
+
+.checkout-pay-sheet {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 20;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  max-height: min(88dvh, 44rem);
+  border-radius: 1.375rem 1.375rem 0 0;
+  background: #fffdf9;
+  box-shadow: 0 -16px 48px rgb(14 26 20 / 0.14);
+}
+
+.checkout-pay-sheet-handle {
+  width: 2.75rem;
+  height: 0.25rem;
+  margin: 0.65rem auto 0.15rem;
+  border-radius: 999px;
+  background: var(--line);
+}
+
+.checkout-pay-sheet-scroll {
+  display: grid;
+  gap: 1rem;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0.35rem 0.75rem 0.5rem;
+}
+
+.checkout-pay-upsell h2 {
+  margin: 0 0 0.75rem;
+  font-family: var(--font-display), sans-serif;
+  font-size: var(--figma-display-lg);
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+  color: var(--forest);
+}
+
+.checkout-pay-upsell-rail {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: min(44vw, 11.5rem);
+  gap: 0.75rem;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory;
+  padding-bottom: 0.25rem;
+  scrollbar-width: none;
+}
+
+.checkout-pay-upsell-rail::-webkit-scrollbar {
+  display: none;
+}
+
+.checkout-pay-sheet-kicker {
+  margin: 0 0 0.625rem;
+  font-family: var(--font-mono), monospace;
+  font-size: var(--figma-mono-sm);
+  font-weight: 500;
+  letter-spacing: var(--figma-ls-mono-wide);
+  line-height: 0.8125rem;
+  text-transform: uppercase;
+  color: rgb(14 26 20 / 0.55);
+}
+
+.checkout-pay-sheet-panel .choice-stack {
+  gap: 0.625rem;
+}
+
+.checkout-pay-sheet-panel .checkout-wallet-note {
+  margin-top: 0.75rem;
+}
+
+.checkout-pay-sheet-foot {
+  display: grid;
+  gap: 0.625rem;
+  border-top: 1px solid var(--line);
+  background: #fffdf9;
+  padding: 0.75rem 0.75rem calc(0.75rem + env(safe-area-inset-bottom));
+}
+
+.checkout-pay-sheet-foot .checkout-pay-btn {
+  display: flex;
+  width: 100%;
+  box-sizing: border-box;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--figma-btn-h);
+  padding: 0.875rem 1.25rem;
+  font-family: var(--font-body), sans-serif;
+  font-size: var(--figma-body-2xl);
+  font-weight: 600;
+  line-height: 1.088rem;
+}
+
+.checkout-pay-sheet-foot .checkout-footnote--sticky {
+  margin-top: 0;
+}
+
 .checkout-basket-step,
 .checkout-mobile-step {
   display: grid;

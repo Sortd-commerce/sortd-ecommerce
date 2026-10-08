@@ -90,6 +90,28 @@ class StripeIntentIn(Schema):
     discount_code: str | None = None
 
 
+class StripeCheckoutSessionIn(CheckoutValidateIn):
+    note: str = ""
+    expected_total: Decimal
+
+    @field_validator("note")
+    @classmethod
+    def strip_note(cls, value: str) -> str:
+        return value.strip()[:500]
+
+
+class StripeCheckoutCompleteIn(Schema):
+    session_id: str
+
+    @field_validator("session_id")
+    @classmethod
+    def strip_session(cls, value: str) -> str:
+        code = value.strip()
+        if not code:
+            raise ValueError("Missing payment session.")
+        return code
+
+
 class CheckoutValidateIn(Schema):
     address_id: int
     delivery_date: date
