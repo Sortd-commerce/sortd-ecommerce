@@ -1,6 +1,7 @@
 "use client";
 
 import { User } from "@phosphor-icons/react";
+import { usePathname } from "next/navigation";
 import { useState } from "react";
 import type { AuthUser } from "@/components/auth/AuthProvider";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -8,7 +9,9 @@ import { MobileAccountSheet } from "@/components/MobileAccountSheet";
 
 export function MobileAccountTrigger({ user }: { user: AuthUser | null }) {
   const { openAuth } = useAuth();
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const authNext = pathname.startsWith("/checkout") ? "/checkout" : pathname || "/account";
 
   if (!user) {
     return (
@@ -16,7 +19,7 @@ export function MobileAccountTrigger({ user }: { user: AuthUser | null }) {
         type="button"
         className="mobile-account-btn mobile-account-btn--guest"
         aria-label="Account"
-        onClick={() => openAuth("login", "/account")}
+        onClick={() => openAuth("login", authNext)}
       >
         <User size={20} weight="regular" aria-hidden />
       </button>

@@ -15,6 +15,19 @@ import { apiFetch } from "@/lib/api";
 
 type Address = { formatted_address: string; line1: string; city: string; is_default?: boolean };
 
+function deliverShortLabel(address: Address) {
+  const raw = address.formatted_address || address.line1;
+  const parts = raw
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+  if (parts.length <= 1) return raw;
+  const skip = new Set(["dubai", "united arab emirates", "uae"]);
+  const meaningful = parts.filter((part) => !skip.has(part.toLowerCase()));
+  if (!meaningful.length) return parts[0];
+  return meaningful[meaningful.length - 1] || parts[0];
+}
+
 function DeliverSignInPrompt() {
   return (
     <AuthOpenButton mode="login" next="/checkout" className="deliver-signin-link">
@@ -45,9 +58,10 @@ async function DeliverBar({ signedIn }: { signedIn: boolean }) {
           <DeliverPinIcon />
           <span className="deliver-label deliver-label--desktop">Delivering to</span>
           <span className="deliver-label deliver-label--mobile">To</span>
-          {deliverTo ? (
+          {deliverTo && saved ? (
             <Link href="/checkout" className="deliver-place">
-              {deliverTo}
+              <span className="deliver-place-full">{deliverTo}</span>
+              <span className="deliver-place-short">{deliverShortLabel(saved)}</span>
               <CaretDownIcon />
             </Link>
           ) : signedIn ? (

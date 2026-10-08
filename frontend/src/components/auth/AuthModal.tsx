@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, X } from "@phosphor-icons/react";
+import { ArrowRight, CaretDown, X } from "@phosphor-icons/react";
 import { BrandMark } from "@/components/BrandMark";
 import { useActionState, useEffect, useState } from "react";
 import { OtpInput } from "@/components/auth/OtpInput";
@@ -175,19 +175,20 @@ export function AuthModal({
             </p>
             <form action={signupFormAction} className="auth-modal-form">
               <label className="field">
-                <span>Full name *</span>
+                <span>Full name</span>
                 <input name="full_name" autoComplete="name" required />
               </label>
               <label className="field">
-                <span>Email *</span>
+                <span>Email</span>
                 <input name="email" type="email" autoComplete="email" spellCheck={false} required />
                 <small className="field-hint">We&apos;ll send your login code here.</small>
               </label>
               <label className="field">
-                <span>Phone *</span>
+                <span>Phone</span>
                 <div className="auth-phone-row">
                   <span className="auth-phone-prefix" aria-label="Dubai country code">
-                    {dubaiCode}
+                    <span>{dubaiCode}</span>
+                    <CaretDown size={14} weight="bold" aria-hidden />
                   </span>
                   <input
                     name="phone_local"
@@ -228,12 +229,12 @@ export function AuthModal({
         {step === "login" ? (
           <>
             <h2 id="auth-modal-title" className="auth-modal-title">
-              {nextPath.startsWith("/checkout") ? "Log in to check out" : "Welcome back"}
+              {nextPath.startsWith("/checkout") ? "Log in to check out" : "Log in"}
             </h2>
             <p className="auth-modal-copy">
               {nextPath.startsWith("/checkout")
                 ? "We'll email you a 6-digit code. Your basket and coupon are saved."
-                : "Enter your email and we'll send you a code. No password needed."}
+                : "We'll email you a 6-digit code. No password needed."}
             </p>
             <form action={loginFormAction} className="auth-modal-form">
               <input type="hidden" name="next" value={nextPath} />

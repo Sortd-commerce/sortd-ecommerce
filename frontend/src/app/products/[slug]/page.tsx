@@ -142,7 +142,11 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
           </nav>
 
           <div className="product-layout">
-            <ProductGallery title={product.title} images={product.images || []} />
+            <ProductGallery
+              title={product.title}
+              images={product.images || []}
+              hasLabReport={product.has_lab_report || product.has_passed_report}
+            />
             <BuyBox
               title={product.title}
               brand={product.brand || product.category.name}
