@@ -3194,6 +3194,18 @@ button {
   border-top: 1px solid var(--line);
 }
 
+.addresses-add-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.25rem;
+}
+
+.addresses-panel .add-address {
+  margin-top: 1rem;
+}
+
 .addresses-add h2 {
   margin: 0;
   font-family: var(--font-display), sans-serif;

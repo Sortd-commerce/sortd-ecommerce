@@ -21,7 +21,7 @@ from catalog.models import (
 from catalog.queries import report_has_passed
 from catalog.reports import publish_report
 from catalog.stock import StockService
-from commerce.models import DeliveryPostalCode, DeliveryWindow, PaymentMethod, Address
+from commerce.models import DeliveryWindow, PaymentMethod, Address
 
 
 PDF = SimpleUploadedFile("report.pdf", b"%PDF-1.4 test", content_type="application/pdf")

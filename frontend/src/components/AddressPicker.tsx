@@ -21,6 +21,7 @@ type SelectedPlace = {
   postal_code: string;
   formatted_address: string;
   serviceable: boolean;
+  zone_name: string;
 };
 
 function toSelected(check: DeliveryCheck, fallbackLabel = ""): SelectedPlace {
@@ -32,6 +33,7 @@ function toSelected(check: DeliveryCheck, fallbackLabel = ""): SelectedPlace {
     postal_code: check.postal_code || "",
     formatted_address: check.formatted_address || fallbackLabel,
     serviceable: Boolean(check.serviceable),
+    zone_name: check.zone_name || "",
   };
 }
 
@@ -73,6 +75,7 @@ export function AddressPicker({
       postal_code: initialPlace.postal_code || "",
       formatted_address: initialPlace.formatted_address || initialQuery || "",
       serviceable: true,
+      zone_name: "",
     };
   });
   const [locating, setLocating] = useState(false);
@@ -139,7 +142,7 @@ export function AddressPicker({
     setOpen(false);
     setSuggestions([]);
     if (next.serviceable) {
-      toast.success("We deliver to this address.");
+      toast.success(next.zone_name ? `We deliver to ${next.zone_name}.` : "We deliver to this address.");
     } else {
       toast.error("We do not deliver to this address yet.");
     }

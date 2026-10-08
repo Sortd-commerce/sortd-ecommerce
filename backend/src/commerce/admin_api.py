@@ -26,15 +26,8 @@ from catalog.schemas import serialize_category, serialize_image
 from catalog.stock import StockService
 from catalog.writer import CatalogWriteError, ProductWriter, serialize_label, serialize_related, serialize_variant
 from commerce.pricing import clean_delivery_promise
-from commerce.models import (
-    CommerceSettings,
-    DeliveryPostalCode,
-    DeliveryWindow,
-    Discount,
-    Order,
-    OrderStatus,
-    normalize_postal_code,
-)
+from commerce.delivery_zones import normalize_polygon_ring
+from commerce.models import CommerceSettings, DeliveryWindow, DeliveryZone, Discount, Order, OrderStatus
 from commerce.orders import serialize_order
 from core.money import money, money_str
 from core.pagination import PageQuery, paginate_queryset
@@ -198,14 +191,22 @@ class WindowIn(Schema):
     is_active: bool = True
 
 
-class PostalCodeIn(Schema):
-    code: str = Field(min_length=1, max_length=16)
+class DeliveryZoneIn(Schema):
+    name: str = Field(min_length=1, max_length=120)
+    slug: str | None = Field(default=None, max_length=120)
+    polygon: list[list[float]]
+    delivery_fee: Decimal = Field(default=Decimal("0.00"), ge=0)
     is_active: bool = True
+    sort_order: int = Field(default=0, ge=0)
 
 
-class PostalCodePatchIn(Schema):
-    code: str | None = Field(default=None, max_length=16)
+class DeliveryZonePatchIn(Schema):
+    name: str | None = Field(default=None, min_length=1, max_length=120)
+    slug: str | None = Field(default=None, max_length=120)
+    polygon: list[list[float]] | None = None
+    delivery_fee: Decimal | None = Field(default=None, ge=0)
     is_active: bool | None = None
+    sort_order: int | None = Field(default=None, ge=0)
 
 
 class MemberIn(Schema):
@@ -532,6 +533,18 @@ def _parse_optional_datetime(value: str | None):
     if timezone.is_naive(parsed):
         return timezone.make_aware(parsed, timezone.get_current_timezone())
     return parsed
+
+
+def _serialize_delivery_zone(row: DeliveryZone) -> dict:
+    return {
+        "id": row.id,
+        "name": row.name,
+        "slug": row.slug,
+        "polygon": row.polygon,
+        "delivery_fee": money_str(row.delivery_fee),
+        "is_active": row.is_active,
+        "sort_order": row.sort_order,
+    }
 
 
 def _serialize_pricing_settings(row: CommerceSettings) -> dict:
@@ -1295,61 +1308,75 @@ class AdminController(ControllerBase):
             raise NotFound("Delivery window not found.")
         return success("Delivery window deleted.", {"deleted": True})
 
-    @route.get("/delivery/postal-codes", response={200: SuccessResponse, **_ERROR_RESPONSES}, summary="List postal codes")
-    def list_postal_codes(self):
-        rows = [
-            {"id": row.id, "code": row.code, "is_active": row.is_active}
-            for row in DeliveryPostalCode.objects.all()
-        ]
-        return success("Postal codes retrieved.", rows)
+    @route.get("/delivery/zones", response={200: SuccessResponse, **_ERROR_RESPONSES}, summary="List delivery zones")
+    def list_delivery_zones(self):
+        rows = [_serialize_delivery_zone(row) for row in DeliveryZone.objects.all()]
+        return success("Delivery zones retrieved.", rows)
 
-    @route.post("/delivery/postal-codes", response={201: SuccessResponse, **_ERROR_RESPONSES}, summary="Add postal code")
-    def create_postal_code(self, payload: PostalCodeIn):
-        code = normalize_postal_code(payload.code)
-        if not code:
-            raise ValidationError({"code": "Postal code is required."})
-        row, created = DeliveryPostalCode.objects.get_or_create(
-            code=code, defaults={"is_active": payload.is_active}
+    @route.post("/delivery/zones", response={201: SuccessResponse, **_ERROR_RESPONSES}, summary="Create delivery zone")
+    def create_delivery_zone(self, payload: DeliveryZoneIn):
+        name = payload.name.strip()
+        slug = (payload.slug or slugify(name)).strip()
+        if not slug:
+            raise ValidationError({"slug": "Slug is required."})
+        if DeliveryZone.objects.filter(slug=slug).exists():
+            raise ValidationError({"slug": "A zone with this slug already exists."})
+        try:
+            polygon = normalize_polygon_ring(payload.polygon)
+        except ValueError as exc:
+            raise ValidationError({"polygon": str(exc)}) from exc
+        row = DeliveryZone.objects.create(
+            name=name,
+            slug=slug,
+            polygon=polygon,
+            delivery_fee=money(payload.delivery_fee),
+            is_active=payload.is_active,
+            sort_order=payload.sort_order,
         )
-        if not created:
-            row.is_active = payload.is_active
-            row.save(update_fields=["is_active"])
-        return status.HTTP_201_CREATED, success(
-            "Postal code saved.", {"id": row.id, "code": row.code, "is_active": row.is_active}
-        )
+        return status.HTTP_201_CREATED, success("Delivery zone created.", _serialize_delivery_zone(row))
 
     @route.patch(
-        "/delivery/postal-codes/{code_id}",
+        "/delivery/zones/{zone_id}",
         response={200: SuccessResponse, **_ERROR_RESPONSES},
-        summary="Update postal code",
+        summary="Update delivery zone",
     )
-    def update_postal_code(self, code_id: int, payload: PostalCodePatchIn):
-        row = DeliveryPostalCode.objects.filter(pk=code_id).first()
+    def update_delivery_zone(self, zone_id: int, payload: DeliveryZonePatchIn):
+        row = DeliveryZone.objects.filter(pk=zone_id).first()
         if row is None:
-            raise NotFound("Postal code not found.")
-        if payload.code is not None:
-            code = normalize_postal_code(payload.code)
-            if not code:
-                raise ValidationError({"code": "Postal code is required."})
-            clash = DeliveryPostalCode.objects.filter(code=code).exclude(pk=row.pk).exists()
-            if clash:
-                raise ValidationError({"code": "That postal code already exists."})
-            row.code = code
+            raise NotFound("Delivery zone not found.")
+        if payload.name is not None:
+            row.name = payload.name.strip()
+        if payload.slug is not None:
+            slug = payload.slug.strip()
+            if not slug:
+                raise ValidationError({"slug": "Slug is required."})
+            if DeliveryZone.objects.filter(slug=slug).exclude(pk=row.pk).exists():
+                raise ValidationError({"slug": "A zone with this slug already exists."})
+            row.slug = slug
+        if payload.polygon is not None:
+            try:
+                row.polygon = normalize_polygon_ring(payload.polygon)
+            except ValueError as exc:
+                raise ValidationError({"polygon": str(exc)}) from exc
+        if payload.delivery_fee is not None:
+            row.delivery_fee = money(payload.delivery_fee)
         if payload.is_active is not None:
             row.is_active = payload.is_active
+        if payload.sort_order is not None:
+            row.sort_order = payload.sort_order
         row.save()
-        return success("Postal code updated.", {"id": row.id, "code": row.code, "is_active": row.is_active})
+        return success("Delivery zone updated.", _serialize_delivery_zone(row))
 
     @route.delete(
-        "/delivery/postal-codes/{code_id}",
+        "/delivery/zones/{zone_id}",
         response={200: SuccessResponse, **_ERROR_RESPONSES},
-        summary="Delete postal code",
+        summary="Delete delivery zone",
     )
-    def delete_postal_code(self, code_id: int):
-        deleted, _ = DeliveryPostalCode.objects.filter(pk=code_id).delete()
+    def delete_delivery_zone(self, zone_id: int):
+        deleted, _ = DeliveryZone.objects.filter(pk=zone_id).delete()
         if not deleted:
-            raise NotFound("Postal code not found.")
-        return success("Postal code deleted.", {"deleted": True})
+            raise NotFound("Delivery zone not found.")
+        return success("Delivery zone deleted.", {"deleted": True})
 
     @route.get("/pricing", response={200: SuccessResponse, **_ERROR_RESPONSES}, summary="Get pricing settings")
     def get_pricing(self):

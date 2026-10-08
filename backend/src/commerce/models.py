@@ -24,19 +24,21 @@ class Address(models.Model):
         ordering = ["-is_default", "-id"]
 
 
-class DeliveryPostalCode(models.Model):
-    code = models.CharField(max_length=16, unique=True)
+class DeliveryZone(models.Model):
+    name = models.CharField(max_length=120)
+    slug = models.SlugField(max_length=120, unique=True)
+    polygon = models.JSONField()
+    delivery_fee = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal("0.00"))
     is_active = models.BooleanField(default=True)
+    sort_order = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ["code"]
-
-    def save(self, *args, **kwargs):
-        self.code = normalize_postal_code(self.code)
-        super().save(*args, **kwargs)
+        ordering = ["sort_order", "name"]
 
     def __str__(self) -> str:
-        return self.code
+        return self.name
 
 
 class DeliveryWindow(models.Model):

@@ -356,12 +356,6 @@ export function CheckoutForm({
       <div className="checkout-layout">
         <div className="checkout-steps-col">
           <section className="checkout-block">
-            <div className="checkout-block-head">
-              <div className="checkout-block-title">
-                <p className="step-index">01</p>
-                <h2>Deliver to</h2>
-              </div>
-            </div>
             <CheckoutAddressSection addresses={addresses} />
           </section>
 

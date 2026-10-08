@@ -10,7 +10,9 @@
   },
   "dependencies": {
     "@phosphor-icons/react": "^2.1.10",
+    "@types/leaflet": "^1.9.22",
     "jose": "^6.2.12",
+    "leaflet": "^1.9.4",
     "next": "^15.5.27",
     "react": "^19.1.2",
     "react-dom": "^19.1.2"

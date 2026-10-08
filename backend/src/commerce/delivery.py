@@ -9,14 +9,8 @@ from ninja_extra.exceptions import ValidationError
 
 from commerce.geocoding import GeocodeResult, PlacesProvider
 from commerce.places.types import AutocompleteSuggestion
-from commerce.models import (
-    DeliveryDateOverride,
-    DeliveryPostalCode,
-    DeliveryWindow,
-    Order,
-    OrderStatus,
-    normalize_postal_code,
-)
+from commerce.delivery_zones import find_zone_for_coordinates
+from commerce.models import DeliveryDateOverride, DeliveryWindow, Order, OrderStatus
 from core.messages import ErrorMessage
 
 
@@ -139,7 +133,8 @@ class DeliveryService:
         longitude: Decimal | None = None,
     ) -> dict:
         result = self._resolve(address=address, place_id=place_id, latitude=latitude, longitude=longitude)
-        serviceable = self.is_serviceable(result)
+        zone = self.find_zone(result)
+        serviceable = zone is not None
         return {
             "status": result.status,
             "formatted_address": result.formatted_address,
@@ -149,6 +144,8 @@ class DeliveryService:
             "longitude": str(result.longitude) if result.longitude is not None else None,
             "address_components": result.address_components,
             "serviceable": serviceable,
+            "zone_id": zone.id if zone else None,
+            "zone_name": zone.name if zone else None,
         }
 
     def resolve_address(
@@ -182,17 +179,15 @@ class DeliveryService:
             return self._geocoder.geocode(address=address)
         return GeocodeResult(status="ZERO_RESULTS")
 
-    def is_serviceable(self, result: GeocodeResult) -> bool:
+    def find_zone(self, result: GeocodeResult):
         if result.status != "OK":
-            return False
-        if not DeliveryPostalCode.objects.filter(is_active=True).exists():
-            return _is_dubai_location(result)
-        if not result.postal_code:
-            return False
-        code = normalize_postal_code(result.postal_code)
-        if not code:
-            return False
-        return DeliveryPostalCode.objects.filter(code=code, is_active=True).exists()
+            return None
+        if not _is_dubai_location(result):
+            return None
+        return find_zone_for_coordinates(latitude=result.latitude, longitude=result.longitude)
+
+    def is_serviceable(self, result: GeocodeResult) -> bool:
+        return self.find_zone(result) is not None
 
     def require_serviceable(self, result: GeocodeResult) -> None:
         if not self.is_serviceable(result):

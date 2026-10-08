@@ -3,7 +3,7 @@ from decimal import Decimal
 from accounts.tests.helpers import PASSWORD, PHONE, ApiTestCase, bearer, login, post_json, signup_and_verify
 from catalog.models import Category, Product, ProductStatus, ProductVariant
 from catalog.tests.test_catalog import make_product
-from commerce.models import Address, DeliveryPostalCode, DeliveryWindow, Order, OrderStatus, PaymentMethod
+from commerce.models import Address, DeliveryWindow, DeliveryZone, Order, OrderStatus, PaymentMethod
 from datetime import timedelta
 from unittest.mock import patch
 
@@ -128,7 +128,7 @@ class AdminApiTests(ApiTestCase):
     def test_order_status_update(self):
         product, variant = make_product(on_hand=3)
         PaymentMethod.objects.get_or_create(code="cod", defaults={"name": "Cash on delivery"})
-        DeliveryPostalCode.objects.create(code="00000")
+        DeliveryZone.objects.filter(slug="dubai-marina").update(is_active=True)
         tomorrow = (timezone.now() + timedelta(days=1)).date()
         window = DeliveryWindow.objects.create(
             weekday=tomorrow.weekday(),
@@ -498,23 +498,29 @@ class AdminApiTests(ApiTestCase):
         removed = self.client.delete(f"/api/v1/admin/members/{member_id}", **self.auth)
         self.assertEqual(removed.status_code, 200)
 
-    def test_postal_code_can_be_updated_and_deleted(self):
+    def test_delivery_zone_can_be_updated_and_deleted(self):
         created = post_json(
             self.client,
-            "/api/v1/admin/delivery/postal-codes",
-            {"code": "00001", "is_active": True},
+            "/api/v1/admin/delivery/zones",
+            {
+                "name": "Test Zone",
+                "slug": "test-zone",
+                "polygon": [[55.13, 25.07], [55.15, 25.07], [55.15, 25.09], [55.13, 25.09]],
+                "delivery_fee": "12.00",
+                "is_active": True,
+            },
             **self.auth,
         )
         self.assertEqual(created.status_code, 201)
-        code_id = created.json()["data"]["id"]
+        zone_id = created.json()["data"]["id"]
         updated = self.client.patch(
-            f"/api/v1/admin/delivery/postal-codes/{code_id}",
+            f"/api/v1/admin/delivery/zones/{zone_id}",
             data={"is_active": False},
             content_type="application/json",
             **self.auth,
         )
         self.assertEqual(updated.status_code, 200)
         self.assertFalse(updated.json()["data"]["is_active"])
-        deleted = self.client.delete(f"/api/v1/admin/delivery/postal-codes/{code_id}", **self.auth)
+        deleted = self.client.delete(f"/api/v1/admin/delivery/zones/{zone_id}", **self.auth)
         self.assertEqual(deleted.status_code, 200)
-        self.assertFalse(DeliveryPostalCode.objects.filter(pk=code_id).exists())
+        self.assertFalse(DeliveryZone.objects.filter(pk=zone_id).exists())

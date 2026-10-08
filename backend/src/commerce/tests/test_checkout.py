@@ -10,7 +10,7 @@ from catalog.tests.test_catalog import make_product
 from commerce.models import (
     Address,
     CommerceSettings,
-    DeliveryPostalCode,
+    DeliveryZone,
     DeliveryWindow,
     Discount,
     Order,
@@ -30,7 +30,7 @@ class CheckoutTests(ApiTestCase):
         self.user = get_user_model().objects.get(email="ada@example.com")
         self.product, self.variant = make_product(on_hand=5)
         PaymentMethod.objects.get_or_create(code="cod", defaults={"name": "Cash on delivery", "is_active": True})
-        DeliveryPostalCode.objects.create(code="00000")
+        DeliveryZone.objects.filter(slug="dubai-marina").update(is_active=True)
         now = timezone.now()
         self.tomorrow = (now + timedelta(days=1)).date()
         self.window = DeliveryWindow.objects.create(
@@ -75,24 +75,27 @@ class CheckoutTests(ApiTestCase):
         payload.update(extra)
         return payload
 
-    def test_delivery_check_uses_geocoder_postal_code(self):
+    def test_delivery_check_uses_delivery_zone_polygon(self):
         response = post_json(self.client, "/api/v1/delivery/check", {"address": "dubai marina"})
         self.assertEqual(response.status_code, 200)
-        self.assertTrue(response.json()["data"]["serviceable"])
-        self.assertEqual(response.json()["data"]["postal_code"], "00000")
+        data = response.json()["data"]
+        self.assertTrue(data["serviceable"])
+        self.assertEqual(data["zone_name"], "Dubai Marina")
+        self.assertEqual(data["postal_code"], "00000")
 
         blocked = post_json(self.client, "/api/v1/delivery/check", {"address": "outside"})
         self.assertFalse(blocked.json()["data"]["serviceable"])
+        self.assertIsNone(blocked.json()["data"]["zone_id"])
 
-    def test_delivery_accepts_dubai_when_postal_allowlist_empty(self):
-        DeliveryPostalCode.objects.all().delete()
+    def test_delivery_requires_an_active_zone(self):
+        DeliveryZone.objects.update(is_active=False)
 
-        dubai = post_json(self.client, "/api/v1/delivery/check", {"address": "dubai marina"})
-        self.assertEqual(dubai.status_code, 200)
-        self.assertTrue(dubai.json()["data"]["serviceable"])
-
-        blocked = post_json(self.client, "/api/v1/delivery/check", {"address": "outside"})
+        blocked = post_json(self.client, "/api/v1/delivery/check", {"address": "dubai marina"})
         self.assertFalse(blocked.json()["data"]["serviceable"])
+
+        DeliveryZone.objects.filter(slug="dubai-marina").update(is_active=True)
+        allowed = post_json(self.client, "/api/v1/delivery/check", {"address": "dubai marina"})
+        self.assertTrue(allowed.json()["data"]["serviceable"])
 
     def test_delivery_autocomplete_returns_fixture_suggestions(self):
         response = post_json(self.client, "/api/v1/delivery/autocomplete", {"q": "marina"})

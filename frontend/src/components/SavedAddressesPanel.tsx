@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { AddressPicker } from "@/components/AddressPicker";
 import { useToast } from "@/components/Toast";
 import { setPrimaryAddressAction } from "@/lib/actions";
@@ -26,8 +26,10 @@ export function SavedAddressesPanel({ addresses }: { addresses: SavedAddressRow[
   const router = useRouter();
   const toast = useToast();
   const [pending, startTransition] = useTransition();
+  const [adding, setAdding] = useState(addresses.length === 0);
 
   function refresh() {
+    setAdding(false);
     router.refresh();
   }
 
@@ -45,7 +47,7 @@ export function SavedAddressesPanel({ addresses }: { addresses: SavedAddressRow[
 
   return (
     <div className="addresses-panel">
-      {addresses.length ? (
+      {addresses.length && !adding ? (
         <ul className="addresses-list">
           {addresses.map((address) => (
             <li key={address.id} className={`addresses-row ${address.is_default ? "addresses-row--primary" : ""}`}>
@@ -66,20 +68,39 @@ export function SavedAddressesPanel({ addresses }: { addresses: SavedAddressRow[
             </li>
           ))}
         </ul>
-      ) : (
-        <p className="addresses-empty">No saved addresses yet. Add one below for faster checkout.</p>
-      )}
+      ) : null}
 
-      <section className="addresses-add">
-        <h2>{addresses.length ? "Add another address" : "Add your first address"}</h2>
-        <p className="addresses-add-copy">We deliver across Dubai. Search for your building or use your location.</p>
-        <AddressPicker
-          isDefault={addresses.length === 0}
-          showPrimaryToggle={addresses.length > 0}
-          submitLabel={addresses.length ? "Save address" : "Save primary address"}
-          onSaved={refresh}
-        />
-      </section>
+      {!addresses.length && !adding ? (
+        <p className="addresses-empty">No saved addresses yet. Add one below for faster checkout.</p>
+      ) : null}
+
+      {addresses.length && !adding ? (
+        <button type="button" className="text-action add-address" onClick={() => setAdding(true)}>
+          + Add another address
+        </button>
+      ) : null}
+
+      {adding ? (
+        <section className="addresses-add">
+          <div className="addresses-add-head">
+            <div>
+              <h2>{addresses.length ? "Add another address" : "Add your first address"}</h2>
+              <p className="addresses-add-copy">We deliver across Dubai. Search for your building or use your location.</p>
+            </div>
+            {addresses.length ? (
+              <button type="button" className="checkout-cancel" onClick={() => setAdding(false)}>
+                Cancel
+              </button>
+            ) : null}
+          </div>
+          <AddressPicker
+            isDefault={addresses.length === 0}
+            showPrimaryToggle={addresses.length > 0}
+            submitLabel={addresses.length ? "Save address" : "Save primary address"}
+            onSaved={refresh}
+          />
+        </section>
+      ) : null}
     </div>
   );
 }

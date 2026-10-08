@@ -226,36 +226,79 @@ export async function deleteWindowAction(_prev: ActionState, formData: FormData)
   return replied(true, "Delivery window removed.", "/delivery");
 }
 
-export async function createPostalCodeAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
-  const result = await apiFetch("/admin/delivery/postal-codes", {
+function parsePolygonField(formData: FormData) {
+  const raw = String(formData.get("polygon") || "[]");
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+export async function createDeliveryZoneAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const polygon = parsePolygonField(formData);
+  if (polygon.length < 3) {
+    return replied(false, "Draw at least three boundary points on the map.");
+  }
+  const result = await apiFetch("/admin/delivery/zones", {
     method: "POST",
     body: {
-      code: String(formData.get("code") || ""),
+      name: String(formData.get("name") || ""),
+      slug: String(formData.get("slug") || "") || undefined,
+      polygon,
+      delivery_fee: String(formData.get("delivery_fee") || "0"),
+      sort_order: Number(formData.get("sort_order") || 0),
       is_active: formData.get("is_active") === "on",
     },
   });
   if (!result.ok) return replied(false, result.message);
-  return replied(true, "Postal code added.", "/delivery");
+  return replied(true, "Delivery zone added.", "/delivery");
 }
 
-export async function updatePostalCodeAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
-  const codeId = String(formData.get("code_id") || "");
-  const result = await apiFetch(`/admin/delivery/postal-codes/${codeId}`, {
+export async function updateDeliveryZoneAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const zoneId = String(formData.get("zone_id") || "");
+  const body: Record<string, unknown> = {};
+  if (formData.has("name")) body.name = String(formData.get("name") || "");
+  if (formData.has("slug")) body.slug = String(formData.get("slug") || "");
+  if (formData.has("delivery_fee")) body.delivery_fee = String(formData.get("delivery_fee") || "0");
+  if (formData.has("sort_order")) body.sort_order = Number(formData.get("sort_order") || 0);
+  if (formData.has("is_active")) {
+    const active = formData.get("is_active");
+    body.is_active = active === "on" || active === "true";
+  }
+  if (formData.has("polygon")) {
+    const polygon = parsePolygonField(formData);
+    if (polygon.length < 3) {
+      return replied(false, "Draw at least three boundary points on the map.");
+    }
+    body.polygon = polygon;
+  }
+  const result = await apiFetch(`/admin/delivery/zones/${zoneId}`, {
+    method: "PATCH",
+    body,
+  });
+  if (!result.ok) return replied(false, result.message);
+  return replied(true, "Delivery zone updated.", "/delivery");
+}
+
+export async function toggleDeliveryZoneAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const zoneId = String(formData.get("zone_id") || "");
+  const result = await apiFetch(`/admin/delivery/zones/${zoneId}`, {
     method: "PATCH",
     body: {
-      code: String(formData.get("code") || ""),
-      is_active: formData.get("is_active") === "on",
+      is_active: formData.get("is_active") === "true",
     },
   });
   if (!result.ok) return replied(false, result.message);
-  return replied(true, "Postal code updated.", "/delivery");
+  return replied(true, "Delivery zone updated.", "/delivery");
 }
 
-export async function deletePostalCodeAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
-  const codeId = String(formData.get("code_id") || "");
-  const result = await apiFetch(`/admin/delivery/postal-codes/${codeId}`, { method: "DELETE" });
+export async function deleteDeliveryZoneAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const zoneId = String(formData.get("zone_id") || "");
+  const result = await apiFetch(`/admin/delivery/zones/${zoneId}`, { method: "DELETE" });
   if (!result.ok) return replied(false, result.message);
-  return replied(true, "Postal code removed.", "/delivery");
+  return replied(true, "Delivery zone removed.", "/delivery");
 }
 
 export async function updatePricingAction(_prev: ActionState, formData: FormData): Promise<ActionState> {

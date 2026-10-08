@@ -77,6 +77,11 @@ export default async function AccountPage() {
               : "Browse products and place your first order"}
           </p>
         </Link>
+        <Link href="/addresses" className="account-card">
+          <span className="account-card-label">Delivery</span>
+          <strong>Saved addresses</strong>
+          <p>Manage where we deliver in Dubai.</p>
+        </Link>
         <div className="account-card account-card-static">
           <span className="account-card-label">Membership</span>
           <strong>Sortd member</strong>

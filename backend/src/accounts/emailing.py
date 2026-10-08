@@ -8,8 +8,9 @@ from django.utils.encoding import force_bytes, force_str
 
 logger = logging.getLogger(__name__)
 
-FOREST = "#16382c"
+FOREST = "#143503"
 CITRUS = "#c45c26"
+STOP = "#e23b32"
 PAPER = "#f4f6f4"
 SAND = "#eef1ee"
 INK = "#0e1a14"
@@ -63,6 +64,21 @@ def _shop_url() -> str:
     return settings.FRONTEND_URL.rstrip("/")
 
 
+def _email_logo_html() -> str:
+    shop = escape(_shop_url(), quote=True)
+    logo_url = escape(f"{_shop_url()}/images/sortd-wordmark.svg", quote=True)
+    return (
+        f'<tr><td style="padding:8px 8px 20px;">'
+        f'<a href="{shop}" style="text-decoration:none;display:inline-block;">'
+        f'<img src="{logo_url}" alt="Sortd" width="108" height="28" '
+        f'style="display:block;border:0;outline:none;text-decoration:none;max-width:108px;height:auto;" />'
+        f"</a>"
+        f'<p style="display:none;max-height:0;overflow:hidden;margin:0;font-family:Georgia,serif;font-size:28px;'
+        f'font-weight:700;color:{FOREST};">Sortd<span style="color:{STOP};">.</span></p>'
+        f"</td></tr>"
+    )
+
+
 def _branded_html(*, preview: str, heading: str, intro: str, extra_html: str = "", cta_label: str = "", cta_url: str = "") -> str:
     preview_safe = escape(preview)
     heading_safe = escape(heading)
@@ -86,7 +102,7 @@ def _branded_html(*, preview: str, heading: str, intro: str, extra_html: str = "
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:{PAPER};padding:24px 12px;">
   <tr><td align="center">
     <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;">
-      <tr><td style="padding:8px 8px 20px;font-family:Georgia,serif;font-size:28px;letter-spacing:0.08em;color:{FOREST};">SORTD</td></tr>
+      {_email_logo_html()}
       <tr><td style="background:#ffffff;border:1px solid {LINE};border-radius:18px;padding:32px 28px;">
         <p style="margin:0 0 8px;font-family:Arial,sans-serif;font-size:12px;letter-spacing:0.16em;text-transform:uppercase;color:{CITRUS};">Only what passes</p>
         <h1 style="margin:0 0 16px;font-family:Georgia,serif;font-size:28px;line-height:1.2;color:{FOREST};">{heading_safe}</h1>

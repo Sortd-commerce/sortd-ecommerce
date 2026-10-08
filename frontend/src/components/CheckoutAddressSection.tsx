@@ -102,9 +102,30 @@ export function CheckoutAddressSection({ addresses }: { addresses: CheckoutAddre
     });
   }
 
+  function cancelAddressFlow() {
+    if (addressOpen) {
+      setAddressOpen(false);
+      return;
+    }
+    setPanel("pick");
+  }
+
+  const showCancel = (panel === "add" && addresses.length > 0) || addressOpen || panel === "edit";
+
   if (panel === "add") {
     return (
       <>
+        <div className="checkout-block-head">
+          <div className="checkout-block-title">
+            <p className="step-index">01</p>
+            <h2>Deliver to</h2>
+          </div>
+          {showCancel ? (
+            <button type="button" className="checkout-cancel" onClick={cancelAddressFlow}>
+              Cancel
+            </button>
+          ) : null}
+        </div>
         <p className="fine-print">We deliver across Dubai. Search for your building or use your location.</p>
         <AddressPicker
           isDefault={addresses.length === 0}
@@ -118,27 +139,49 @@ export function CheckoutAddressSection({ addresses }: { addresses: CheckoutAddre
 
   if (panel === "edit" && selectedAddress) {
     return (
-      <AddressPicker
-        key={selectedAddress.id}
-        addressId={selectedAddress.id}
-        isDefault={Boolean(selectedAddress.is_default)}
-        showPrimaryToggle
-        submitLabel="Update address"
-        initialQuery={selectedAddress.formatted_address || selectedAddress.line1}
-        initialPlace={{
-          place_id: selectedAddress.place_id,
-          latitude: selectedAddress.latitude,
-          longitude: selectedAddress.longitude,
-          postal_code: selectedAddress.postal_code,
-          formatted_address: selectedAddress.formatted_address || selectedAddress.line1,
-        }}
-        onSaved={onAddressSaved}
-      />
+      <>
+        <div className="checkout-block-head">
+          <div className="checkout-block-title">
+            <p className="step-index">01</p>
+            <h2>Deliver to</h2>
+          </div>
+          <button type="button" className="checkout-cancel" onClick={cancelAddressFlow}>
+            Cancel
+          </button>
+        </div>
+        <AddressPicker
+          key={selectedAddress.id}
+          addressId={selectedAddress.id}
+          isDefault={Boolean(selectedAddress.is_default)}
+          showPrimaryToggle
+          submitLabel="Update address"
+          initialQuery={selectedAddress.formatted_address || selectedAddress.line1}
+          initialPlace={{
+            place_id: selectedAddress.place_id,
+            latitude: selectedAddress.latitude,
+            longitude: selectedAddress.longitude,
+            postal_code: selectedAddress.postal_code,
+            formatted_address: selectedAddress.formatted_address || selectedAddress.line1,
+          }}
+          onSaved={onAddressSaved}
+        />
+      </>
     );
   }
 
   return (
     <>
+      <div className="checkout-block-head">
+        <div className="checkout-block-title">
+          <p className="step-index">01</p>
+          <h2>Deliver to</h2>
+        </div>
+        {showCancel ? (
+          <button type="button" className="checkout-cancel" onClick={cancelAddressFlow}>
+            Cancel
+          </button>
+        ) : null}
+      </div>
       {panel === "pick" && !addressOpen && selectedAddress ? (
         <div className="pick-card pick-card-on address-summary">
           <input type="radio" checked readOnly tabIndex={-1} aria-label="Selected address" />

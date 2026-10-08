@@ -89,6 +89,9 @@ export function AccountMenu({ user }: { user: AuthUser | null }) {
               <span>My orders</span>
               {activeOrders > 0 ? <span className="account-menu-badge">{activeOrders} on the way</span> : null}
             </Link>
+            <Link href="/addresses" className="account-menu-item" role="menuitem" onClick={() => setOpen(false)}>
+              <span>Saved addresses</span>
+            </Link>
           </div>
           <form action={logoutAction} className="account-menu-logout">
             <button type="submit" className="account-menu-item account-menu-item--logout" role="menuitem">

@@ -1,14 +1,10 @@
 import { ActionForm, SubmitButton } from "@/components/ActionForm";
+import { CreateZoneForm } from "@/components/CreateZoneForm";
 import { DiscountEditor, type DiscountRow } from "@/components/DiscountEditor";
 import { PageHeader } from "@/components/PageHeader";
-import { PostalEditor, type PostalRow } from "@/components/PostalEditor";
+import { DeliveryZoneRow, ZoneEditor } from "@/components/ZoneEditor";
 import { WindowEditor, type DeliveryWindowRow } from "@/components/WindowEditor";
-import {
-  createDiscountAction,
-  createPostalCodeAction,
-  createWindowAction,
-  updatePricingAction,
-} from "@/lib/actions";
+import { createDiscountAction, createWindowAction, updatePricingAction } from "@/lib/actions";
 import { apiFetch } from "@/lib/api";
 import { requireAdmin } from "@/lib/staff";
 
@@ -32,9 +28,9 @@ type ProductOption = {
 
 export default async function DeliveryAdminPage() {
   await requireAdmin();
-  const [windows, postal, pricing, discounts, products] = await Promise.all([
+  const [windows, zones, pricing, discounts, products] = await Promise.all([
     apiFetch<DeliveryWindowRow[]>("/admin/delivery/windows"),
-    apiFetch<PostalRow[]>("/admin/delivery/postal-codes"),
+    apiFetch<DeliveryZoneRow[]>("/admin/delivery/zones"),
     apiFetch<PricingSettings>("/admin/pricing"),
     apiFetch<DiscountRow[]>("/admin/discounts"),
     apiFetch<{ results: ProductOption[] }>("/admin/products?page_size=100"),
@@ -45,7 +41,7 @@ export default async function DeliveryAdminPage() {
     <div className="space-y-8">
       <PageHeader
         title="Delivery & pricing"
-        description="Delivery windows, free-delivery threshold, and automatic discounts. Promo codes live under Coupons."
+        description="Delivery zones, weekly windows, free-delivery threshold, and automatic discounts. Promo codes live under Coupons."
       />
 
       <section className="panel overflow-hidden">
@@ -209,29 +205,24 @@ export default async function DeliveryAdminPage() {
           </div>
         </div>
 
-        <div className="panel overflow-hidden">
+        <div className="panel overflow-hidden xl:col-span-2">
           <div className="border-b border-line px-4 py-4">
-            <h2 className="font-semibold">Postal codes</h2>
-            <p className="mt-1 text-sm text-muted">Only these codes pass the delivery check.</p>
+            <h2 className="font-semibold">Delivery zones</h2>
+            <p className="mt-1 text-sm text-muted">
+              Serviceability is based on the customer&apos;s location pin inside these polygons. Enable the zones you deliver to, or draw new ones on the map.
+            </p>
           </div>
           <ul>
-            {(postal.data || []).map((row) => (
-              <PostalEditor key={row.id} row={row} />
+            {(zones.data || []).map((row) => (
+              <ZoneEditor key={row.id} zone={row} />
             ))}
-            {!postal.data?.length ? <li className="px-4 py-8 text-sm text-muted">None yet. Local fixture geocode uses 00000.</li> : null}
+            {!zones.data?.length ? (
+              <li className="px-4 py-8 text-sm text-muted">No delivery zones yet. The reference Dubai zones are seeded on migration.</li>
+            ) : null}
           </ul>
           <div className="border-t border-line p-4">
-            <h3 className="text-sm font-medium">Add postal code</h3>
-            <ActionForm action={createPostalCodeAction} className="mt-3 grid gap-3" successLabel="Postal code added.">
-              <label className="field">
-                <span>Postal / pin code</span>
-                <input name="code" placeholder="00000" required />
-              </label>
-              <label className="flex items-center gap-2 text-sm text-muted">
-                <input name="is_active" type="checkbox" defaultChecked /> Active
-              </label>
-              <SubmitButton>Add postal code</SubmitButton>
-            </ActionForm>
+            <h3 className="text-sm font-medium">Add delivery zone</h3>
+            <CreateZoneForm />
           </div>
         </div>
       </section>

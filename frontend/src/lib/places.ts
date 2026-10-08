@@ -17,6 +17,8 @@ export type DeliveryCheck = {
   latitude: string | null;
   longitude: string | null;
   serviceable: boolean;
+  zone_id: number | null;
+  zone_name: string | null;
 };
 
 export async function autocompletePlaces(query: string): Promise<PlaceSuggestion[]> {
