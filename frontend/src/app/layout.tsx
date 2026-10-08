@@ -10,7 +10,7 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { ToastProvider } from "@/components/Toast";
 import { apiFetch } from "@/lib/api";
 import { fetchPricingRules } from "@/lib/catalog";
-import { getAccessToken } from "@/lib/auth";
+import { hasAuthSession } from "@/lib/auth";
 import "./globals.css";
 
 const body = Archivo({
@@ -49,7 +49,7 @@ export const viewport: Viewport = {
 };
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  const signedIn = Boolean(await getAccessToken());
+  const signedIn = await hasAuthSession();
   const [pricing, profile] = await Promise.all([
     fetchPricingRules(),
     signedIn ? apiFetch<AuthUser>("/profile") : Promise.resolve(null),

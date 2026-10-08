@@ -1,4 +1,4 @@
-import { getAccessToken, refreshAuthTokens } from "@/lib/auth";
+import { getAccessToken } from "@/lib/auth";
 import { getServiceToken } from "@/lib/service-token";
 
 type ApiOptions = {
@@ -60,13 +60,6 @@ export async function apiFetch<T>(path: string, options: ApiOptions = {}): Promi
   let response: Response;
   try {
     response = await sendRequest();
-    if (response.status === 401 && options.auth !== false) {
-      const refreshed = await refreshAuthTokens();
-      if (refreshed) {
-        await attachAuth();
-        response = await sendRequest();
-      }
-    }
   } catch {
     return {
       ok: false,

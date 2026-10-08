@@ -6,11 +6,11 @@ import {
   type CheckoutAddress,
 } from "@/lib/checkout";
 import { apiFetch } from "@/lib/api";
-import { getAccessToken } from "@/lib/auth";
+import { hasAuthSession } from "@/lib/auth";
 
 export default async function CheckoutPage() {
-  const access = await getAccessToken();
-  if (!access) {
+  const signedIn = await hasAuthSession();
+  if (!signedIn) {
     return <CheckoutGuestGate />;
   }
 
