@@ -88,7 +88,9 @@ export function ProductGallery({
       (entries) => {
         for (const entry of entries) {
           if (!entry.isIntersecting) continue;
-          const index = Number(entry.target.dataset.gallerySlide);
+          const target = entry.target;
+          if (!(target instanceof HTMLElement)) continue;
+          const index = Number(target.dataset.gallerySlide);
           if (Number.isFinite(index)) markSlideLoaded(index);
         }
       },
