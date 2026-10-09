@@ -16,7 +16,8 @@ export function FloatingCartBar() {
   const { count, subtotal } = useCart();
   const { open, openBasket } = useBasket();
   const mobile = useMobileViewport();
-  const visible = mobile && !pathname.startsWith("/checkout") && count > 0 && !open;
+  const onProductPage = pathname.startsWith("/products/");
+  const visible = mobile && !pathname.startsWith("/checkout") && !onProductPage && count > 0 && !open;
 
   useEffect(() => {
     document.body.classList.toggle("has-floating-cart", visible);

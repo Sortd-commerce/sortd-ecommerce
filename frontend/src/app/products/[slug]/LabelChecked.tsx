@@ -1,7 +1,9 @@
 "use client";
 
+import { CaretDown } from "@phosphor-icons/react";
 import Link from "next/link";
 import { useLayoutEffect, useRef, useState } from "react";
+import { useMobileViewport } from "@/lib/use-mobile-viewport";
 
 type Fact = {
   name: string;
@@ -277,6 +279,8 @@ export function LabelChecked({
   const [tab, setTab] = useState<Tab>("nutrition");
   const [slideDir, setSlideDir] = useState(0);
   const [indicator, setIndicator] = useState({ width: 0, left: 0 });
+  const [accordionOpen, setAccordionOpen] = useState(false);
+  const mobile = useMobileViewport();
   const tabsRef = useRef<HTMLDivElement>(null);
 
   const highlightPool = label.facts.filter((fact) => fact.is_highlight);
@@ -301,6 +305,7 @@ export function LabelChecked({
   const checksNoteCount = checkRows.filter((row) => row.state === "note").length;
 
   useLayoutEffect(() => {
+    if (mobile && !accordionOpen) return;
     const track = tabsRef.current;
     if (!track) return;
 
@@ -316,7 +321,7 @@ export function LabelChecked({
     updateIndicator();
     window.addEventListener("resize", updateIndicator);
     return () => window.removeEventListener("resize", updateIndicator);
-  }, [tab]);
+  }, [accordionOpen, mobile, tab]);
 
   function selectTab(next: Tab) {
     const currentIdx = TAB_ORDER.indexOf(tab);
@@ -327,12 +332,8 @@ export function LabelChecked({
 
   const panelClass = slideDir >= 0 ? "label-panel--forward" : "label-panel--back";
 
-  return (
-    <section className="label-section" aria-label="The label, checked">
-      <h2 className="label-intro">The label, checked.</h2>
-      <div className="label-section__body">
-        <p className="label-kicker">More on this product</p>
-        <div className="label-box">
+  const labelBody = (
+    <div className="label-box">
         <header className="label-box__header">
           <div className="label-box__meta">
             <span>{servingMeta || "AS PRINTED ON PACK"}</span>
@@ -533,7 +534,34 @@ export function LabelChecked({
           </div>
         </div>
       </div>
-      </div>
+  );
+
+  return (
+    <section className="label-section" aria-label="The label, checked">
+      {!mobile ? <h2 className="label-intro">The label, checked.</h2> : null}
+      {mobile ? (
+        <>
+          <button
+            type="button"
+            className="label-accordion-trigger"
+            aria-expanded={accordionOpen}
+            onClick={() => setAccordionOpen((value) => !value)}
+          >
+            <span>More on this product</span>
+            <CaretDown size={18} weight="bold" className="label-accordion-caret" data-open={accordionOpen} aria-hidden />
+          </button>
+          <div className={`label-accordion-panel ${accordionOpen ? "label-accordion-panel--open" : ""}`}>
+            <div className="label-accordion-panel__inner">
+              <div className="label-section__body">{labelBody}</div>
+            </div>
+          </div>
+        </>
+      ) : (
+        <div className="label-section__body">
+          <p className="label-kicker">More on this product</p>
+          {labelBody}
+        </div>
+      )}
     </section>
   );
 }

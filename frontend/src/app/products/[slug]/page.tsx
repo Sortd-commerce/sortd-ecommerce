@@ -1,14 +1,12 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { BuyBox } from "@/app/products/[slug]/BuyBox";
 import { LabelChecked } from "@/app/products/[slug]/LabelChecked";
+import { ProductCategoryRail } from "@/app/products/[slug]/ProductCategoryRail";
 import { ProductGallery } from "@/app/products/[slug]/ProductGallery";
 import { Manifesto } from "@/components/Manifesto";
-import { ProductCard } from "@/components/ProductCard";
-import { ProductRail } from "@/components/ProductRail";
-import type { CardProduct } from "@/components/catalog";
 import { apiFetch } from "@/lib/api";
-import { fetchProductCatalog } from "@/lib/catalog";
 
 type ProductDetail = {
   title: string;
@@ -103,25 +101,16 @@ function buyHighlights(headline: string | undefined, ingredientCount: number) {
 
 export default async function ProductPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const [result, catalog] = await Promise.all([
-    apiFetch<ProductDetail>(`/products/${slug}`, { auth: false, revalidate: 60 }),
-    fetchProductCatalog(),
-  ]);
+  const result = await apiFetch<ProductDetail>(`/products/${slug}`, { auth: false, revalidate: 60 });
   if (!result.ok || !result.data) notFound();
   const product = result.data;
-  const results = catalog.data?.results || [];
-  const bySlug = new Map(results.map((row) => [row.slug, row]));
   const flavors = product.related
     .filter((row) => row.kind === "flavor")
     .map((row) => ({
       title: flavorLabel(row.title),
       slug: row.slug,
-      image: bySlug.get(row.slug)?.primary_image?.url || "",
+      image: "",
     }));
-  const rail = results
-    .filter((row) => row.slug !== product.slug && row.category.slug === product.category.slug)
-    .sort((a, b) => Number(b.has_passed_report) - Number(a.has_passed_report))
-    .slice(0, 8);
   const highlights = buyHighlights(product.label?.headline, product.label?.ingredients.length || 0);
 
   return (
@@ -145,6 +134,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
           <div className="product-layout">
             <ProductGallery
               title={product.title}
+              slug={product.slug}
               images={product.images || []}
               labReportUrl={product.lab_report_url}
             />
@@ -173,17 +163,9 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
         </div>
       </section>
 
-      {rail.length ? (
-        <section className="home-section home-section--catalog">
-          <div className="home-inner">
-            <ProductRail id="also-passed" title="Also passed our checks" count={rail.length}>
-              {rail.map((item) => (
-                <ProductCard key={item.id} product={item} />
-              ))}
-            </ProductRail>
-          </div>
-        </section>
-      ) : null}
+      <Suspense fallback={null}>
+        <ProductCategoryRail slug={product.slug} categorySlug={product.category.slug} />
+      </Suspense>
 
       <Manifesto />
     </div>

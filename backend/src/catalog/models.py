@@ -73,6 +73,9 @@ class Product(models.Model):
 
     class Meta:
         ordering = ["title"]
+        indexes = [
+            models.Index(fields=["status", "category"], name="catalog_product_status_cat"),
+        ]
 
     def __str__(self) -> str:
         return self.title

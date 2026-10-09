@@ -6,7 +6,15 @@ from ninja_extra import ControllerBase, api_controller, route
 from ninja_extra.permissions import AllowAny
 
 from catalog.models import Category, Product, ProductStatus
-from catalog.queries import active_products, current_report, lab_report_file_url, product_has_lab_report, report_has_passed
+from catalog.queries import (
+    active_product_detail,
+    active_products_list,
+    active_variants,
+    current_report,
+    lab_report_file_url,
+    product_has_lab_report,
+    report_has_passed,
+)
 from catalog.search import search_suggestions
 from catalog.schemas import (
     CategoryOut,
@@ -19,6 +27,7 @@ from catalog.schemas import (
     serialize_variant,
 )
 from catalog.writer import serialize_label, serialize_related
+from core.cache_headers import apply_product_detail_cache
 from core.messages import ErrorMessage
 from core.pagination import PageQuery, paginate_queryset
 from core.responses import ErrorResponse, SuccessResponse, success
@@ -29,7 +38,7 @@ _ERROR_RESPONSES = {401: ErrorResponse, 404: ErrorResponse, 422: ErrorResponse}
 
 def _serialize_detail(product: Product) -> dict:
     report = current_report(product)
-    label = serialize_label(product)
+    label = serialize_label(product, report=report)
     nutrition = None
     if label:
         nutrition = {
@@ -38,6 +47,8 @@ def _serialize_detail(product: Product) -> dict:
             "headline": label["headline"],
             "facts": label["facts"],
         }
+    variants = active_variants(product)
+    lab_passed = label["checks"]["lab_passed"] if label else report_has_passed(report)
     return {
         "id": product.id,
         "title": product.title,
@@ -47,8 +58,8 @@ def _serialize_detail(product: Product) -> dict:
         "shelf": product.shelf,
         "tags": parse_tags(product.tags),
         "category": serialize_category(product.category),
-        "images": [serialize_image(image, position=index) for index, image in enumerate(product.images.all())],
-        "variants": [serialize_variant(variant) for variant in product.variants.filter(is_active=True)],
+        "images": [serialize_image(image, position=index) for index, image in enumerate(list(product.images.all()))],
+        "variants": [serialize_variant(variant) for variant in variants],
         "nutrition": nutrition,
         "ingredients": label["ingredients"] if label else [],
         "additives": [
@@ -56,14 +67,14 @@ def _serialize_detail(product: Product) -> dict:
         ],
         "related": serialize_related(product),
         "label": label,
-        "has_passed_report": report_has_passed(report),
+        "has_passed_report": lab_passed,
         "has_lab_report": product_has_lab_report(report),
         "lab_report_url": lab_report_file_url(product.slug, report),
     }
 
 
 def _default_variant(product: Product) -> dict | None:
-    active = [variant for variant in product.variants.all() if variant.is_active]
+    active = active_variants(product)
     if not active:
         return None
     variant = min(active, key=lambda row: (row.price, row.id))
@@ -73,7 +84,7 @@ def _default_variant(product: Product) -> dict | None:
 def _serialize_list_item(product: Product) -> dict:
     images = list(product.images.all())
     primary = images[0] if images else None
-    prices = [variant.price for variant in product.variants.all() if variant.is_active]
+    prices = [variant.price for variant in active_variants(product)]
     report = current_report(product)
     return {
         "id": product.id,
@@ -111,7 +122,7 @@ class ProductController(ControllerBase):
     @route.get("", response={200: SuccessResponse, **_ERROR_RESPONSES}, summary="List products")
     def list_products(self, query: Query[PageQuery]):
         page = paginate_queryset(
-            active_products().order_by("category__sort_order", "category__name", "title"),
+            active_products_list().order_by("category__sort_order", "category__name", "title"),
             page=query.page,
             page_size=query.page_size,
         )
@@ -124,10 +135,12 @@ class ProductController(ControllerBase):
         summary="Get a product",
     )
     def retrieve(self, slug: str):
-        product = active_products().filter(slug=slug).first()
+        product = active_product_detail().filter(slug=slug).first()
         if product is None:
             raise NotFound(ErrorMessage.NOT_FOUND)
-        return success("Product retrieved.", _serialize_detail(product))
+        body = success("Product retrieved.", _serialize_detail(product))
+        response = self.context.api.create_response(self.context.request, body, status=200)
+        return apply_product_detail_cache(response)
 
     @route.get(
         "/{slug}/report",
@@ -135,7 +148,7 @@ class ProductController(ControllerBase):
         summary="Get the current lab report",
     )
     def report(self, slug: str):
-        product = active_products().filter(slug=slug).first()
+        product = active_product_detail().filter(slug=slug).first()
         if product is None:
             raise NotFound(ErrorMessage.NOT_FOUND)
         report = current_report(product)

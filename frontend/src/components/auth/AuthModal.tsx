@@ -179,8 +179,17 @@ export function AuthModal({
     }
   }, [loginState.email, loginState.ok, loginState.purpose, onCodeSent, step]);
 
+  const [entered, setEntered] = useState(false);
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => setEntered(true));
+    return () => {
+      window.cancelAnimationFrame(frame);
+      setEntered(false);
+    };
+  }, []);
+
   return (
-    <div className="auth-modal-layer">
+    <div className={`auth-modal-layer ${entered ? "sheet-enter" : ""}`}>
       <button type="button" className="auth-modal-scrim" aria-label="Close sign in" onClick={onClose} />
       <div className="auth-modal" role="dialog" aria-modal="true" aria-labelledby="auth-modal-title">
         <span className="sheet-handle auth-modal-handle" aria-hidden />

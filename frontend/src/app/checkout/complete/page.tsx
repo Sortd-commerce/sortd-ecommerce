@@ -14,7 +14,7 @@ export default async function CheckoutCompletePage({
 
   const result = await completeStripeCheckoutAction(sessionId.trim());
   if (result.ok && result.orderNumber) {
-    redirect(`/orders/${result.orderNumber}`);
+    redirect(`/orders/${result.orderNumber}?placed=1`);
   }
 
   return (

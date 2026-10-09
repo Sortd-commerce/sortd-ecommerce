@@ -97,6 +97,16 @@ class CatalogTests(ApiTestCase):
         slugs = [row["slug"] for row in response.json()["data"]["results"]]
         self.assertEqual(slugs, ["coffee-bar"])
 
+    def test_product_list_uses_a_bounded_query_count(self):
+        make_product(slug="alpha-bar", title="Alpha")
+        make_product(slug="bravo-bar", title="Bravo")
+
+        with self.assertNumQueries(5):
+            response = self.client.get("/api/v1/products?page_size=2")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.json()["data"]["results"]), 2)
+
     def test_lists_honours_page_size(self):
         make_product(slug="alpha-bar", title="Alpha")
         make_product(slug="bravo-bar", title="Bravo")
@@ -121,9 +131,14 @@ class CatalogTests(ApiTestCase):
         product, _ = make_product()
         make_report(product)
 
-        response = self.client.get("/api/v1/products/coffee-bar")
+        with self.assertNumQueries(11):
+            response = self.client.get("/api/v1/products/coffee-bar")
 
         self.assertEqual(response.status_code, 200)
+        cache_control = response.headers.get("Cache-Control", "")
+        self.assertIn("public", cache_control)
+        self.assertIn("max-age=60", cache_control)
+        self.assertIn("s-maxage=300", cache_control)
         data = response.json()["data"]
         self.assertEqual(data["title"], "20g Protein Bar, Coffee Cocoa")
         self.assertTrue(data["has_passed_report"])

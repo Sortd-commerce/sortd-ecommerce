@@ -353,7 +353,7 @@ export async function placeOrderAction(_prev: ActionState, formData: FormData): 
     cart_json: String(formData.get("cart_json") || ""),
   });
   if (!result.ok || !result.orderNumber) return { ok: false, message: result.message || "Order could not be placed." };
-  redirect(`/orders/${result.orderNumber}`);
+  redirect(`/orders/${result.orderNumber}?placed=1`);
 }
 
 export async function saveAddressAction(_prev: ActionState, formData: FormData): Promise<ActionState> {

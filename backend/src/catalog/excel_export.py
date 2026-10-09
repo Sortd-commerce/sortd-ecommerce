@@ -193,7 +193,10 @@ def product_to_import_row(product: Product, *, base: dict[str, Any] | None = Non
         row["ingredients_full"] = full_ingredients
 
     row.update(_allergen_columns(product))
-    row.update(_image_columns(product))
+    # DB Cloudinary (or media) URLs always win over base workbook/JSON placeholders.
+    image_fields = _image_columns(product)
+    if image_fields:
+        row.update(image_fields)
     row.update(_lab_columns(product))
 
     return row

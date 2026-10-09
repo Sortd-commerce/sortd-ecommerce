@@ -18,6 +18,7 @@ export function SearchField({
   const params = useSearchParams();
   const initial = params.get("q") || "";
   const listId = useId();
+  const inputRef = useRef<HTMLInputElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const [query, setQuery] = useState(initial);
   const [open, setOpen] = useState(false);
@@ -28,6 +29,12 @@ export function SearchField({
   useEffect(() => {
     setQuery(initial);
   }, [initial]);
+
+  useEffect(() => {
+    if (params.get("focus") !== "search") return;
+    inputRef.current?.focus({ preventScroll: false });
+    setOpen(true);
+  }, [params]);
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -83,6 +90,7 @@ export function SearchField({
         </label>
         <MagnifyingGlass size={17} weight="regular" className="search-form-icon" aria-hidden />
         <input
+          ref={inputRef}
           id="store-search"
           name="q"
           value={query}

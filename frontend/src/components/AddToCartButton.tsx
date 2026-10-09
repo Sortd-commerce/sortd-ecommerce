@@ -19,6 +19,7 @@ export function AddToCartButton({
   detail,
   addQuantity = 1,
   className = "",
+  label,
 }: {
   variantId: number;
   title: string;
@@ -32,6 +33,7 @@ export function AddToCartButton({
   detail?: string;
   addQuantity?: number;
   className?: string;
+  label?: string;
 }) {
   const { items, addItem, setQuantity, removeItem } = useCart();
   const { openBasket } = useBasket();
@@ -121,7 +123,7 @@ export function AddToCartButton({
         toast.success("Added to basket");
       }}
     >
-      Add to basket
+      {label || "Add to basket"}
     </button>
   );
 }

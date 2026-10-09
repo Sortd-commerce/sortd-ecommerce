@@ -1,6 +1,11 @@
 "use client";
 
+import { ArrowLeft, MagnifyingGlass } from "@phosphor-icons/react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { ProductLightbox } from "@/components/ProductLightbox";
+import { ShareProductButton } from "@/components/ShareProductButton";
 import { OptimizedImage } from "@/components/OptimizedImage";
 
 type GalleryImage = { url: string; alt: string; role: string };
@@ -18,15 +23,19 @@ function LabReportIcon() {
 
 export function ProductGallery({
   title,
+  slug,
   images,
   labReportUrl,
 }: {
   title: string;
+  slug: string;
   images: GalleryImage[];
   labReportUrl?: string | null;
 }) {
+  const router = useRouter();
   const usable = images.filter((image) => image.url);
   const [active, setActive] = useState(0);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
   const stageRef = useRef<HTMLDivElement>(null);
   const thumbRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const prefersReducedMotion = useRef(false);
@@ -78,6 +87,17 @@ export function ProductGallery({
 
   return (
     <div className="gallery">
+      <div className="gallery-mobile-chrome" aria-hidden={false}>
+        <button type="button" className="gallery-float-btn" aria-label="Go back" onClick={() => router.back()}>
+          <ArrowLeft size={20} weight="bold" />
+        </button>
+        <div className="gallery-float-group">
+          <Link href="/?focus=search" className="gallery-float-btn" aria-label="Search products">
+            <MagnifyingGlass size={20} weight="bold" />
+          </Link>
+          <ShareProductButton title={title} slug={slug} className="gallery-float-btn" />
+        </div>
+      </div>
       <div
         ref={stageRef}
         className="gallery-stage"
@@ -87,7 +107,17 @@ export function ProductGallery({
         onScroll={syncFromScroll}
       >
         {usable.map((image, index) => (
-          <div key={`${image.url}-${index}`} className="gallery-slide" aria-hidden={index !== active}>
+          <button
+            key={`${image.url}-${index}`}
+            type="button"
+            className="gallery-slide gallery-slide--tap"
+            aria-label={`Open photo ${index + 1} full screen`}
+            aria-hidden={index !== active}
+            onClick={() => {
+              setActive(index);
+              setLightboxOpen(true);
+            }}
+          >
             <OptimizedImage
               src={image.url}
               alt={image.alt || title}
@@ -96,7 +126,7 @@ export function ProductGallery({
               sizes="(max-width: 768px) 100vw, 640px"
               className="gallery-stage__img"
             />
-          </div>
+          </button>
         ))}
         {labReportUrl ? (
           <a href={labReportUrl} target="_blank" rel="noopener noreferrer" className="gallery-lab-badge">
@@ -114,7 +144,10 @@ export function ProductGallery({
                 className={index === active ? "gallery-dot gallery-dot--active" : "gallery-dot"}
                 aria-label={`Show photo ${index + 1}`}
                 aria-selected={index === active}
-                onClick={() => goTo(index)}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  goTo(index);
+                }}
               />
             ))}
           </div>
@@ -134,16 +167,17 @@ export function ProductGallery({
               aria-pressed={index === active}
               onClick={() => goTo(index)}
             >
-              <OptimizedImage
-                src={image.url}
-                alt=""
-                fill
-                sizes="118px"
-                className="gallery-thumb__img"
-              />
+              <OptimizedImage src={image.url} alt="" fill sizes="118px" className="gallery-thumb__img" />
             </button>
           ))}
         </div>
+      ) : null}
+      {lightboxOpen ? (
+        <ProductLightbox
+          images={usable.map((image) => ({ url: image.url, alt: image.alt || title }))}
+          startIndex={active}
+          onClose={() => setLightboxOpen(false)}
+        />
       ) : null}
     </div>
   );

@@ -1,19 +1,26 @@
 from django.conf import settings
 from django.db.models import Prefetch
 
-from catalog.models import LabReport, Product, ProductStatus
+from catalog.models import LabReport, Product, ProductStatus, ProductVariant, RelatedProduct
 
 
 def report_score(report: LabReport | None) -> tuple[int, int]:
     if report is None:
         return 0, 0
-    results = []
+    passed = 0
+    total = 0
     for section in report.sections.all():
-        results.extend(list(section.results.all()))
-    if not results:
+        for result in section.results.all():
+            total += 1
+            if result.passed:
+                passed += 1
+    if total == 0:
         return 0, 0
-    passed = sum(1 for result in results if result.passed)
-    return passed, len(results)
+    return passed, total
+
+
+def active_variants(product: Product) -> list[ProductVariant]:
+    return [variant for variant in product.variants.all() if variant.is_active]
 
 
 def report_has_passed(report: LabReport | None) -> bool:
@@ -21,7 +28,7 @@ def report_has_passed(report: LabReport | None) -> bool:
         return False
     passed, total = report_score(report)
     if total == 0:
-        return bool(report.pdf)
+        return False
     return passed == total
 
 
@@ -36,7 +43,25 @@ def lab_report_file_url(slug: str, report: LabReport | None = None) -> str | Non
     return f"{origin}/api/v1/products/{slug}/report/file"
 
 
-def active_products():
+def _current_lab_reports_prefetch() -> Prefetch:
+    return Prefetch(
+        "lab_reports",
+        queryset=LabReport.objects.filter(is_current=True).prefetch_related("sections__results"),
+        to_attr="current_reports",
+    )
+
+
+def active_products_list():
+    """Storefront grid/search: category, images, variants, and lab pass flags only."""
+    return (
+        Product.objects.filter(status=ProductStatus.ACTIVE, category__is_active=True)
+        .select_related("category")
+        .prefetch_related("images", "variants", _current_lab_reports_prefetch())
+    )
+
+
+def active_product_detail():
+    """Single product page: full label, related links, and lab graph."""
     return (
         Product.objects.filter(status=ProductStatus.ACTIVE, category__is_active=True)
         .select_related("category", "nutrition")
@@ -47,14 +72,18 @@ def active_products():
             "allergens",
             "additives",
             "nutrition__facts",
+            _current_lab_reports_prefetch(),
             Prefetch(
-                "lab_reports",
-                queryset=LabReport.objects.filter(is_current=True).prefetch_related("sections__results"),
-                to_attr="current_reports",
+                "related_links",
+                queryset=RelatedProduct.objects.select_related("related").order_by("sort_order", "id"),
             ),
-            "related_links__related",
         )
     )
+
+
+def active_products():
+    """Backward-compatible alias for detail-shaped queryset."""
+    return active_product_detail()
 
 
 def current_report(product: Product) -> LabReport | None:

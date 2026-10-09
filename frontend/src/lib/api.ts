@@ -48,13 +48,17 @@ export async function apiFetch<T>(path: string, options: ApiOptions = {}): Promi
   await attachAuth();
 
   async function sendRequest() {
-    return fetch(`${apiBase()}${path}`, {
+    const init: RequestInit & { next?: { revalidate: number | false } } = {
       method: options.method || "GET",
       headers,
       body: options.body === undefined ? undefined : JSON.stringify(options.body),
-      cache: options.cache || "no-store",
-      ...(options.revalidate !== undefined ? { next: { revalidate: options.revalidate } } : {}),
-    });
+    };
+    if (options.revalidate !== undefined) {
+      init.next = { revalidate: options.revalidate };
+    } else {
+      init.cache = options.cache ?? "no-store";
+    }
+    return fetch(`${apiBase()}${path}`, init);
   }
 
   let response: Response;

@@ -1,6 +1,8 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { OrderCartClear } from "@/components/OrderCartClear";
+import { OrderDetailClient } from "@/app/orders/[number]/OrderDetailClient";
 import { apiFetch } from "@/lib/api";
 import { formatOrderStatus } from "@/lib/orders";
 
@@ -45,6 +47,9 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ nu
 
   return (
     <div className="orders-page space-y-6">
+      <Suspense fallback={null}>
+        <OrderDetailClient />
+      </Suspense>
       <OrderCartClear />
       <Link href="/orders" className="text-sm text-leaf">
         ← Orders

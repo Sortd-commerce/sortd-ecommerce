@@ -10,6 +10,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from catalog.models import (
     Allergen,
     Ingredient,
+    LabReport,
     NutritionFact,
     NutritionProfile,
     Product,
@@ -183,19 +184,21 @@ def serialize_variant(variant: ProductVariant) -> dict:
     }
 
 
-def serialize_label(product: Product) -> dict | None:
+def serialize_label(product: Product, *, report: LabReport | None = None) -> dict | None:
     try:
         nutrition = product.nutrition
     except ObjectDoesNotExist:
         nutrition = None
     ingredients = list(product.ingredients.all())
     allergens = list(product.allergens.all())
-    report = current_report(product)
+    if report is None:
+        report = current_report(product)
     passed, total = report_score(report)
     if nutrition is None and not ingredients and not allergens and report is None:
         return None
     facts = []
     if nutrition is not None:
+        fact_rows = list(nutrition.facts.all())
         facts = [
             {
                 "name": fact.name,
@@ -208,7 +211,7 @@ def serialize_label(product: Product) -> dict | None:
                 "group": fact.group,
                 "is_subfact": fact.is_subfact,
             }
-            for fact in nutrition.facts.all()
+            for fact in fact_rows
         ]
     return {
         "serving_size": getattr(nutrition, "serving_size", "") or "",

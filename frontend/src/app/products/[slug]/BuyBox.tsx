@@ -1,10 +1,15 @@
 "use client";
 
+import { ShoppingBag } from "@phosphor-icons/react";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AddToCartButton } from "@/components/AddToCartButton";
+import { useBasket } from "@/components/BasketProvider";
+import { useCart } from "@/components/CartProvider";
 import { OptimizedImage } from "@/components/OptimizedImage";
 import { QuantityStepper } from "@/components/QuantityStepper";
+import { ShareProductButton } from "@/components/ShareProductButton";
+import { useMobileViewport } from "@/lib/use-mobile-viewport";
 
 type Offer = {
   id: number;
@@ -54,6 +59,9 @@ export function BuyBox({
   highlights: Array<{ value: string; label: string }>;
   hasLabReport: boolean;
 }) {
+  const mobile = useMobileViewport();
+  const { count } = useCart();
+  const { openBasket } = useBasket();
   const offers = variants.filter((row) => row.is_active);
   const [variantId, setVariantId] = useState(offers[0]?.id);
   const [addQty, setAddQty] = useState(1);
@@ -75,10 +83,20 @@ export function BuyBox({
     return options;
   }, [currentSlug, flavorLabel, flavors, imageUrl]);
 
+  useEffect(() => {
+    document.body.classList.toggle("has-product-mobile-bar", mobile && inStock && Boolean(selected));
+    return () => document.body.classList.remove("has-product-mobile-bar");
+  }, [inStock, mobile, selected]);
+
+  const lineTotal = selected ? (Number.parseFloat(selected.price) * addQty).toFixed(2) : "0.00";
+
   return (
     <div className="buy-box">
       <div className="buy-title-block">
-        <p className="buy-brand">{brand}</p>
+        <div className="buy-title-row">
+          <p className="buy-brand">{brand}</p>
+          <ShareProductButton title={title} slug={currentSlug} className="buy-share-btn" label="Share product" />
+        </div>
         <h1>{title}</h1>
         {selected?.title ? <p className="buy-pack">{formatPack(selected.title)}</p> : null}
       </div>
@@ -156,7 +174,7 @@ export function BuyBox({
         </div>
       ) : null}
 
-      <div className="buy-actions">
+      <div className="buy-actions buy-actions--inline">
         <div className="buy-actions-row">
           <QuantityStepper
             value={addQty}
@@ -188,6 +206,30 @@ export function BuyBox({
           )}
         </div>
       </div>
+
+      {mobile && selected && inStock ? (
+        <div className="product-mobile-bar" aria-label="Add to basket">
+          <button type="button" className="product-mobile-bar-basket" aria-label="Open basket" onClick={openBasket}>
+            <ShoppingBag size={22} weight="bold" aria-hidden />
+            {count > 0 ? <span className="product-mobile-bar-badge">{count}</span> : null}
+          </button>
+          <AddToCartButton
+            variantId={selected.id}
+            title={title}
+            brand={brand}
+            sku={selected.sku}
+            unitPrice={selected.price}
+            slug={currentSlug}
+            onHand={selected.on_hand}
+            maxOrder={selected.max_order}
+            imageUrl={imageUrl}
+            detail={selected.title}
+            addQuantity={addQty}
+            className="product-mobile-bar-cta"
+            label={`Add to basket · AED ${lineTotal}`}
+          />
+        </div>
+      ) : null}
 
       {description || !inStock || hasLabReport ? (
         <div className="buy-footnote">

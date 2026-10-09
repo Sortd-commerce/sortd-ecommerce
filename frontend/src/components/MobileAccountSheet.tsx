@@ -50,10 +50,20 @@ export function MobileAccountSheet({
     };
   }, [onClose, open]);
 
+  const [entered, setEntered] = useState(false);
+  useEffect(() => {
+    if (!open) {
+      setEntered(false);
+      return;
+    }
+    const frame = window.requestAnimationFrame(() => setEntered(true));
+    return () => window.cancelAnimationFrame(frame);
+  }, [open]);
+
   if (!open) return null;
 
   return (
-    <div className="account-sheet-layer">
+    <div className={`account-sheet-layer ${entered ? "sheet-enter" : ""}`}>
       <button type="button" className="account-sheet-scrim" aria-label="Close account menu" onClick={onClose} />
       <aside className="account-sheet" role="dialog" aria-modal="true" aria-label="Account menu">
         <span className="sheet-handle" aria-hidden />
