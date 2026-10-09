@@ -1,5 +1,5 @@
-import { HomePageSkeleton } from "@/components/loading/StorefrontSkeletons";
+import { RouteLoadingBoundarySignal } from "@/components/RouteLoadingBoundarySignal";
 
 export default function Loading() {
-  return <HomePageSkeleton />;
+  return <RouteLoadingBoundarySignal />;
 }

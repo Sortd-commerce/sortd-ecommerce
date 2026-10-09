@@ -196,6 +196,9 @@ BREVO_API_KEY = env("BREVO_API_KEY", default="")
 ANYMAIL = {}
 if BREVO_API_KEY:
     ANYMAIL["BREVO_API_KEY"] = BREVO_API_KEY
+# When True (default), Brevo/SMTP sends run on a background thread so auth/checkout APIs return immediately.
+EMAIL_SEND_IN_BACKGROUND = env.bool("EMAIL_SEND_IN_BACKGROUND", default=True)
+
 MAILERS = build_mailers(
     environment=ENVIRONMENT,
     host=env("EMAIL_HOST", default=""),

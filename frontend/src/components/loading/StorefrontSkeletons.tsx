@@ -104,6 +104,20 @@ export function AccountPageSkeleton() {
   );
 }
 
+export function AddressesPageSkeleton() {
+  return (
+    <div className="addresses-page page-loading" aria-busy="true" aria-label="Loading addresses">
+      <Block className="skeleton--title skeleton--title-lg" />
+      <Block className="skeleton--line skeleton--line-short" />
+      <div className="addresses-list addresses-list--skeleton">
+        {Array.from({ length: 3 }).map((_, index) => (
+          <Block key={index} className="skeleton--address-row" />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function OrdersPageSkeleton() {
   return (
     <div className="orders-page page-loading" aria-busy="true" aria-label="Loading orders">

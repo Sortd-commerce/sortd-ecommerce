@@ -26,11 +26,14 @@ export function SavedAddressesPanel({ addresses }: { addresses: SavedAddressRow[
   const router = useRouter();
   const toast = useToast();
   const [pending, startTransition] = useTransition();
+  const [refreshing, startRefresh] = useTransition();
   const [adding, setAdding] = useState(addresses.length === 0);
 
   function refresh() {
     setAdding(false);
-    router.refresh();
+    startRefresh(() => {
+      router.refresh();
+    });
   }
 
   function makePrimary(addressId: number) {
@@ -45,9 +48,18 @@ export function SavedAddressesPanel({ addresses }: { addresses: SavedAddressRow[
     });
   }
 
+  const listBusy = refreshing && !adding;
+
   return (
     <div className="addresses-panel">
-      {addresses.length && !adding ? (
+      {listBusy ? (
+        <ul className="addresses-list addresses-list--skeleton" aria-busy="true" aria-label="Updating addresses">
+          {Array.from({ length: Math.max(2, addresses.length || 2) }).map((_, index) => (
+            <li key={index} className="addresses-skeleton-row skeleton skeleton--address-row" aria-hidden />
+          ))}
+        </ul>
+      ) : null}
+      {addresses.length && !adding && !listBusy ? (
         <ul className="addresses-list">
           {addresses.map((address) => (
             <li key={address.id} className={`addresses-row ${address.is_default ? "addresses-row--primary" : ""}`}>

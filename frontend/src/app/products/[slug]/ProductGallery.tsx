@@ -7,6 +7,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ProductLightbox } from "@/components/ProductLightbox";
 import { ShareProductButton } from "@/components/ShareProductButton";
 import { OptimizedImage } from "@/components/OptimizedImage";
+import { useGalleryImageLoad } from "@/lib/use-gallery-image-load";
 
 type GalleryImage = { url: string; alt: string; role: string };
 
@@ -36,6 +37,7 @@ export function ProductGallery({
   const usable = images.filter((image) => image.url);
   const [active, setActive] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
+  const { loaded: loadedSlides, markLoaded: markSlideLoaded } = useGalleryImageLoad(usable.length, active);
   const stageRef = useRef<HTMLDivElement>(null);
   const thumbRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const prefersReducedMotion = useRef(false);
@@ -77,6 +79,26 @@ export function ProductGallery({
     });
   }, [active]);
 
+  useEffect(() => {
+    const stage = stageRef.current;
+    if (!stage || usable.length < 2) return;
+
+    const slides = stage.querySelectorAll<HTMLElement>("[data-gallery-slide]");
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue;
+          const index = Number(entry.target.dataset.gallerySlide);
+          if (Number.isFinite(index)) markSlideLoaded(index);
+        }
+      },
+      { root: stage, threshold: 0.4 },
+    );
+
+    slides.forEach((slide) => observer.observe(slide));
+    return () => observer.disconnect();
+  }, [markSlideLoaded, usable.length]);
+
   if (!usable.length) {
     return (
       <div className="gallery-stage gallery-empty">
@@ -98,36 +120,43 @@ export function ProductGallery({
           <ShareProductButton title={title} slug={slug} className="gallery-float-btn" />
         </div>
       </div>
-      <div
-        ref={stageRef}
-        className="gallery-stage"
-        role="region"
-        aria-roledescription="carousel"
-        aria-label={`${title} photos`}
-        onScroll={syncFromScroll}
-      >
-        {usable.map((image, index) => (
-          <button
-            key={`${image.url}-${index}`}
-            type="button"
-            className="gallery-slide gallery-slide--tap"
-            aria-label={`Open photo ${index + 1} full screen`}
-            aria-hidden={index !== active}
-            onClick={() => {
-              setActive(index);
-              setLightboxOpen(true);
-            }}
-          >
-            <OptimizedImage
-              src={image.url}
-              alt={image.alt || title}
-              fill
-              priority={index === 0}
-              sizes="(max-width: 768px) 100vw, 640px"
-              className="gallery-stage__img"
-            />
-          </button>
-        ))}
+      <div className="gallery-stage-wrap">
+        <div
+          ref={stageRef}
+          className="gallery-stage"
+          role="region"
+          aria-roledescription="carousel"
+          aria-label={`${title} photos`}
+          onScroll={syncFromScroll}
+        >
+          {usable.map((image, index) => (
+            <button
+              key={`${image.url}-${index}`}
+              type="button"
+              data-gallery-slide={index}
+              className="gallery-slide gallery-slide--tap"
+              aria-label={`Open photo ${index + 1} full screen`}
+              aria-hidden={index !== active}
+              onClick={() => {
+                setActive(index);
+                setLightboxOpen(true);
+              }}
+            >
+              {loadedSlides.has(index) ? (
+                <OptimizedImage
+                  src={image.url}
+                  alt={image.alt || title}
+                  fill
+                  priority={index === 0}
+                  sizes="(max-width: 768px) 100vw, 640px"
+                  className="gallery-stage__img"
+                />
+              ) : (
+                <span className="gallery-image-placeholder" aria-hidden />
+              )}
+            </button>
+          ))}
+        </div>
         {labReportUrl ? (
           <a href={labReportUrl} target="_blank" rel="noopener noreferrer" className="gallery-lab-badge">
             <LabReportIcon />
@@ -167,7 +196,11 @@ export function ProductGallery({
               aria-pressed={index === active}
               onClick={() => goTo(index)}
             >
-              <OptimizedImage src={image.url} alt="" fill sizes="118px" className="gallery-thumb__img" />
+              {loadedSlides.has(index) ? (
+                <OptimizedImage src={image.url} alt="" fill sizes="118px" className="gallery-thumb__img" />
+              ) : (
+                <span className="gallery-image-placeholder" aria-hidden />
+              )}
             </button>
           ))}
         </div>

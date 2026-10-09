@@ -30,12 +30,12 @@ export const getAccessToken = cache(async (): Promise<string | undefined> => {
   return access;
 });
 
-export async function hasAuthSession(): Promise<boolean> {
+export const hasAuthSession = cache(async (): Promise<boolean> => {
   const jar = await cookies();
   if (jar.get(REFRESH_COOKIE)?.value) return true;
   const access = jar.get(ACCESS_COOKIE)?.value;
   return Boolean(access && !accessNeedsRefresh(access));
-}
+});
 
 export async function getRefreshToken(): Promise<string | undefined> {
   const jar = await cookies();

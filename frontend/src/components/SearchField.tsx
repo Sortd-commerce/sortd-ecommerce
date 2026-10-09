@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { MagnifyingGlass } from "@phosphor-icons/react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { startRouteLoading } from "@/lib/route-loading";
 import { useEffect, useId, useRef, useState, useTransition } from "react";
 import type { SearchSuggestion } from "@/app/api/search/route";
 import { OptimizedImage } from "@/components/OptimizedImage";
@@ -81,6 +82,7 @@ export function SearchField({
     const value = query.trim();
     if (!value) return;
     setOpen(false);
+    startRouteLoading("/");
     router.push(`/?q=${encodeURIComponent(value)}`);
   }
 

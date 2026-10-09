@@ -7,14 +7,22 @@ export function PromoCarousel({ children }: { children: React.ReactNode }) {
   const scroller = useRef<HTMLDivElement>(null);
   const [active, setActive] = useState(0);
 
+  const slideStride = useCallback((node: HTMLDivElement) => {
+    const slide = node.querySelector<HTMLElement>(".promo-carousel__slide");
+    if (!slide) return node.clientWidth;
+    const styles = getComputedStyle(node);
+    const gap = Number.parseFloat(styles.columnGap || styles.gap || "0") || 0;
+    return slide.offsetWidth + gap;
+  }, []);
+
   const syncActive = useCallback(() => {
     const node = scroller.current;
     if (!node || visible.length < 2) return;
-    const width = node.clientWidth;
-    if (width < 1) return;
-    const index = Math.round(node.scrollLeft / width);
+    const stride = slideStride(node);
+    if (stride < 1) return;
+    const index = Math.round(node.scrollLeft / stride);
     setActive(Math.max(0, Math.min(index, visible.length - 1)));
-  }, [visible.length]);
+  }, [slideStride, visible.length]);
 
   useEffect(() => {
     const node = scroller.current;
@@ -27,7 +35,7 @@ export function PromoCarousel({ children }: { children: React.ReactNode }) {
   function goTo(index: number) {
     const node = scroller.current;
     if (!node) return;
-    node.scrollTo({ left: index * node.clientWidth, behavior: "smooth" });
+    node.scrollTo({ left: index * slideStride(node), behavior: "smooth" });
     setActive(index);
   }
 

@@ -57,6 +57,7 @@ export function CheckoutMobileHeader({
           </p>
           <small>{addressText}</small>
         </div>
+        <span className="checkout-top-spacer" aria-hidden />
       </div>
 
       <nav className="checkout-stepper" aria-label="Checkout progress">

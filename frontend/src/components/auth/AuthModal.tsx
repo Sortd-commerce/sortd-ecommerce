@@ -13,6 +13,8 @@ import {
   verifyLoginCodeAction,
   verifySignupCodeAction,
 } from "@/lib/actions";
+import { isLoginAccountMissing } from "@/lib/auth-messages";
+import { useToast } from "@/components/Toast";
 import { emptyActionState } from "@/lib/action-state";
 
 const RESEND_SECONDS = 60;
@@ -31,6 +33,7 @@ function CodeStep({
   submitLabel,
   onVerified,
   onChangeEmail,
+  onCreateAccount,
 }: {
   purpose: "signup" | "login";
   email: string;
@@ -39,6 +42,7 @@ function CodeStep({
   submitLabel: string;
   onVerified: (firstName: string, purpose: "signup" | "login") => void;
   onChangeEmail: () => void;
+  onCreateAccount?: () => void;
 }) {
   const [code, setCode] = useState("");
   const [deviceId, setDeviceId] = useState("");
@@ -77,12 +81,11 @@ function CodeStep({
       <p className="auth-modal-copy">
         {purpose === "signup" ? (
           <>
-            Enter the 6-digit code we sent to <strong>{email}</strong>.
+            We sent a 6-digit code to <strong>{email}</strong>. Enter it below to finish creating your account.
           </>
         ) : (
           <>
-            If an account exists for <strong>{email}</strong>, enter the 6-digit code we emailed you.
-            New here? Close this and choose <strong>Create an account</strong> instead.
+            We sent a 6-digit login code to <strong>{email}</strong>. Enter it below to continue.
           </>
         )}
       </p>
@@ -122,6 +125,14 @@ function CodeStep({
         <input type="hidden" name="email" value={email} />
         <input type="hidden" name="purpose" value={purpose} />
       </form>
+      {purpose === "login" && onCreateAccount ? (
+        <p className="auth-modal-foot">
+          New to Sortd?{" "}
+          <button type="button" className="auth-modal-link" onClick={onCreateAccount}>
+            Create an account
+          </button>
+        </p>
+      ) : null}
     </>
   );
 }
@@ -140,17 +151,35 @@ export function AuthModal({
   email: string;
   nextPath: string;
   onClose: () => void;
-  onSwitch: (step: "signup" | "login" | "signup-code" | "login-code") => void;
+  onSwitch: (step: "signup" | "login" | "signup-code" | "login-code", prefillEmail?: string) => void;
   onCodeSent: (email: string, purpose: "signup" | "login") => void;
   onVerified: (firstName: string, purpose: "signup" | "login") => void;
   onChangeEmail: () => void;
 }) {
+  const toast = useToast();
   const [signupState, signupFormAction] = useActionState(signupAction, emptyActionState);
   const [loginState, loginFormAction] = useActionState(requestLoginCodeAction, emptyActionState);
+  const [loginEmail, setLoginEmail] = useState(email);
   const [phoneLocal, setPhoneLocal] = useState("");
   const dubaiCode = "+971";
   /** Stale ok state from useActionState would re-advance to the code step after "Change email". */
   const skipCodeAdvanceRef = useRef(false);
+  const loginToastKeyRef = useRef("");
+
+  const loginAccountMissing = isLoginAccountMissing(loginState);
+  const loginEmailForSignup = (loginState.email || loginEmail).trim().toLowerCase();
+
+  useEffect(() => {
+    setLoginEmail(email);
+  }, [email]);
+
+  useEffect(() => {
+    if (step !== "login" || !loginAccountMissing) return;
+    const key = `${loginEmailForSignup}:${loginState.message}`;
+    if (loginToastKeyRef.current === key) return;
+    loginToastKeyRef.current = key;
+    toast.error("No account found with this email.");
+  }, [loginAccountMissing, loginEmailForSignup, loginState.message, step, toast]);
 
   const handleChangeEmail = useCallback(() => {
     skipCodeAdvanceRef.current = true;
@@ -288,12 +317,23 @@ export function AuthModal({
                   type="email"
                   autoComplete="email"
                   spellCheck={false}
-                  defaultValue={email}
-                  key={`login-email-${email}`}
+                  value={loginEmail}
+                  onChange={(event) => setLoginEmail(event.target.value)}
                   required
                 />
               </label>
-              {loginState.ok === false && loginState.message ? (
+              {loginAccountMissing ? (
+                <p className="auth-modal-error" role="alert">
+                  No account found with this email.{" "}
+                  <button
+                    type="button"
+                    className="auth-modal-link auth-modal-link--inline"
+                    onClick={() => onSwitch("signup", loginEmailForSignup)}
+                  >
+                    Create an account
+                  </button>
+                </p>
+              ) : loginState.ok === false && loginState.message ? (
                 <p className="auth-modal-error" role="alert">
                   {loginState.message}
                 </p>
@@ -305,7 +345,11 @@ export function AuthModal({
             </form>
             <p className="auth-modal-foot">
               New to Sortd?{" "}
-              <button type="button" className="auth-modal-link" onClick={() => onSwitch("signup")}>
+              <button
+                type="button"
+                className="auth-modal-link"
+                onClick={() => onSwitch("signup", loginEmail.trim().toLowerCase())}
+              >
                 Create an account
               </button>
             </p>
@@ -333,6 +377,7 @@ export function AuthModal({
             submitLabel="Verify and continue"
             onVerified={onVerified}
             onChangeEmail={handleChangeEmail}
+            onCreateAccount={() => onSwitch("signup", email)}
           />
         ) : null}
       </div>

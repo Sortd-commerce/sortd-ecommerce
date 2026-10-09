@@ -1,7 +1,7 @@
 "use client";
 
 import type { CardProduct } from "@/components/catalog";
-import { CheckoutPayUpsell } from "@/components/CheckoutPayUpsell";
+import { CheckoutPayUpsell, CheckoutPayUpsellSkeleton } from "@/components/CheckoutPayUpsell";
 
 function money(value: string | number) {
   const amount = Number(value);
@@ -10,6 +10,7 @@ function money(value: string | number) {
 
 export function CheckoutPaySheet({
   upsellProducts,
+  upsellLoading = false,
   total,
   canPlace,
   onPay,
@@ -17,6 +18,7 @@ export function CheckoutPaySheet({
   payPending = false,
 }: {
   upsellProducts: CardProduct[];
+  upsellLoading?: boolean;
   total: string;
   canPlace: boolean;
   onPay: () => void;
@@ -34,9 +36,9 @@ export function CheckoutPaySheet({
       )}
       <div className="checkout-pay-sheet" role="region" aria-label="Pay for order">
         <div className="checkout-pay-sheet-handle" aria-hidden />
-        {showUpsell ? (
+        {upsellLoading || showUpsell ? (
           <div className="checkout-pay-sheet-scroll">
-            <CheckoutPayUpsell products={upsellProducts} />
+            {upsellLoading ? <CheckoutPayUpsellSkeleton /> : <CheckoutPayUpsell products={upsellProducts} />}
           </div>
         ) : null}
         <div className="checkout-pay-sheet-foot checkout-pay-sheet-foot--pay-only">

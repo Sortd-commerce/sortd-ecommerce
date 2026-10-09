@@ -1,5 +1,5 @@
-import { OrdersPageSkeleton } from "@/components/loading/StorefrontSkeletons";
+import { RouteLoadingBoundarySignal } from "@/components/RouteLoadingBoundarySignal";
 
 export default function Loading() {
-  return <OrdersPageSkeleton />;
+  return <RouteLoadingBoundarySignal />;
 }

@@ -37,7 +37,7 @@ export async function requestLoginCodeAction(_prev: ActionState, formData: FormD
     auth: false,
     body: { email },
   });
-  if (!result.ok) return { ok: false, message: result.message };
+  if (!result.ok) return { ok: false, message: result.message, email, code: result.code };
   const purpose = result.data?.purpose === "signup" ? "signup" : "login";
   return { ok: true, message: result.message, email, purpose };
 }

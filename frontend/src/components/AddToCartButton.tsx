@@ -63,7 +63,6 @@ export function AddToCartButton({
   if (inCart > 0) {
     return (
       <div className={`buy-in-cart buy-in-cart--row ${className}`.trim()}>
-        <span className="buy-in-cart-label">In cart</span>
         <QuantityStepper
           value={inCart}
           max={limit}
@@ -116,9 +115,7 @@ export function AddToCartButton({
         }
         if (result.capped) {
           toast.error(result.message || "Stock limit reached.");
-          return;
         }
-        toast.success("Added to basket");
       }}
     >
       {label || "Add to basket"}

@@ -5,6 +5,7 @@ import { CartDrawer } from "@/components/CartDrawer";
 import { CheckoutHeader } from "@/components/CheckoutHeader";
 import { FloatingCartBar } from "@/components/FloatingCartBar";
 import { MobileTabBar } from "@/components/MobileTabBar";
+import { NavigationLoading } from "@/components/NavigationLoading";
 import { useMobileViewport } from "@/lib/use-mobile-viewport";
 
 export function Chrome({
@@ -26,6 +27,7 @@ export function Chrome({
       <main id="main" className={`store-main ${checkout ? "store-checkout" : ""}`}>
         {children}
       </main>
+      <NavigationLoading />
       <CartDrawer signedIn={signedIn} />
       <FloatingCartBar />
       <MobileTabBar signedIn={signedIn} />

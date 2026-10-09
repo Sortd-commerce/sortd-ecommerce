@@ -19,6 +19,13 @@ export const fetchProductCatalog = unstable_cache(
   { revalidate: 60 },
 );
 
+/** Smaller list for checkout pay-step upsell; kept separate so checkout SSR stays fast. */
+export const fetchCheckoutUpsellProducts = unstable_cache(
+  async () => apiFetch<ProductList>("/products?page_size=24", { auth: false, revalidate: 60 }),
+  ["storefront-checkout-upsell"],
+  { revalidate: 60 },
+);
+
 export const fetchCatalogCount = unstable_cache(
   async () => apiFetch<CatalogCount>("/products?page_size=1", { auth: false, revalidate: 60 }),
   ["storefront-catalog-count"],

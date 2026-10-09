@@ -6,7 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { AddToCartButton } from "@/components/AddToCartButton";
 import { useBasket } from "@/components/BasketProvider";
 import { useCart } from "@/components/CartProvider";
-import { OptimizedImage } from "@/components/OptimizedImage";
+import { ViewportLazyImage } from "@/components/ViewportLazyImage";
 import { QuantityStepper } from "@/components/QuantityStepper";
 import { ShareProductButton } from "@/components/ShareProductButton";
 import { useMobileViewport } from "@/lib/use-mobile-viewport";
@@ -135,12 +135,14 @@ export function BuyBox({
                 aria-current={flavor.slug === currentSlug ? "page" : undefined}
               >
                 {flavor.image ? (
-                  <OptimizedImage
+                  <ViewportLazyImage
                     src={flavor.image}
                     alt=""
                     fill
                     sizes="80px"
                     className="flavor-thumb__img"
+                    rootMargin="160px 0px"
+                    eagerAfterIdle
                   />
                 ) : (
                   <span className="flavor-thumb__fallback">{flavor.title.slice(0, 1)}</span>

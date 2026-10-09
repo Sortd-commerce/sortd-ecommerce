@@ -115,7 +115,10 @@ export function AuthProvider({
           email={email}
           nextPath={nextPath}
           onClose={closeAuth}
-          onSwitch={(target) => setStep(target)}
+          onSwitch={(target, prefillEmail) => {
+            if (prefillEmail) setEmail(prefillEmail.trim().toLowerCase());
+            setStep(target);
+          }}
           onCodeSent={onCodeSent}
           onVerified={onVerified}
           onChangeEmail={() => setStep(step.startsWith("signup") ? "signup" : "login")}

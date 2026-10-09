@@ -1,3 +1,4 @@
+import { unstable_cache } from "next/cache";
 import { apiFetch } from "@/lib/api";
 
 export type CheckoutSlot = {
@@ -28,9 +29,11 @@ export type CheckoutAddress = {
   postal_code?: string;
 };
 
-export function fetchCheckoutWindows() {
-  return apiFetch<CheckoutSlot[]>("/delivery/windows", { auth: false, revalidate: 120 });
-}
+export const fetchCheckoutWindows = unstable_cache(
+  async () => apiFetch<CheckoutSlot[]>("/delivery/windows", { auth: false, revalidate: 120 }),
+  ["checkout-delivery-windows"],
+  { revalidate: 120 },
+);
 
 export function fetchCheckoutPaymentMethods() {
   return apiFetch<CheckoutPaymentMethod[]>("/payments/methods", { auth: false, revalidate: 120 });

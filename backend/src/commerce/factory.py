@@ -3,7 +3,7 @@ from commerce.cart import CartService
 from commerce.delivery import DeliveryService
 from commerce.places import build_places_provider
 from commerce.orders import OrderService
-from accounts.emailing import DjangoEmailSender
+from accounts.background_email import build_email_sender
 from core.clock import SystemClock
 
 
@@ -21,5 +21,5 @@ def build_order_service() -> OrderService:
         delivery=build_delivery_service(),
         stock=StockService(),
         cart=build_cart_service(),
-        email_sender=DjangoEmailSender(),
+        email_sender=build_email_sender(),
     )

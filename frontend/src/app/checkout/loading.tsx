@@ -1,5 +1,5 @@
-import { CheckoutPageSkeleton } from "@/components/loading/StorefrontSkeletons";
+import { RouteLoadingBoundarySignal } from "@/components/RouteLoadingBoundarySignal";
 
 export default function Loading() {
-  return <CheckoutPageSkeleton />;
+  return <RouteLoadingBoundarySignal />;
 }

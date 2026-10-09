@@ -19,6 +19,7 @@ import { usePricing } from "@/components/PricingProvider";
 import { checkDeliveryPlace } from "@/lib/places";
 import { useCart } from "@/components/CartProvider";
 import type { CheckoutAddress, CheckoutSlot } from "@/lib/checkout";
+import { startRouteLoading } from "@/lib/route-loading";
 import { useMobileViewport } from "@/lib/use-mobile-viewport";
 
 export type { CheckoutAddress, CheckoutSlot };
@@ -65,11 +66,9 @@ function slotSummary(slot: CheckoutSlot | null | undefined) {
 function CheckoutFormInner({
   slots,
   addresses,
-  upsellProducts = [],
 }: {
   slots: CheckoutSlot[];
   addresses: CheckoutAddress[];
-  upsellProducts?: CardProduct[];
 }) {
   const router = useRouter();
   const toast = useToast();
@@ -84,11 +83,36 @@ function CheckoutFormInner({
     return first ? slotKey(first) : "";
   });
   const [payPending, setPayPending] = useState(false);
+  const [upsellProducts, setUpsellProducts] = useState<CardProduct[]>([]);
+  const [upsellLoading, setUpsellLoading] = useState(false);
+  const upsellRequested = useRef(false);
   const [addressDeliverable, setAddressDeliverable] = useState<boolean | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
   useEffect(() => {
     itemsRef.current = items;
   }, [items]);
+
+  useEffect(() => {
+    if (step !== "pay" || upsellRequested.current) return;
+    upsellRequested.current = true;
+    setUpsellLoading(true);
+    let cancelled = false;
+    void fetch("/api/storefront/checkout-upsell")
+      .then((response) => response.json())
+      .then((payload: { ok?: boolean; data?: CardProduct[] }) => {
+        if (cancelled || !payload.ok) return;
+        setUpsellProducts(payload.data || []);
+      })
+      .catch(() => {
+        upsellRequested.current = false;
+      })
+      .finally(() => {
+        if (!cancelled) setUpsellLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [step]);
 
   useEffect(() => {
     if (!selectedAddress) {
@@ -159,7 +183,10 @@ function CheckoutFormInner({
   function onBack() {
     if (step === "pay") setStep("delivery");
     else if (step === "delivery") setStep("basket");
-    else router.push("/");
+    else {
+      startRouteLoading("/");
+      router.push("/");
+    }
   }
 
   const addressSection = (
@@ -289,6 +316,7 @@ function CheckoutFormInner({
             {step === "pay" ? (
               <CheckoutPaySheet
                 upsellProducts={upsellProducts}
+                upsellLoading={upsellLoading}
                 total={quote.total}
                 canPlace={canPlace}
                 payPending={payPending}
@@ -324,11 +352,7 @@ function CheckoutFormInner({
   );
 }
 
-export function CheckoutForm(props: {
-  slots: CheckoutSlot[];
-  addresses: CheckoutAddress[];
-  upsellProducts?: CardProduct[];
-}) {
+export function CheckoutForm(props: { slots: CheckoutSlot[]; addresses: CheckoutAddress[] }) {
   return (
     <CheckoutSelectionProvider>
       <CheckoutFormInner {...props} />

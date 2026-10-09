@@ -28,6 +28,9 @@ export function CartLink({ compact = false }: { compact?: boolean }) {
   const displayAmount = count ? subtotal : "0.00";
   const label = count ? `Basket, ${count} items, AED ${money(displayAmount)}` : "Basket";
 
+  const compactLabel =
+    count > 0 ? `${count} ${count === 1 ? "item" : "items"}` : "Basket";
+
   return (
     <button
       type="button"
@@ -38,9 +41,7 @@ export function CartLink({ compact = false }: { compact?: boolean }) {
     >
       <CartBagIcon />
       {compact ? (
-        <span className="cart-pill-compact">
-          {count} {count === 1 ? "item" : "items"}
-        </span>
+        <span className="cart-pill-compact">{compactLabel}</span>
       ) : (
         <span className="cart-pill-copy">
           <span className="cart-pill-count">

@@ -3,14 +3,13 @@ import { Archivo, Archivo_Narrow, IBM_Plex_Mono, Libre_Baskerville } from "next/
 import { BasketProvider } from "@/components/BasketProvider";
 import { CartProvider } from "@/components/CartProvider";
 import { PricingProvider } from "@/components/PricingProvider";
-import { AuthProvider, type AuthUser } from "@/components/auth/AuthProvider";
+import { AuthProvider } from "@/components/auth/AuthProvider";
 import { Chrome } from "@/components/Chrome";
 import { PageTransition } from "@/components/PageTransition";
 import { SiteHeader } from "@/components/SiteHeader";
 import { ToastProvider } from "@/components/Toast";
-import { apiFetch } from "@/lib/api";
 import { fetchPricingRules } from "@/lib/catalog";
-import { hasAuthSession } from "@/lib/auth";
+import { getStorefrontSession } from "@/lib/session";
 import "./globals.css";
 
 const body = Archivo({
@@ -49,12 +48,8 @@ export const viewport: Viewport = {
 };
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  const signedIn = await hasAuthSession();
-  const [pricing, profile] = await Promise.all([
-    fetchPricingRules(),
-    signedIn ? apiFetch<AuthUser>("/profile") : Promise.resolve(null),
-  ]);
-  const user = profile?.ok ? profile.data ?? null : null;
+  const [pricing, session] = await Promise.all([fetchPricingRules(), getStorefrontSession()]);
+  const { signedIn, user } = session;
   return (
     <html lang="en">
       <body className={`${display.variable} ${body.variable} ${mono.variable} ${brand.variable} antialiased`}>
