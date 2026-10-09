@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { X } from "@phosphor-icons/react";
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import type { AuthUser } from "@/components/auth/AuthProvider";
 import { logoutAction } from "@/lib/actions";
 
@@ -51,6 +52,12 @@ export function MobileAccountSheet({
   }, [onClose, open]);
 
   const [entered, setEntered] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   useEffect(() => {
     if (!open) {
       setEntered(false);
@@ -60,9 +67,9 @@ export function MobileAccountSheet({
     return () => window.cancelAnimationFrame(frame);
   }, [open]);
 
-  if (!open) return null;
+  if (!open || !mounted) return null;
 
-  return (
+  return createPortal(
     <div className={`account-sheet-layer ${entered ? "sheet-enter" : ""}`}>
       <button type="button" className="account-sheet-scrim" aria-label="Close account menu" onClick={onClose} />
       <aside className="account-sheet" role="dialog" aria-modal="true" aria-label="Account menu">
@@ -89,6 +96,7 @@ export function MobileAccountSheet({
           </button>
         </form>
       </aside>
-    </div>
+    </div>,
+    document.body,
   );
 }
