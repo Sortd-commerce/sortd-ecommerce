@@ -79,7 +79,7 @@ class ExcelImporterTests(TestCase):
             ]
         )
         importer = ExcelCatalogImporter()
-        with patch("catalog.excel_importer.fetch_image") as fetch_image:
+        with patch("catalog.excel_importer.load_image") as load_image:
             result = importer.import_file(BytesIO(payload), dry_run=False)
         self.assertTrue(result.valid)
         self.assertEqual(result.created, 1)
@@ -88,7 +88,7 @@ class ExcelImporterTests(TestCase):
         variant = ProductVariant.objects.get(sku="SRT-BRK-010")
         self.assertEqual(variant.title, "200g jar")
         self.assertEqual(variant.price, Decimal("0.00"))
-        fetch_image.assert_not_called()
+        load_image.assert_not_called()
 
     def test_import_downloads_main_and_gallery_images(self):
         payload = build_workbook(
