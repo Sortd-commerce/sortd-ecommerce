@@ -22,6 +22,11 @@ class Command(BaseCommand):
             action="store_true",
             help="Import every product as active, ignoring the Excel status column.",
         )
+        parser.add_argument(
+            "--skip-images",
+            action="store_true",
+            help="Skip main/gallery URLs and aisle images (use import_product_assets for local folders).",
+        )
 
     def handle(self, *args, **options):
         path = Path(options["path"])
@@ -35,6 +40,7 @@ class Command(BaseCommand):
                     handle,
                     dry_run=options["dry_run"],
                     force_active=options["force_active"],
+                    skip_images=options["skip_images"],
                 )
         except ExcelImportError as exc:
             raise CommandError(str(exc)) from exc

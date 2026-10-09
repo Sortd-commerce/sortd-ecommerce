@@ -1,33 +1,13 @@
-import json
 from decimal import Decimal
 from io import StringIO
-from pathlib import Path
-from tempfile import NamedTemporaryFile
 
-from django.core.management import call_command
-from django.core.management.base import CommandError
 from django.test import TestCase
 
 from catalog.importer import CatalogImporter
-from catalog.models import Category, Product, ProductVariant
-
-SEED_PATH = Path(__file__).resolve().parents[1] / "data" / "storefront_products.json"
+from catalog.models import Product, ProductVariant
 
 
 class CatalogImporterTests(TestCase):
-    def test_seed_json_has_unique_slugs_and_skus(self):
-        payload = json.loads(SEED_PATH.read_text(encoding="utf-8"))
-        slugs = [row["slug"] for row in payload["products"]]
-        skus = []
-        for row in payload["products"]:
-            if row.get("variant"):
-                skus.append(row["variant"]["sku"])
-            skus.extend(item["sku"] for item in row.get("variants") or [])
-        self.assertEqual(len(payload["products"]), 30)
-        self.assertEqual(len(slugs), len(set(slugs)))
-        self.assertEqual(len(skus), len(set(skus)))
-        self.assertEqual(len(payload["categories"]), 5)
-
     def test_import_is_idempotent_and_updates_price(self):
         payload = {
             "categories": [{"name": "Bars", "slug": "bars", "sort_order": 1}],
@@ -57,46 +37,36 @@ class CatalogImporterTests(TestCase):
         self.assertEqual(Product.objects.count(), 1)
 
     def test_import_links_flavours_and_pack_offers(self):
-        payload = json.loads(SEED_PATH.read_text(encoding="utf-8"))
+        payload = {
+            "categories": [{"name": "Snacks", "slug": "snacks", "sort_order": 1}],
+            "products": [
+                {
+                    "title": "Coffee cocoa protein bar",
+                    "slug": "coffee-cocoa-protein-bar",
+                    "category": "snacks",
+                    "status": "active",
+                    "description": "Checked.",
+                    "variants": [
+                        {"sku": "SNK-COF-16", "title": "Single bar", "price": "16.90", "unit_count": 1, "on_hand": 40},
+                        {"sku": "SNK-COF-5P", "title": "Pack of 5", "price": "79.90", "unit_count": 5, "on_hand": 18},
+                    ],
+                    "related_slugs": ["raspberry-cacao-protein-bar"],
+                    "related_kind": "flavor",
+                    "nutrition": {"headline": "Protein-led. 20.3 g in every bar."},
+                    "ingredients": [{"name": "Cashews", "share_percent": "35.00"}],
+                },
+                {
+                    "title": "Raspberry cacao protein bar",
+                    "slug": "raspberry-cacao-protein-bar",
+                    "category": "snacks",
+                    "status": "active",
+                    "variant": {"sku": "SNK-RAS-16", "title": "Single bar", "price": "16.90", "on_hand": 40},
+                },
+            ],
+        }
         CatalogImporter().import_payload(payload)
         coffee = Product.objects.get(slug="coffee-cocoa-protein-bar")
-        self.assertEqual(coffee.variants.count(), 3)
+        self.assertEqual(coffee.variants.count(), 2)
         self.assertTrue(coffee.related_links.filter(related__slug="raspberry-cacao-protein-bar").exists())
         self.assertEqual(coffee.nutrition.headline, "Protein-led. 20.3 g in every bar.")
         self.assertEqual(coffee.ingredients.get(name="Cashews").share_percent, Decimal("35.00"))
-
-    def test_command_loads_seed_file(self):
-        out = StringIO()
-        call_command("import_catalog", stdout=out)
-        self.assertEqual(Category.objects.count(), 5)
-        self.assertEqual(Product.objects.filter(status="active").count(), 30)
-        self.assertIn("created 30", out.getvalue())
-
-    def test_command_dry_run_does_not_write(self):
-        call_command("import_catalog", dry_run=True, stdout=StringIO())
-        self.assertEqual(Product.objects.count(), 0)
-
-    def test_command_rejects_missing_file(self):
-        with self.assertRaises(CommandError):
-            call_command("import_catalog", path="missing.json")
-
-    def test_command_accepts_custom_path(self):
-        payload = {
-            "categories": [{"name": "Drinks", "slug": "drinks"}],
-            "products": [
-                {
-                    "title": "Ginger tonic",
-                    "slug": "ginger-tonic",
-                    "category": "drinks",
-                    "variant": {"sku": "DRK-1", "price": "12.90", "on_hand": 4},
-                }
-            ],
-        }
-        tmp = NamedTemporaryFile("w", suffix=".json", delete=False, encoding="utf-8")
-        try:
-            json.dump(payload, tmp)
-            tmp.close()
-            call_command("import_catalog", path=tmp.name, stdout=StringIO())
-        finally:
-            Path(tmp.name).unlink(missing_ok=True)
-        self.assertTrue(Product.objects.filter(slug="ginger-tonic").exists())

@@ -32,6 +32,11 @@ class Command(BaseCommand):
             type=str,
             help="Import images for one Sortd SKU only, e.g. SRT-BRK-001.",
         )
+        parser.add_argument(
+            "--rematch-colliding-titles",
+            action="store_true",
+            help="Re-upload images for SKUs that share a page title with another product (fixes brand mix-ups).",
+        )
 
     def handle(self, *args, **options):
         assets_dir = Path(options["assets_dir"])
@@ -43,6 +48,7 @@ class Command(BaseCommand):
             dry_run=options["dry_run"],
             force=options["force"],
             sku_filter=options.get("sku"),
+            rematch_colliding_titles=options["rematch_colliding_titles"],
         )
 
         for issue in result.issues:

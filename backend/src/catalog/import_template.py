@@ -40,6 +40,7 @@ def build_import_workbook_from_rows(
     output_path: Path,
     *,
     preserve_image_paths: bool = False,
+    aisle_rows: list[dict[str, str]] | None = None,
 ) -> int:
     """Write a simplified import workbook from parsed row dicts."""
     workbook = Workbook()
@@ -54,7 +55,7 @@ def build_import_workbook_from_rows(
     _write_lists_sheet(lists)
 
     aisles = workbook.create_sheet("Aisles")
-    _write_aisles_sheet(aisles)
+    _write_aisles_sheet(aisles, aisle_rows=aisle_rows)
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     workbook.save(output_path)
@@ -174,10 +175,15 @@ def _style_header_rows(sheet, column_count: int) -> None:
         hint_cell.border = THIN_BORDER
 
 
-def _write_aisles_sheet(sheet) -> None:
+def _write_aisles_sheet(sheet, *, aisle_rows: list[dict[str, str]] | None = None) -> None:
     sheet.append(["aisle", "image_url"])
+    url_by_aisle = {
+        str(row.get("aisle") or "").strip(): str(row.get("image_url") or "").strip()
+        for row in (aisle_rows or [])
+        if str(row.get("aisle") or "").strip()
+    }
     for aisle in LIST_VALUES["Aisle"]:
-        sheet.append([aisle, ""])
+        sheet.append([aisle, url_by_aisle.get(aisle, "")])
     sheet.column_dimensions["A"].width = 30
     sheet.column_dimensions["B"].width = 48
     for col in (1, 2):

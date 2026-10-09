@@ -33,6 +33,7 @@ from catalog.models import (
 from catalog.writer import CatalogWriteError
 
 SKU_RE = re.compile(r"^SRT-[A-Z0-9-]+$", re.IGNORECASE)
+SKIP_IMPORT_SKUS = frozenset({"SRT-EXAMPLE-001"})
 INSTRUCTION_MARKERS = {
     "sortd fills",
     "from supplier",
@@ -139,8 +140,10 @@ class ExcelCatalogImporter:
         *,
         dry_run: bool = False,
         force_active: bool = False,
+        skip_images: bool = False,
         media_root: Path | None = None,
     ) -> ExcelImportResult:
+        self._skip_images = skip_images
         self._media_root = media_root or self._workbook_media_root(file_obj)
         workbook = self._load_workbook(file_obj)
         rows = self._parse_product_rows(workbook)
@@ -154,7 +157,8 @@ class ExcelCatalogImporter:
         try:
             with transaction.atomic():
                 category_map = self._ensure_categories()
-                self._import_aisle_images(category_map, aisle_rows, result)
+                if not skip_images:
+                    self._import_aisle_images(category_map, aisle_rows, result)
                 parent_groups = self._bulk_import_rows(rows, category_map, result, force_active=force_active)
                 self._bulk_link_parent_groups(parent_groups)
         except (CatalogWriteError, ImageFetchError, ExcelImportError) as exc:
@@ -492,7 +496,8 @@ class ExcelCatalogImporter:
         self._bulk_replace_labels(row_meta)
 
         for meta in row_meta:
-            self._import_images(meta["product"], meta["row"])
+            if not getattr(self, "_skip_images", False):
+                self._import_images(meta["product"], meta["row"])
             self._import_lab_report(meta["product"], meta["row"])
             if meta["created"]:
                 result.created += 1
@@ -624,9 +629,12 @@ class ExcelCatalogImporter:
             return
         if not self._is_media_ref(url):
             return
-        from catalog.image_fetch import load_report
+        from catalog.image_fetch import ImageFetchError, load_report
 
-        content, filename, _byte_size = load_report(url, base_dir=self._media_root)
+        try:
+            content, filename, _byte_size = load_report(url, base_dir=self._media_root)
+        except ImageFetchError:
+            return
         for old in product.lab_reports.all():
             if old.pdf:
                 old.pdf.delete(save=False)
@@ -854,6 +862,8 @@ class ExcelCatalogImporter:
     def _is_product_row(self, row: dict[str, Any]) -> bool:
         sku = self._cell_text(row.get("sortd_sku"))
         if not sku:
+            return False
+        if sku.upper() in SKIP_IMPORT_SKUS:
             return False
         lowered = sku.lower()
         if any(marker in lowered for marker in INSTRUCTION_MARKERS):

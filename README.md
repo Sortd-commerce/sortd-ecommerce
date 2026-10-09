@@ -58,17 +58,19 @@ PUBLIC_API_ORIGIN=http://127.0.0.1:8000
 
 Upload images from the admin product page (JPEG / PNG / WebP, 5 MB).
 
-## Seed catalog
+## Seed catalog (launch range)
 
-Homepage products from the SORTD shop screenshot live in `backend/src/catalog/data/storefront_products.json`.
+Import the master workbook from `Downloads/Sortd_Product_Import.xlsx` (merge client updates with `merge_filled_import` when needed). Product photos come from the WeTransfer `Sortd_Products` folder, not the Excel image URL columns.
 
 ```powershell
-cd backend
-..\.venv\Scripts\python.exe src\manage.py import_catalog
-..\.venv\Scripts\python.exe src\manage.py import_catalog --dry-run
+cd backend\src
+uv run python manage.py import_excel_catalog --skip-images %USERPROFILE%\Downloads\Sortd_Product_Import.xlsx
+uv run python manage.py import_product_assets --assets-dir "PATH\TO\Sortd_Products"
 ```
 
-The command is idempotent: re-running updates titles, prices, stock, pack offers, flavour links, and label data by slug/SKU.
+Use `import_excel_catalog --dry-run` to validate the sheet first. Re-running the Excel import updates existing rows by Sortd SKU.
+
+Legacy JSON demo seed (`import_catalog` / `storefront_products.json`) is removed. If an old environment still has PLAAAY or pre–launch-range rows, run `uv run python manage.py remove_demo_catalog`.
 
 ## Storefront
 

@@ -2,7 +2,7 @@
 
 import { ArrowRight, CaretDown, X } from "@phosphor-icons/react";
 import { BrandMark } from "@/components/BrandMark";
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useCallback, useEffect, useRef, useState } from "react";
 import { OtpInput } from "@/components/auth/OtpInput";
 import { SubmitButton } from "@/components/ActionForm";
 import { getOrCreateDeviceId } from "@/components/DeviceIdField";
@@ -140,18 +140,35 @@ export function AuthModal({
   const [loginState, loginFormAction] = useActionState(requestLoginCodeAction, emptyActionState);
   const [phoneLocal, setPhoneLocal] = useState("");
   const dubaiCode = "+971";
+  /** Stale ok state from useActionState would re-advance to the code step after "Change email". */
+  const skipCodeAdvanceRef = useRef(false);
+
+  const handleChangeEmail = useCallback(() => {
+    skipCodeAdvanceRef.current = true;
+    onChangeEmail();
+  }, [onChangeEmail]);
 
   useEffect(() => {
+    if (step !== "signup") return;
+    if (skipCodeAdvanceRef.current) {
+      skipCodeAdvanceRef.current = false;
+      return;
+    }
     if (signupState.ok && signupState.email && signupState.purpose === "signup") {
       onCodeSent(signupState.email, "signup");
     }
-  }, [onCodeSent, signupState.email, signupState.ok, signupState.purpose]);
+  }, [onCodeSent, signupState.email, signupState.ok, signupState.purpose, step]);
 
   useEffect(() => {
+    if (step !== "login") return;
+    if (skipCodeAdvanceRef.current) {
+      skipCodeAdvanceRef.current = false;
+      return;
+    }
     if (loginState.ok && loginState.email && loginState.purpose === "login") {
       onCodeSent(loginState.email, "login");
     }
-  }, [loginState.email, loginState.ok, loginState.purpose, onCodeSent]);
+  }, [loginState.email, loginState.ok, loginState.purpose, onCodeSent, step]);
 
   return (
     <div className="auth-modal-layer">
@@ -180,7 +197,15 @@ export function AuthModal({
               </label>
               <label className="field">
                 <span>Email</span>
-                <input name="email" type="email" autoComplete="email" spellCheck={false} required />
+                <input
+                  name="email"
+                  type="email"
+                  autoComplete="email"
+                  spellCheck={false}
+                  defaultValue={email}
+                  key={`signup-email-${email}`}
+                  required
+                />
                 <small className="field-hint">We&apos;ll send your login code here.</small>
               </label>
               <label className="field">
@@ -240,7 +265,15 @@ export function AuthModal({
               <input type="hidden" name="next" value={nextPath} />
               <label className="field">
                 <span>Email</span>
-                <input name="email" type="email" autoComplete="email" spellCheck={false} required />
+                <input
+                  name="email"
+                  type="email"
+                  autoComplete="email"
+                  spellCheck={false}
+                  defaultValue={email}
+                  key={`login-email-${email}`}
+                  required
+                />
               </label>
               {loginState.ok === false && loginState.message ? (
                 <p className="auth-modal-error" role="alert">
@@ -269,7 +302,7 @@ export function AuthModal({
             title="Check your email"
             submitLabel="Verify and continue"
             onVerified={onVerified}
-            onChangeEmail={onChangeEmail}
+            onChangeEmail={handleChangeEmail}
           />
         ) : null}
 
@@ -281,7 +314,7 @@ export function AuthModal({
             title="Check your email"
             submitLabel="Verify and continue"
             onVerified={onVerified}
-            onChangeEmail={onChangeEmail}
+            onChangeEmail={handleChangeEmail}
           />
         ) : null}
       </div>
