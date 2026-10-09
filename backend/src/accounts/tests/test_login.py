@@ -73,13 +73,14 @@ class LoginTests(ApiTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["data"]["user"]["email"], "staff@example.com")
 
-    def test_login_code_is_not_sent_for_unverified_accounts(self):
+    def test_login_code_for_unverified_account_sends_signup_verification(self):
         signup(self.client)
 
         response = request_login_code(self.client)
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(len(mail.outbox), 2)
+        self.assertIn("verification", mail.outbox[-1].subject.lower())
 
     def test_inactive_user_cannot_log_in_with_code(self):
         signup_and_verify(self.client)

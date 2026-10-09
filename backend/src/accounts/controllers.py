@@ -144,14 +144,11 @@ class AuthController(ControllerBase):
         throttle=[VerifyThrottle()],
     )
     def verify_login_code(self, payload: VerifyCodeIn):
-        from accounts.models import EmailVerification
-
-        result = build_signup_service().verify_code(
+        result = build_login_service().verify_code(
             email=payload.email,
             code=payload.code,
             request=self.context.request,
             device_id=payload.device_id,
-            kind=EmailVerification.Kind.LOGIN,
         )
         return success("Logged in.", asdict(result))
 

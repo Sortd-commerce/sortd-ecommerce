@@ -75,7 +75,16 @@ function CodeStep({
         {title}
       </h2>
       <p className="auth-modal-copy">
-        Enter the 6-digit code we sent to <strong>{email}</strong>.
+        {purpose === "signup" ? (
+          <>
+            Enter the 6-digit code we sent to <strong>{email}</strong>.
+          </>
+        ) : (
+          <>
+            If an account exists for <strong>{email}</strong>, enter the 6-digit code we emailed you.
+            New here? Close this and choose <strong>Create an account</strong> instead.
+          </>
+        )}
       </p>
       <button type="button" className="auth-modal-link" onClick={onChangeEmail}>
         Wrong email? Change it

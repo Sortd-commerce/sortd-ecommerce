@@ -365,24 +365,68 @@ class LoginService:
         )
 
     def request_code(self, *, email: str) -> None:
-        user = User.objects.filter(email=email, email_verified_at__isnull=False, is_active=True).first()
-        if user is None:
-            logger.info(
-                "Login code not sent: no verified active account for email=%s",
-                email,
-            )
-            return
         signup = self._signup or SignupService(
             clock=SystemClock(), email_sender=self._email_sender, tokens=self._tokens
         )
-        code = signup._issue_code(user, kind=EmailVerification.Kind.LOGIN)
-        try:
-            logger.info("Sending login auth code email=%s user_id=%s", user.email, user.pk)
-            self._email_sender.send_auth_code(
-                to=user.email, code=code, first_name=user.first_name, purpose="login"
-            )
-        except EmailSendError as exc:
-            raise ServiceUnavailable(str(exc)) from exc
+        verified = User.objects.filter(
+            email=email, email_verified_at__isnull=False, is_active=True
+        ).first()
+        if verified is not None:
+            code = signup._issue_code(verified, kind=EmailVerification.Kind.LOGIN)
+            try:
+                logger.info("Sending login auth code email=%s user_id=%s", verified.email, verified.pk)
+                self._email_sender.send_auth_code(
+                    to=verified.email,
+                    code=code,
+                    first_name=verified.first_name,
+                    purpose="login",
+                )
+            except EmailSendError as exc:
+                raise ServiceUnavailable(str(exc)) from exc
+            return
+
+        pending = User.objects.filter(email=email, email_verified_at__isnull=True, is_active=True).first()
+        if pending is not None:
+            code = signup._issue_code(pending, kind=EmailVerification.Kind.VERIFY)
+            try:
+                logger.info(
+                    "Login requested for unverified account; sending signup verification code email=%s user_id=%s",
+                    pending.email,
+                    pending.pk,
+                )
+                self._email_sender.send_auth_code(
+                    to=pending.email,
+                    code=code,
+                    first_name=pending.first_name,
+                    purpose="signup",
+                )
+            except EmailSendError as exc:
+                raise ServiceUnavailable(str(exc)) from exc
+            return
+
+        logger.info("Login code not sent: no account for email=%s", email)
+
+    def verify_code(
+        self, *, email: str, code: str, request=None, device_id: str = ""
+    ) -> AuthResult:
+        user = User.objects.filter(email=email, is_active=True).first()
+        if user is None:
+            raise exceptions.AuthenticationFailed(ErrorMessage.INVALID_VERIFICATION)
+        signup = self._signup or SignupService(
+            clock=SystemClock(), email_sender=self._email_sender, tokens=self._tokens
+        )
+        kind = (
+            EmailVerification.Kind.LOGIN
+            if user.email_verified_at is not None
+            else EmailVerification.Kind.VERIFY
+        )
+        return signup.verify_code(
+            email=email,
+            code=code,
+            request=request,
+            device_id=device_id,
+            kind=kind,
+        )
 
 
 class TokenService:
