@@ -118,6 +118,7 @@ class SignupService:
             raise
 
         try:
+            logger.info("Sending signup auth code email=%s user_id=%s", user.email, user.pk)
             self._email_sender.send_auth_code(
                 to=user.email, code=code, first_name=user.first_name, purpose="signup"
             )
@@ -133,9 +134,20 @@ class SignupService:
             user = User.objects.filter(email=email, email_verified_at__isnull=True, is_active=True).first()
             kind = EmailVerification.Kind.VERIFY
         if user is None:
+            logger.info(
+                "Auth code resend skipped: no matching account email=%s purpose=%s",
+                email,
+                purpose,
+            )
             return
         code = self._issue_code(user, kind=kind)
         try:
+            logger.info(
+                "Sending auth code email=%s purpose=%s user_id=%s",
+                user.email,
+                purpose,
+                user.pk,
+            )
             self._email_sender.send_auth_code(
                 to=user.email,
                 code=code,
@@ -355,12 +367,17 @@ class LoginService:
     def request_code(self, *, email: str) -> None:
         user = User.objects.filter(email=email, email_verified_at__isnull=False, is_active=True).first()
         if user is None:
+            logger.info(
+                "Login code not sent: no verified active account for email=%s",
+                email,
+            )
             return
         signup = self._signup or SignupService(
             clock=SystemClock(), email_sender=self._email_sender, tokens=self._tokens
         )
         code = signup._issue_code(user, kind=EmailVerification.Kind.LOGIN)
         try:
+            logger.info("Sending login auth code email=%s user_id=%s", user.email, user.pk)
             self._email_sender.send_auth_code(
                 to=user.email, code=code, first_name=user.first_name, purpose="login"
             )

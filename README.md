@@ -119,7 +119,9 @@ EMAIL_BACKEND=anymail.backends.brevo.EmailBackend
 DEFAULT_FROM_EMAIL=Sortd <hello@your-verified-domain>
 ```
 
-SMTP (Resend, SendGrid, SES) also works via `EMAIL_HOST`. `DEFAULT_FROM_EMAIL` must be a verified sender, and `FRONTEND_URL` must be the public storefront origin so the link opens the live site.
+When `ENVIRONMENT=production`, the API **always** sends through Brevo (`BREVO_API_KEY` is required). Locally, SMTP via `EMAIL_HOST` still works if you prefer it over Brevo. `DEFAULT_FROM_EMAIL` must be a verified sender, and `FRONTEND_URL` must be the public storefront origin so the link opens the live site.
+
+Auth email attempts are logged at INFO (`accounts.services`, `accounts.emailing`) including the mailer backend in use.
 
 ```powershell
 cd backend

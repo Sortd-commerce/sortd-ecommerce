@@ -1,8 +1,12 @@
-"""Django 6 MAILERS map. Local defaults to console; production requires a real sender."""
+"""Django 6 MAILERS map. Local defaults to console; production requires Brevo."""
+
+import logging
 
 from django.core.exceptions import ImproperlyConfigured
 
 from config.environment import PRODUCTION
+
+logger = logging.getLogger(__name__)
 
 SMTP_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 CONSOLE_BACKEND = "core.console_mail.EmailBackend"
@@ -27,14 +31,25 @@ def build_mailers(
     backend: str = "",
     brevo_api_key: str = "",
 ) -> dict:
-    selected = (backend or "").strip().strip('"').strip("'")
-    if not selected:
-        if brevo_api_key:
-            selected = BREVO_BACKEND
-        elif environment == PRODUCTION or host:
-            selected = SMTP_BACKEND
-        else:
-            selected = CONSOLE_BACKEND
+    requested = (backend or "").strip().strip('"').strip("'")
+
+    if environment == PRODUCTION:
+        if not brevo_api_key:
+            raise ImproperlyConfigured("BREVO_API_KEY is required when ENVIRONMENT=production.")
+        if requested and requested != BREVO_BACKEND:
+            logger.warning(
+                "Ignoring EMAIL_BACKEND=%s in production; using Brevo API.",
+                requested,
+            )
+        selected = BREVO_BACKEND
+    elif requested:
+        selected = requested
+    elif brevo_api_key:
+        selected = BREVO_BACKEND
+    elif host:
+        selected = SMTP_BACKEND
+    else:
+        selected = CONSOLE_BACKEND
 
     if use_ssl and use_tls:
         raise ImproperlyConfigured("Set EMAIL_USE_TLS or EMAIL_USE_SSL, not both.")
@@ -47,13 +62,6 @@ def build_mailers(
             raise ImproperlyConfigured(
                 "Production email must use SMTP or an ESP backend, not a development backend."
             )
-        if selected == SMTP_BACKEND:
-            if not host:
-                raise ImproperlyConfigured("EMAIL_HOST is required when ENVIRONMENT=production.")
-            if not password:
-                raise ImproperlyConfigured(
-                    "EMAIL_HOST_PASSWORD is required when ENVIRONMENT=production."
-                )
 
     config: dict = {"BACKEND": selected}
     if selected == SMTP_BACKEND:

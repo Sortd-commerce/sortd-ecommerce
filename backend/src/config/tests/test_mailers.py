@@ -2,7 +2,7 @@ from django.core.exceptions import ImproperlyConfigured
 from django.test import SimpleTestCase
 
 from config.environment import LOCAL, PRODUCTION
-from config.mailers import CONSOLE_BACKEND, SMTP_BACKEND, build_mailers, require_production_from_address
+from config.mailers import BREVO_BACKEND, CONSOLE_BACKEND, SMTP_BACKEND, build_mailers, require_production_from_address
 
 
 class MailerConfigTests(SimpleTestCase):
@@ -24,20 +24,29 @@ class MailerConfigTests(SimpleTestCase):
         self.assertEqual(mailers["default"]["OPTIONS"]["host"], "smtp.resend.com")
         self.assertTrue(mailers["default"]["OPTIONS"]["use_tls"])
 
-    def test_production_requires_host_and_password(self):
-        with self.assertRaisesMessage(ImproperlyConfigured, "EMAIL_HOST is required"):
-            build_mailers(environment=PRODUCTION, password="secret")
-        with self.assertRaisesMessage(ImproperlyConfigured, "EMAIL_HOST_PASSWORD is required"):
-            build_mailers(environment=PRODUCTION, host="smtp.example.com")
+    def test_production_requires_brevo_api_key(self):
+        with self.assertRaisesMessage(ImproperlyConfigured, "BREVO_API_KEY is required"):
+            build_mailers(environment=PRODUCTION)
 
-    def test_production_rejects_console(self):
-        with self.assertRaisesMessage(ImproperlyConfigured, "ESP backend"):
-            build_mailers(
-                environment=PRODUCTION,
-                host="smtp.example.com",
-                password="secret",
-                backend=CONSOLE_BACKEND,
-            )
+    def test_production_forces_brevo_over_smtp(self):
+        mailers = build_mailers(
+            environment=PRODUCTION,
+            host="smtp.example.com",
+            password="secret",
+            backend=SMTP_BACKEND,
+            brevo_api_key="xkeysib-test",
+        )
+
+        self.assertEqual(mailers["default"]["BACKEND"], BREVO_BACKEND)
+
+    def test_production_rejects_console_even_with_brevo_key(self):
+        mailers = build_mailers(
+            environment=PRODUCTION,
+            brevo_api_key="xkeysib-test",
+            backend=CONSOLE_BACKEND,
+        )
+
+        self.assertEqual(mailers["default"]["BACKEND"], BREVO_BACKEND)
 
     def test_brevo_skips_smtp_host(self):
         mailers = build_mailers(

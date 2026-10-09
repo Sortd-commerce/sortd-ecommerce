@@ -298,6 +298,14 @@ class DjangoEmailSender:
         self._send(to=to, subject=subject, body=body, html=html)
 
     def _send(self, *, to: str, subject: str, body: str, html: str) -> None:
+        backend = settings.MAILERS["default"]["BACKEND"]
+        logger.info(
+            "Sending email backend=%s from=%s to=%s subject=%r",
+            backend,
+            settings.DEFAULT_FROM_EMAIL,
+            to,
+            subject,
+        )
         try:
             message = UnquotedAlternatives(
                 subject=subject,
@@ -308,10 +316,22 @@ class DjangoEmailSender:
             message.attach_alternative(html, "text/html")
             sent = message.send(using="default")
         except Exception as exc:
-            logger.exception("Email send failed")
+            logger.exception(
+                "Email send failed backend=%s to=%s subject=%r",
+                backend,
+                to,
+                subject,
+            )
             raise EmailSendError(_send_failure_message(exc)) from exc
         if not sent:
+            logger.error(
+                "Email send returned 0 backend=%s to=%s subject=%r",
+                backend,
+                to,
+                subject,
+            )
             raise EmailSendError("Unable to send email.")
+        logger.info("Email sent backend=%s to=%s subject=%r", backend, to, subject)
 
 
 def _send_failure_message(exc: BaseException) -> str:

@@ -1,5 +1,6 @@
 """Project settings. Secrets and environment-specific values come from .env."""
 
+import logging
 from datetime import timedelta
 from pathlib import Path
 
@@ -206,6 +207,12 @@ MAILERS = build_mailers(
     timeout=env.int("EMAIL_TIMEOUT", default=10),
     backend=env("EMAIL_BACKEND", default=""),
     brevo_api_key=BREVO_API_KEY,
+)
+
+logging.getLogger("config.settings").info(
+    "Mailer backend configured: %s (environment=%s)",
+    MAILERS["default"]["BACKEND"],
+    ENVIRONMENT,
 )
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
