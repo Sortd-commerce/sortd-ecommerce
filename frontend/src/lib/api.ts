@@ -1,4 +1,4 @@
-import { getAccessToken } from "@/lib/auth";
+import { resolveAccessToken } from "@/lib/auth";
 import { getServiceToken } from "@/lib/service-token";
 
 type ApiOptions = {
@@ -37,7 +37,7 @@ export async function apiFetch<T>(path: string, options: ApiOptions = {}): Promi
 
   async function attachAuth() {
     if (options.auth === false) return;
-    const access = await getAccessToken();
+    const access = await resolveAccessToken();
     if (access) {
       headers.Authorization = `Bearer ${access}`;
     } else {

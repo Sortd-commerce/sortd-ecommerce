@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { Check } from "@phosphor-icons/react";
+import { CaretLeft, CaretRight, Check } from "@phosphor-icons/react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CheckoutSlot } from "@/components/CheckoutForm";
 
 function slotKey(slot: CheckoutSlot) {
@@ -71,6 +71,84 @@ function dayHasAvailability(daySlots: CheckoutSlot[]) {
   return daySlots.some((slot) => slot.status === "available");
 }
 
+function useHorizontalScrollHints<T extends HTMLElement>() {
+  const ref = useRef<T | null>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+
+  const refresh = useCallback(() => {
+    const node = ref.current;
+    if (!node) return;
+    const maxScroll = node.scrollWidth - node.clientWidth;
+    if (maxScroll <= 2) {
+      setCanScrollLeft(false);
+      setCanScrollRight(false);
+      return;
+    }
+    setCanScrollLeft(node.scrollLeft > 2);
+    setCanScrollRight(node.scrollLeft < maxScroll - 2);
+  }, []);
+
+  useEffect(() => {
+    const node = ref.current;
+    if (!node) return;
+    refresh();
+    node.addEventListener("scroll", refresh, { passive: true });
+    const observer = new ResizeObserver(refresh);
+    observer.observe(node);
+    return () => {
+      node.removeEventListener("scroll", refresh);
+      observer.disconnect();
+    };
+  }, [refresh]);
+
+  return { ref, canScrollLeft, canScrollRight, refresh };
+}
+
+function revealAdjacentDay(
+  container: HTMLElement,
+  tabs: HTMLElement[],
+  index: number,
+  direction: "next" | "prev",
+) {
+  const neighbor = tabs[direction === "next" ? index + 1 : index - 1];
+  if (!neighbor) return;
+  const peek = 28;
+  if (direction === "next") {
+    const target = neighbor.offsetLeft - container.clientWidth + neighbor.offsetWidth + peek;
+    container.scrollTo({
+      left: Math.min(target, container.scrollWidth - container.clientWidth),
+      behavior: "smooth",
+    });
+    return;
+  }
+  const target = neighbor.offsetLeft - peek;
+  container.scrollTo({ left: Math.max(target, 0), behavior: "smooth" });
+}
+
+function scrollDayTab(container: HTMLElement, tabs: HTMLElement[], index: number) {
+  const tab = tabs[index];
+  if (!tab) return;
+
+  const containerRect = container.getBoundingClientRect();
+  const visible = tabs.filter((node) => {
+    const rect = node.getBoundingClientRect();
+    return rect.right > containerRect.left + 1 && rect.left < containerRect.right - 1;
+  });
+  const lastVisible = visible[visible.length - 1];
+  const firstVisible = visible[0];
+
+  if (tab === lastVisible && index < tabs.length - 1) {
+    revealAdjacentDay(container, tabs, index, "next");
+    return;
+  }
+  if (tab === firstVisible && index > 0) {
+    revealAdjacentDay(container, tabs, index, "prev");
+    return;
+  }
+  tab.scrollIntoView({ behavior: "smooth", inline: "nearest", block: "nearest" });
+}
+
 export function DeliverySlotPicker({
   slots,
   value,
@@ -93,10 +171,31 @@ export function DeliverySlotPicker({
   }, [slots]);
 
   const [dayIndex, setDayIndex] = useState(0);
+  const { ref: daysScrollRef, canScrollLeft, canScrollRight, refresh: refreshDayScroll } =
+    useHorizontalScrollHints<HTMLDivElement>();
 
   useEffect(() => {
     setDayIndex(0);
-  }, [days]);
+    daysScrollRef.current?.scrollTo({ left: 0 });
+  }, [days, daysScrollRef]);
+
+  useEffect(() => {
+    refreshDayScroll();
+  }, [days.length, refreshDayScroll]);
+
+  const selectDay = useCallback(
+    (index: number) => {
+      setDayIndex(index);
+      requestAnimationFrame(() => {
+        const container = daysScrollRef.current;
+        if (!container) return;
+        const tabs = [...container.querySelectorAll<HTMLElement>('[role="tab"]')];
+        scrollDayTab(container, tabs, index);
+        refreshDayScroll();
+      });
+    },
+    [daysScrollRef, refreshDayScroll],
+  );
 
   const activeDay = days[dayIndex] || days[0];
   const activeSlots = useMemo(
@@ -116,23 +215,37 @@ export function DeliverySlotPicker({
 
   return (
     <div className="slot-picker">
-      <div className="slot-days" role="tablist" aria-label="Delivery day">
-        {days.map(({ date }, index) => {
-          const label = formatDayLabel(date);
-          return (
-            <button
-              key={date}
-              type="button"
-              role="tab"
-              aria-selected={index === dayIndex}
-              className={`slot-day ${index === dayIndex ? "slot-day-on" : ""}`}
-              onClick={() => setDayIndex(index)}
-            >
-              <strong>{label.title}</strong>
-              <small>{label.detail}</small>
-            </button>
-          );
-        })}
+      <div
+        className={`slot-days-wrap${canScrollLeft ? " slot-days-wrap--left" : ""}${canScrollRight ? " slot-days-wrap--right" : ""}`}
+      >
+        {canScrollLeft ? (
+          <span className="slot-days-cue slot-days-cue--left" aria-hidden>
+            <CaretLeft size={16} weight="bold" />
+          </span>
+        ) : null}
+        {canScrollRight ? (
+          <span className="slot-days-cue slot-days-cue--right" aria-hidden>
+            <CaretRight size={16} weight="bold" />
+          </span>
+        ) : null}
+        <div ref={daysScrollRef} className="slot-days" role="tablist" aria-label="Delivery day">
+          {days.map(({ date }, index) => {
+            const label = formatDayLabel(date);
+            return (
+              <button
+                key={date}
+                type="button"
+                role="tab"
+                aria-selected={index === dayIndex}
+                className={`slot-day ${index === dayIndex ? "slot-day-on" : ""}`}
+                onClick={() => selectDay(index)}
+              >
+                <strong>{label.title}</strong>
+                <small>{label.detail}</small>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       <div className="slot-grid" role="radiogroup" aria-label="Delivery time">

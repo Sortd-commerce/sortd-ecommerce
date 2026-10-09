@@ -8,6 +8,7 @@ import { clearAuthCookies, getRefreshToken, setAuthCookies } from "@/lib/auth";
 import type { RemoteCart } from "@/lib/cart-store";
 import type { PriceQuote, PricingRules } from "@/lib/pricing";
 import { safeRedirectPath } from "@/lib/redirect";
+import { normalizeDubaiMobile, validateSignupFields } from "@/lib/signup-validation";
 import { unwrapVerificationToken } from "@/lib/verification";
 
 type AuthPayload = {
@@ -16,14 +17,21 @@ type AuthPayload = {
 };
 
 export async function signupAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const full_name = String(formData.get("full_name") || "");
   const email = String(formData.get("email") || "").trim().toLowerCase();
+  const phoneLocal = String(formData.get("phone_local") || "");
+  const phoneFromHidden = String(formData.get("phone") || "");
+  const phone = phoneLocal.trim() !== "" ? normalizeDubaiMobile(phoneLocal) : phoneFromHidden.trim();
+  const validationError = validateSignupFields({ full_name, email, phone });
+  if (validationError) return { ok: false, message: validationError };
+
   const result = await apiFetch("/auth/signup", {
     method: "POST",
     auth: false,
     body: {
       email,
-      full_name: String(formData.get("full_name") || ""),
-      phone: String(formData.get("phone") || ""),
+      full_name: full_name.trim().replace(/\s+/g, " "),
+      phone,
     },
   });
   if (!result.ok) return { ok: false, message: result.message };

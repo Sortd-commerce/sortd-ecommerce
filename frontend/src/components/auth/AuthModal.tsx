@@ -16,14 +16,16 @@ import {
 import { isLoginAccountMissing } from "@/lib/auth-messages";
 import { useToast } from "@/components/Toast";
 import { emptyActionState } from "@/lib/action-state";
+import {
+  DUBAI_MOBILE_HINT,
+  DUBAI_MOBILE_LOCAL_DIGITS,
+  normalizeDubaiMobile,
+  SIGNUP_EMAIL_MAX,
+  SIGNUP_FULL_NAME_MAX,
+  validateSignupFields,
+} from "@/lib/signup-validation";
 
 const RESEND_SECONDS = 60;
-
-function normalizePhone(prefix: string, local: string) {
-  const digits = local.replace(/\D/g, "");
-  const code = prefix.replace(/\D/g, "");
-  return `+${code}${digits}`;
-}
 
 function CodeStep({
   purpose,
@@ -161,6 +163,7 @@ export function AuthModal({
   const [loginState, loginFormAction] = useActionState(requestLoginCodeAction, emptyActionState);
   const [loginEmail, setLoginEmail] = useState(email);
   const [phoneLocal, setPhoneLocal] = useState("");
+  const [signupFieldError, setSignupFieldError] = useState("");
   const dubaiCode = "+971";
   /** Stale ok state from useActionState would re-advance to the code step after "Change email". */
   const skipCodeAdvanceRef = useRef(false);
@@ -237,10 +240,34 @@ export function AuthModal({
             <p className="auth-modal-copy">
               So you can pay and track this order. All three fields are required.
             </p>
-            <form action={signupFormAction} className="auth-modal-form">
+            <form
+              action={signupFormAction}
+              className="auth-modal-form"
+              noValidate
+              onSubmit={(event) => {
+                const form = event.currentTarget;
+                const full_name = String(new FormData(form).get("full_name") || "");
+                const signupEmail = String(new FormData(form).get("email") || "");
+                const local = String(new FormData(form).get("phone_local") || "");
+                const phone = normalizeDubaiMobile(local);
+                const message = validateSignupFields({ full_name, email: signupEmail, phone });
+                if (message) {
+                  event.preventDefault();
+                  setSignupFieldError(message);
+                  return;
+                }
+                setSignupFieldError("");
+              }}
+            >
               <label className="field">
                 <span>Full name</span>
-                <input name="full_name" autoComplete="name" required />
+                <input
+                  name="full_name"
+                  autoComplete="name"
+                  required
+                  maxLength={SIGNUP_FULL_NAME_MAX}
+                  onChange={() => setSignupFieldError("")}
+                />
               </label>
               <label className="field">
                 <span>Email</span>
@@ -252,6 +279,8 @@ export function AuthModal({
                   defaultValue={email}
                   key={`signup-email-${email}`}
                   required
+                  maxLength={SIGNUP_EMAIL_MAX}
+                  onChange={() => setSignupFieldError("")}
                 />
                 <small className="field-hint">We&apos;ll send a verification code here.</small>
               </label>
@@ -267,15 +296,25 @@ export function AuthModal({
                     type="tel"
                     inputMode="tel"
                     autoComplete="tel-national"
-                    placeholder="50 123 4567"
+                    placeholder="501234567"
                     value={phoneLocal}
-                    onChange={(event) => setPhoneLocal(event.target.value)}
+                    maxLength={DUBAI_MOBILE_LOCAL_DIGITS}
+                    onChange={(event) => {
+                      setPhoneLocal(event.target.value.replace(/\D/g, "").slice(0, DUBAI_MOBILE_LOCAL_DIGITS));
+                      setSignupFieldError("");
+                    }}
                     required
                   />
                 </div>
-                <input type="hidden" name="phone" value={normalizePhone(dubaiCode, phoneLocal)} readOnly />
-                <small className="field-hint">For delivery updates from the rider.</small>
+                <input type="hidden" name="phone_country" value={dubaiCode} readOnly />
+                <input type="hidden" name="phone" value={normalizeDubaiMobile(phoneLocal)} readOnly />
+                <small className="field-hint">For delivery updates from the rider. {DUBAI_MOBILE_HINT}</small>
               </label>
+              {signupFieldError ? (
+                <p className="auth-modal-error" role="alert">
+                  {signupFieldError}
+                </p>
+              ) : null}
               {signupState.ok === false && signupState.message ? (
                 <p className="auth-modal-error" role="alert">
                   {signupState.message}

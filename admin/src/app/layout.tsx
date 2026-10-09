@@ -4,6 +4,9 @@ import { AdminShell } from "@/components/AdminShell";
 import { getStaffProfile } from "@/lib/staff";
 import "./globals.css";
 
+/** Staff console reads cookies + API on every request; never prerender at build time. */
+export const dynamic = "force-dynamic";
+
 const body = IBM_Plex_Sans({
   variable: "--font-body",
   subsets: ["latin"],

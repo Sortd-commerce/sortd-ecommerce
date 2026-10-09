@@ -1,8 +1,7 @@
 import Link from "next/link";
-import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { OrderCartClear } from "@/components/OrderCartClear";
-import { OrderDetailClient } from "@/app/orders/[number]/OrderDetailClient";
+import { OrderPlacedSuccess } from "@/components/OrderPlacedSuccess";
 import { apiFetch } from "@/lib/api";
 import { formatOrderStatus } from "@/lib/orders";
 
@@ -16,8 +15,16 @@ type Order = {
   delivery_start: string;
   delivery_end: string;
   lines: Array<{ title: string; quantity: number; line_total: string }>;
-  address: { formatted_address: string; line1: string; city: string };
+  address?: { formatted_address?: string; line1?: string; city?: string };
 };
+
+async function fetchOrder(number: string, attempts = 1) {
+  const result = await apiFetch<Order>(`/orders/${number}`);
+  if (result.ok && result.data) return result;
+  if (attempts >= 4) return result;
+  await new Promise((resolve) => setTimeout(resolve, 350));
+  return fetchOrder(number, attempts + 1);
+}
 
 function formatOrderedAt(value: string) {
   const date = new Date(value);
@@ -37,19 +44,46 @@ function formatOrderedAt(value: string) {
   return `${day} · ${time}`;
 }
 
-export default async function OrderDetailPage({ params }: { params: Promise<{ number: string }> }) {
+export default async function OrderDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ number: string }>;
+  searchParams: Promise<{ placed?: string }>;
+}) {
   const { number } = await params;
-  const result = await apiFetch<Order>(`/orders/${number}`);
+  const { placed } = await searchParams;
+  const justPlaced = placed === "1";
+  const result = justPlaced ? await fetchOrder(number) : await apiFetch<Order>(`/orders/${number}`);
   if (!result.ok || !result.data) {
     notFound();
   }
   const order = result.data;
+  const itemCount = (order.lines || []).reduce((sum, line) => sum + line.quantity, 0);
+  const addressLine =
+    order.address?.formatted_address || order.address?.line1 || order.address?.city || "Delivery address on file";
+
+  if (justPlaced) {
+    return (
+      <div className="orders-page order-placed-page">
+        <OrderCartClear />
+        <OrderPlacedSuccess
+          order={{
+            number: order.number,
+            total: order.total,
+            delivery_date: order.delivery_date,
+            delivery_start: order.delivery_start,
+            delivery_end: order.delivery_end,
+            addressLine,
+            itemCount,
+          }}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="orders-page space-y-6">
-      <Suspense fallback={null}>
-        <OrderDetailClient />
-      </Suspense>
       <OrderCartClear />
       <Link href="/orders" className="text-sm text-leaf">
         ← Orders
@@ -61,7 +95,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ nu
         <p className="mt-1 text-ink/70">
           Delivery {order.delivery_date} · {order.delivery_start.slice(0, 5)}–{order.delivery_end.slice(0, 5)}
         </p>
-        <p className="mt-2 text-sm text-ink/60">{order.address.formatted_address || order.address.line1}</p>
+        <p className="mt-2 text-sm text-ink/60">{addressLine}</p>
         {order.note ? <p className="mt-3 text-sm">Note: {order.note}</p> : null}
       </section>
       <section className="card-quiet divide-y divide-line rounded-[1.8rem]">

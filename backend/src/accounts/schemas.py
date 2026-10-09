@@ -8,8 +8,53 @@ from django.core.validators import validate_email
 from ninja import Schema
 from pydantic import Field, field_validator
 
-E164 = re.compile(r"^\+[1-9]\d{7,14}$")
 CODE_RE = re.compile(r"^\d{6}$")
+
+DUBAI_COUNTRY_CODE = "971"
+# Dubai uses standard UAE mobile numbering: +971 5X XXX XXXX (9 digits after country code).
+DUBAI_MOBILE_E164 = re.compile(rf"^\+{DUBAI_COUNTRY_CODE}5[024568]\d{{7}}$")
+DUBAI_MOBILE_MESSAGE = (
+    "Enter a Dubai mobile number: 9 digits starting with 50, 52, 54, 55, 56, or 58 "
+    "(for example, 50 123 4567). Without +971."
+)
+DUBAI_MOBILE_TOO_LONG = (
+    "Phone number is too long. Enter 9 Dubai mobile digits without +971 (for example, 50 123 4567)."
+)
+
+
+def normalize_dubai_mobile(value: str) -> str:
+    phone = value.strip()
+    if phone.startswith("00"):
+        phone = f"+{phone[2:]}"
+    elif phone.startswith("+"):
+        pass
+    elif phone:
+        digits = re.sub(r"\D", "", phone)
+        if digits.startswith("0"):
+            digits = digits[1:]
+        if digits.startswith(DUBAI_COUNTRY_CODE):
+            digits = digits[len(DUBAI_COUNTRY_CODE) :]
+        phone = f"+{DUBAI_COUNTRY_CODE}{digits}"
+    if phone.startswith(f"+{DUBAI_COUNTRY_CODE}"):
+        rest = phone[4:]
+        while rest.startswith("0"):
+            rest = rest[1:]
+        if rest.startswith(DUBAI_COUNTRY_CODE):
+            rest = rest[len(DUBAI_COUNTRY_CODE) :]
+        phone = f"+{DUBAI_COUNTRY_CODE}{rest}"
+    return phone
+
+
+def assert_dubai_mobile(phone: str) -> str:
+    normalized = phone.strip()
+    if not normalized.startswith(f"+{DUBAI_COUNTRY_CODE}"):
+        raise ValueError(DUBAI_MOBILE_MESSAGE)
+    local = re.sub(r"\D", "", normalized[4:])
+    if len(local) > 9:
+        raise ValueError(DUBAI_MOBILE_TOO_LONG)
+    if not DUBAI_MOBILE_E164.match(normalized):
+        raise ValueError(DUBAI_MOBILE_MESSAGE)
+    return normalized
 
 
 def split_full_name(value: str) -> tuple[str, str]:
@@ -24,7 +69,7 @@ def split_full_name(value: str) -> tuple[str, str]:
 class SignupIn(Schema):
     email: str = Field(max_length=254)
     full_name: str = Field(min_length=1, max_length=301)
-    phone: str = Field(min_length=8, max_length=16)
+    phone: str = Field(min_length=13, max_length=13)
 
     @field_validator("email")
     @classmethod
@@ -41,16 +86,20 @@ class SignupIn(Schema):
     def strip_full_name(cls, value: str) -> str:
         name = " ".join(value.split())
         if not name:
-            raise ValueError("This field may not be blank.")
+            raise ValueError("Enter your full name.")
+        if len(name) > 301:
+            raise ValueError("Name is too long (use 301 characters or fewer).")
         return name
+
+    @field_validator("phone", mode="before")
+    @classmethod
+    def coerce_phone(cls, value: str) -> str:
+        return normalize_dubai_mobile(str(value or ""))
 
     @field_validator("phone")
     @classmethod
     def normalize_phone(cls, value: str) -> str:
-        phone = value.strip()
-        if not E164.match(phone):
-            raise ValueError("Enter a phone number in E.164 format.")
-        return phone
+        return assert_dubai_mobile(value)
 
 
 class VerifyCodeIn(Schema):
@@ -150,17 +199,21 @@ class ResetPasswordIn(Schema):
 class ProfileUpdateIn(Schema):
     first_name: str | None = Field(default=None, max_length=150)
     last_name: str | None = Field(default=None, max_length=150)
-    phone: str | None = Field(default=None, max_length=16)
+    phone: str | None = Field(default=None, min_length=13, max_length=13)
+
+    @field_validator("phone", mode="before")
+    @classmethod
+    def coerce_phone(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        return normalize_dubai_mobile(str(value))
 
     @field_validator("phone")
     @classmethod
     def normalize_phone(cls, value: str | None) -> str | None:
         if value is None:
             return None
-        phone = value.strip()
-        if not E164.match(phone):
-            raise ValueError("Enter a phone number in E.164 format.")
-        return phone
+        return assert_dubai_mobile(value)
 
 
 class PasswordChangeIn(Schema):

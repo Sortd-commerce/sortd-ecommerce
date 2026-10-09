@@ -80,6 +80,33 @@ class SignupTests(ApiTestCase):
         self.assertEqual(response.status_code, 422)
         self.assertEqual(response.json()["errors"][0]["field"], "phone")
 
+    def test_signup_accepts_uae_local_style_phone_after_normalization(self):
+        response = signup(self.client, phone="+9710501234567")
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.json()["data"]["phone"], PHONE)
+
+    def test_signup_phone_too_long_returns_a_clear_message(self):
+        response = signup(self.client, phone="+9719715012345678901")
+
+        self.assertEqual(response.status_code, 422)
+        body = response.json()
+        self.assertEqual(body["errors"][0]["field"], "phone")
+        self.assertIn("too long", body["errors"][0]["message"].lower())
+        self.assertNotIn("String should have", body["errors"][0]["message"])
+
+    def test_non_dubai_country_code_is_rejected(self):
+        response = signup(self.client, phone="+441234567890")
+
+        self.assertEqual(response.status_code, 422)
+        self.assertEqual(response.json()["errors"][0]["field"], "phone")
+
+    def test_uae_landline_is_rejected(self):
+        response = signup(self.client, phone="+97141234567")
+
+        self.assertEqual(response.status_code, 422)
+        self.assertEqual(response.json()["errors"][0]["field"], "phone")
+
     def test_verify_signup_code_returns_tokens(self):
         signup(self.client)
         response = verify_signup(self.client)

@@ -166,11 +166,68 @@ def _flatten_detail(detail, field: str | None = None) -> list[dict]:
 _LOCATION_WRAPPERS = {"body", "query", "path", "form", "cookie", "header", "payload", "data"}
 
 
+_FIELD_LABELS = {
+    "full_name": "Name",
+    "first_name": "First name",
+    "last_name": "Last name",
+    "email": "Email",
+    "phone": "Phone number",
+}
+
+
+def _friendly_pydantic_message(item: dict, field: str | None) -> str:
+    raw = str(item.get("msg") or "").strip()
+    error_type = str(item.get("type") or "")
+    ctx = item.get("ctx") or {}
+    label = _FIELD_LABELS.get(field or "", field or "This field")
+
+    if error_type in {"string_too_long", "too_long"}:
+        max_length = ctx.get("max_length")
+        if field == "phone":
+            return (
+                "Phone number is too long. Enter 9 Dubai mobile digits without +971 "
+                "(for example, 50 123 4567)."
+            )
+        if field == "full_name":
+            return "Name is too long (use 301 characters or fewer)."
+        if field == "email":
+            return "Email is too long (use 254 characters or fewer)."
+        if max_length is not None:
+            return f"{label} must be at most {max_length} characters."
+
+    if error_type in {"string_too_short", "too_short"}:
+        min_length = ctx.get("min_length")
+        if field == "full_name":
+            return "Enter your full name."
+        if field == "phone":
+            return (
+                "Enter a Dubai mobile number: 9 digits starting with 50, 52, 54, 55, 56, or 58 "
+                "(for example, 50 123 4567). Without +971."
+            )
+        if min_length is not None:
+            return f"{label} must be at least {min_length} characters."
+
+    if error_type == "missing":
+        if field == "full_name":
+            return "Enter your full name."
+        if field == "email":
+            return "Enter your email."
+        if field == "phone":
+            return "Enter your mobile number."
+        return f"{label} is required."
+
+    if raw.startswith("String should have at most") or raw.startswith("String should have at least"):
+        return _friendly_pydantic_message({**item, "type": "string_too_long" if "at most" in raw else "string_too_short"}, field)
+
+    return raw or ErrorMessage.VALIDATION
+
+
 def _pydantic_error(item: dict) -> dict:
     location = item.get("loc") or ()
     parts = [str(part) for part in location if str(part) not in _LOCATION_WRAPPERS]
+    field = ".".join(parts) or None
     return {
-        "field": ".".join(parts) or None,
-        "message": item.get("msg") or ErrorMessage.VALIDATION,
+        "field": field,
+        "message": _friendly_pydantic_message(item, field.split(".")[-1] if field else None),
         "code": item.get("type"),
     }
