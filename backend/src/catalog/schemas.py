@@ -108,6 +108,7 @@ class RelatedProductOut(Schema):
     title: str
     slug: str
     kind: str
+    image_url: str | None = None
 
 
 class ProductListOut(Schema):

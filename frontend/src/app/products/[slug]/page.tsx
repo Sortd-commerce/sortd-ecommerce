@@ -31,7 +31,7 @@ type ProductDetail = {
     on_hand: number;
     is_active: boolean;
   }>;
-  related: Array<{ title: string; slug: string; kind: string }>;
+  related: Array<{ title: string; slug: string; kind: string; image_url?: string | null }>;
   label: {
     serving_size: string;
     serving_basis: string;
@@ -109,7 +109,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
     .map((row) => ({
       title: flavorLabel(row.title),
       slug: row.slug,
-      image: "",
+      image: row.image_url || "",
     }));
   const highlights = buyHighlights(product.label?.headline, product.label?.ingredients.length || 0);
 

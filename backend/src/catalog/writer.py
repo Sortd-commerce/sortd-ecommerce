@@ -249,17 +249,22 @@ def serialize_label(product: Product, *, report: LabReport | None = None) -> dic
 
 
 def serialize_related(product: Product, *, active_only: bool = True) -> list[dict]:
+    from catalog.schemas import image_url
+
     rows = []
     for link in product.related_links.all():
         related = link.related
         if active_only and related.status != ProductStatus.ACTIVE:
             continue
+        images = list(related.images.all())
+        primary = images[0] if images else None
         rows.append(
             {
                 "id": related.id,
                 "title": related.title,
                 "slug": related.slug,
                 "kind": link.kind,
+                "image_url": image_url(primary) if primary else None,
             }
         )
     return rows

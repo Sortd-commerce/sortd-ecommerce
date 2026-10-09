@@ -1,7 +1,7 @@
 from django.conf import settings
 from django.db.models import Prefetch
 
-from catalog.models import LabReport, Product, ProductStatus, ProductVariant, RelatedProduct
+from catalog.models import LabReport, Product, ProductImage, ProductStatus, ProductVariant, RelatedProduct
 
 
 def report_score(report: LabReport | None) -> tuple[int, int]:
@@ -75,7 +75,14 @@ def active_product_detail():
             _current_lab_reports_prefetch(),
             Prefetch(
                 "related_links",
-                queryset=RelatedProduct.objects.select_related("related").order_by("sort_order", "id"),
+                queryset=RelatedProduct.objects.select_related("related")
+                .prefetch_related(
+                    Prefetch(
+                        "related__images",
+                        queryset=ProductImage.objects.order_by("sort_order", "id"),
+                    )
+                )
+                .order_by("sort_order", "id"),
             ),
         )
     )
