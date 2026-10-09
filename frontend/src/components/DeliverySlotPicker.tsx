@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Check } from "@phosphor-icons/react";
 import type { CheckoutSlot } from "@/components/CheckoutForm";
 
@@ -39,7 +39,7 @@ function formatDayLabel(value: string): { title: string; detail: string } {
   const weekday = parsed.toLocaleDateString("en-GB", { weekday: "long" });
   const short = parsed.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
   if (offset === 0) return { title: "Today", detail: short };
-  if (offset === 1) return { title: "Tomorrow", detail: weekday };
+  if (offset === 1) return { title: "Tomorrow", detail: short };
   return { title: weekday, detail: parsed.toLocaleDateString("en-GB", { day: "numeric", month: "short" }) };
 }
 
@@ -67,6 +67,10 @@ function confirmationCopy(slot: CheckoutSlot) {
   return `Arriving ${day} between ${range}. We'll message you when the rider is 10 minutes away.`;
 }
 
+function dayHasAvailability(daySlots: CheckoutSlot[]) {
+  return daySlots.some((slot) => slot.status === "available");
+}
+
 export function DeliverySlotPicker({
   slots,
   value,
@@ -83,14 +87,30 @@ export function DeliverySlotPicker({
       bucket.push(slot);
       seen.set(slot.date, bucket);
     }
-    return [...seen.entries()].map(([date, daySlots]) => ({ date, slots: daySlots }));
+    return [...seen.entries()]
+      .map(([date, daySlots]) => ({ date, slots: daySlots }))
+      .filter(({ slots: daySlots }) => dayHasAvailability(daySlots));
   }, [slots]);
 
   const [dayIndex, setDayIndex] = useState(0);
-  const activeDay = days[dayIndex] || days[0];
-  const selected = slots.find((row) => slotKey(row) === value) || slots.find((row) => row.status === "available");
 
-  if (!slots.length) {
+  useEffect(() => {
+    setDayIndex(0);
+  }, [days]);
+
+  const activeDay = days[dayIndex] || days[0];
+  const activeSlots = useMemo(
+    () => (activeDay?.slots || []).filter((slot) => slot.status === "available"),
+    [activeDay],
+  );
+
+  const bookable = useMemo(() => slots.filter((row) => row.status === "available"), [slots]);
+  const selected =
+    bookable.find((row) => slotKey(row) === value) ||
+    bookable.find((row) => row.date === activeDay?.date) ||
+    bookable[0];
+
+  if (!bookable.length) {
     return <p className="fine-print">No delivery windows are open right now.</p>;
   }
 
@@ -116,29 +136,21 @@ export function DeliverySlotPicker({
       </div>
 
       <div className="slot-grid" role="radiogroup" aria-label="Delivery time">
-        {(activeDay?.slots || []).map((slot) => {
+        {activeSlots.map((slot) => {
           const key = slotKey(slot);
           const checked = value === key;
-          const disabled = slot.status !== "available";
           return (
             <button
               key={key}
               type="button"
               role="radio"
               aria-checked={checked}
-              disabled={disabled}
-              className={`slot-card ${checked ? "slot-card-on" : ""} slot-card--${slot.status}`}
-              onClick={() => !disabled && onChange(key)}
+              className={`slot-card slot-card--available ${checked ? "slot-card-on" : ""}`}
+              onClick={() => onChange(key)}
             >
               <span className="slot-card-time">{slotLabel(slot)}</span>
-              {slot.status === "passed" ? <span className="slot-card-meta">Passed</span> : null}
-              {slot.status === "full" ? <span className="slot-card-meta">Full</span> : null}
-              {slot.status === "available" && slot.remaining <= 3 ? (
-                <span className="slot-card-urgency">{slot.remaining} left</span>
-              ) : null}
-              {slot.status === "available" && !disabled ? (
-                <span className="slot-card-meta">{checked ? "Your slot" : "Available"}</span>
-              ) : null}
+              {slot.remaining <= 3 ? <span className="slot-card-urgency">{slot.remaining} left</span> : null}
+              <span className="slot-card-meta">{checked ? "Your slot" : "Available"}</span>
               {checked ? (
                 <span className="slot-card-check" aria-hidden>
                   <Check size={14} weight="bold" />
@@ -149,9 +161,7 @@ export function DeliverySlotPicker({
         })}
       </div>
 
-      {selected && selected.status === "available" ? (
-        <p className="slot-confirm">{confirmationCopy(selected)}</p>
-      ) : null}
+      {selected ? <p className="slot-confirm">{confirmationCopy(selected)}</p> : null}
     </div>
   );
 }

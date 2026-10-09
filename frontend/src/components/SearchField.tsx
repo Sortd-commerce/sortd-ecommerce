@@ -22,6 +22,7 @@ export function SearchField({
   const rootRef = useRef<HTMLDivElement>(null);
   const [query, setQuery] = useState(initial);
   const [open, setOpen] = useState(false);
+  const [focused, setFocused] = useState(false);
   const [suggestions, setSuggestions] = useState<SearchSuggestion[]>([]);
   const [pending, startTransition] = useTransition();
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -37,6 +38,11 @@ export function SearchField({
   }, [params]);
 
   useEffect(() => {
+    if (!focused) {
+      setSuggestions([]);
+      setOpen(false);
+      return;
+    }
     if (debounceRef.current) clearTimeout(debounceRef.current);
     const value = query.trim();
     if (value.length < 2) {
@@ -58,7 +64,7 @@ export function SearchField({
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [query]);
+  }, [focused, query]);
 
   useEffect(() => {
     function onPointer(event: MouseEvent) {
@@ -95,7 +101,13 @@ export function SearchField({
           name="q"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          onFocus={() => suggestions.length && setOpen(true)}
+          onFocus={() => {
+            setFocused(true);
+            if (suggestions.length) setOpen(true);
+          }}
+          onBlur={() => {
+            window.setTimeout(() => setFocused(false), 120);
+          }}
           placeholder="Search nut butter, protein bars…"
           autoComplete="off"
           role="combobox"

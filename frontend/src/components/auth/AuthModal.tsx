@@ -174,8 +174,8 @@ export function AuthModal({
       skipCodeAdvanceRef.current = false;
       return;
     }
-    if (loginState.ok && loginState.email && loginState.purpose === "login") {
-      onCodeSent(loginState.email, "login");
+    if (loginState.ok && loginState.email && (loginState.purpose === "login" || loginState.purpose === "signup")) {
+      onCodeSent(loginState.email, loginState.purpose);
     }
   }, [loginState.email, loginState.ok, loginState.purpose, onCodeSent, step]);
 
@@ -224,7 +224,7 @@ export function AuthModal({
                   key={`signup-email-${email}`}
                   required
                 />
-                <small className="field-hint">We&apos;ll send your login code here.</small>
+                <small className="field-hint">We&apos;ll send a verification code here.</small>
               </label>
               <label className="field">
                 <span>Phone</span>
@@ -276,8 +276,8 @@ export function AuthModal({
             </h2>
             <p className="auth-modal-copy">
               {nextPath.startsWith("/checkout")
-                ? "We'll email you a 6-digit code. Your basket and coupon are saved."
-                : "We'll email you a 6-digit code. No password needed."}
+                ? "Enter the email on your Sortd account. We'll send a 6-digit login code."
+                : "Enter the email on your existing Sortd account. We'll send a 6-digit login code."}
             </p>
             <form action={loginFormAction} className="auth-modal-form">
               <input type="hidden" name="next" value={nextPath} />

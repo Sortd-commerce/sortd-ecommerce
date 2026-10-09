@@ -73,6 +73,7 @@ export function AddressPicker({
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const skipSuggest = useRef(Boolean(initialPlace || initialQuery));
   const rootRef = useRef<HTMLDivElement | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
 
   const [state, formAction] = useActionState(async (prev: ActionState, formData: FormData) => {
     if (!selected) {
@@ -142,13 +143,13 @@ export function AddressPicker({
   }, [query]);
 
   useEffect(() => {
-    function onPointer(event: PointerEvent) {
+    function onPointer(event: MouseEvent) {
       if (!rootRef.current?.contains(event.target as Node)) {
         setOpen(false);
       }
     }
-    window.addEventListener("pointerdown", onPointer);
-    return () => window.removeEventListener("pointerdown", onPointer);
+    window.addEventListener("mousedown", onPointer);
+    return () => window.removeEventListener("mousedown", onPointer);
   }, []);
 
   function applyCheck(result: { ok: boolean; message: string; data?: DeliveryCheck }, fallbackLabel = "") {
@@ -225,6 +226,7 @@ export function AddressPicker({
         <span>Search address</span>
         <span className="address-search-wrap relative block">
           <input
+            ref={inputRef}
             value={query}
             onChange={(event) => {
               setQuery(event.target.value);
@@ -270,6 +272,8 @@ export function AddressPicker({
               id={listId}
               role="listbox"
               className="address-suggestions max-h-56 overflow-auto rounded-xl border border-line bg-paper p-1 text-sm shadow-lg"
+              onTouchStart={() => inputRef.current?.focus({ preventScroll: true })}
+              onWheel={() => inputRef.current?.focus({ preventScroll: true })}
             >
               {suggestions.map((item) => (
                 <li key={item.place_id}>

@@ -232,3 +232,4 @@ class LoggedOutOut(Schema):
 
 class ResentOut(Schema):
     sent: bool
+    purpose: Literal["login", "signup"] | None = None

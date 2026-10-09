@@ -22,12 +22,6 @@ function money(value: string) {
   return Number.isFinite(amount) ? amount.toFixed(2) : "0.00";
 }
 
-function compactMoney(value: string) {
-  const amount = Number(value);
-  if (!Number.isFinite(amount)) return "0";
-  return amount % 1 === 0 ? String(Math.round(amount)) : amount.toFixed(2);
-}
-
 export function CartLink({ compact = false }: { compact?: boolean }) {
   const { count, subtotal } = useCart();
   const { openBasket } = useBasket();
@@ -45,7 +39,7 @@ export function CartLink({ compact = false }: { compact?: boolean }) {
       <CartBagIcon />
       {compact ? (
         <span className="cart-pill-compact">
-          {count} {count === 1 ? "item" : "items"} <span aria-hidden="true">·</span> AED {compactMoney(displayAmount)}
+          {count} {count === 1 ? "item" : "items"}
         </span>
       ) : (
         <span className="cart-pill-copy">

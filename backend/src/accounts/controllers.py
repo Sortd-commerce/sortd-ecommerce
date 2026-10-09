@@ -35,6 +35,7 @@ from accounts.schemas import (
 from dataclasses import asdict
 
 from accounts.types import LoginCommand, ProfileUpdateCommand, SignupCommand
+from core.messages import ErrorMessage
 from core.responses import ErrorResponse, SuccessResponse, success
 from core.throttling import AuthThrottle, PasswordResetThrottle, ResendThrottle, SignupThrottle, VerifyThrottle
 
@@ -134,8 +135,10 @@ class AuthController(ControllerBase):
         throttle=[ResendThrottle()],
     )
     def request_login_code(self, payload: RequestLoginCodeIn):
-        build_login_service().request_code(email=payload.email)
-        return success("If that account exists, a login code was sent.", {"sent": True})
+        purpose = build_login_service().request_code(email=payload.email)
+        if purpose == "signup":
+            return success(ErrorMessage.LOGIN_ACCOUNT_UNVERIFIED, {"sent": True, "purpose": "signup"})
+        return success("Login code sent. Check your email.", {"sent": True, "purpose": "login"})
 
     @route.post(
         "/login/verify",

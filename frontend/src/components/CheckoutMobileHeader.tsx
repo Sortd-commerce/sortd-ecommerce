@@ -16,6 +16,14 @@ function addressLabel(address: { is_default?: boolean; line1: string; city: stri
   return address.is_default ? "Home" : address.line1 || address.city || "Address";
 }
 
+const STEP_ORDER: Record<CheckoutStep, number> = { basket: 0, delivery: 1, pay: 2 };
+
+function stepClass(current: CheckoutStep, step: CheckoutStep) {
+  if (current === step) return "checkout-stepper-on";
+  if (STEP_ORDER[step] < STEP_ORDER[current]) return "checkout-stepper-done";
+  return "";
+}
+
 export function CheckoutMobileHeader({
   step,
   onBack,
@@ -52,13 +60,13 @@ export function CheckoutMobileHeader({
       </div>
 
       <nav className="checkout-stepper" aria-label="Checkout progress">
-        <span className={step === "basket" ? "checkout-stepper-on" : ""} aria-current={step === "basket" ? "step" : undefined}>
+        <span className={stepClass(step, "basket")} aria-current={step === "basket" ? "step" : undefined}>
           1 BASKET
         </span>
-        <span className={step === "delivery" ? "checkout-stepper-on" : ""} aria-current={step === "delivery" ? "step" : undefined}>
+        <span className={stepClass(step, "delivery")} aria-current={step === "delivery" ? "step" : undefined}>
           2 DELIVERY
         </span>
-        <span className={step === "pay" ? "checkout-stepper-on" : ""} aria-current={step === "pay" ? "step" : undefined}>
+        <span className={stepClass(step, "pay")} aria-current={step === "pay" ? "step" : undefined}>
           3 PAY
         </span>
       </nav>

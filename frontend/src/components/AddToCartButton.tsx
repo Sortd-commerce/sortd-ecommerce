@@ -62,33 +62,31 @@ export function AddToCartButton({
 
   if (inCart > 0) {
     return (
-      <div className={`buy-in-cart ${className}`.trim()}>
-        <div className="flex items-center justify-between gap-3 rounded-xl border border-line bg-white px-3 py-2">
-          <span className="text-sm font-medium text-ink/70">In cart</span>
-          <QuantityStepper
-            value={inCart}
-            max={limit}
-            min={0}
-            onChange={(next) => {
-              if (next < 1) {
-                removeItem(variantId);
+      <div className={`buy-in-cart buy-in-cart--row ${className}`.trim()}>
+        <span className="buy-in-cart-label">In cart</span>
+        <QuantityStepper
+          value={inCart}
+          max={limit}
+          min={0}
+          onChange={(next) => {
+            if (next < 1) {
+              removeItem(variantId);
+              return;
+            }
+            if (limit != null && next > limit) {
+              if (maxOrder != null && maxOrder > 0 && next > maxOrder) {
+                toast.error(`Max ${maxOrder} per order.`);
+                setQuantity(variantId, maxOrder, stock);
                 return;
               }
-              if (limit != null && next > limit) {
-                if (maxOrder != null && maxOrder > 0 && next > maxOrder) {
-                  toast.error(`Max ${maxOrder} per order.`);
-                  setQuantity(variantId, maxOrder, stock);
-                  return;
-                }
-                toast.error(`Only ${stock} left in stock.`);
-                setQuantity(variantId, stock ?? next, stock);
-                return;
-              }
-              setQuantity(variantId, next, stock);
-            }}
-          />
-        </div>
-        <button type="button" className="btn btn-secondary w-full" onClick={openBasket}>
+              toast.error(`Only ${stock} left in stock.`);
+              setQuantity(variantId, stock ?? next, stock);
+              return;
+            }
+            setQuantity(variantId, next, stock);
+          }}
+        />
+        <button type="button" className="btn btn-secondary buy-in-cart-view" onClick={openBasket}>
           View basket
         </button>
       </div>

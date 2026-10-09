@@ -79,8 +79,17 @@ class LoginTests(ApiTestCase):
         response = request_login_code(self.client)
 
         self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["data"]["purpose"], "signup")
         self.assertEqual(len(mail.outbox), 2)
         self.assertIn("verification", mail.outbox[-1].subject.lower())
+
+    def test_login_code_unknown_email_is_clear(self):
+        response = request_login_code(self.client, email="missing@example.com")
+
+        self.assertIn(response.status_code, {400, 422})
+        body = response.json()
+        self.assertEqual(body["status"], "error")
+        self.assertIn("No account found", body["message"])
 
     def test_inactive_user_cannot_log_in_with_code(self):
         signup_and_verify(self.client)

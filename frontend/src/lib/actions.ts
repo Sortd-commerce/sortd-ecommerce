@@ -32,13 +32,14 @@ export async function signupAction(_prev: ActionState, formData: FormData): Prom
 
 export async function requestLoginCodeAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const email = String(formData.get("email") || "").trim().toLowerCase();
-  const result = await apiFetch("/auth/login/code", {
+  const result = await apiFetch<{ sent: boolean; purpose?: "login" | "signup" }>("/auth/login/code", {
     method: "POST",
     auth: false,
     body: { email },
   });
   if (!result.ok) return { ok: false, message: result.message };
-  return { ok: true, message: "Code sent.", email, purpose: "login" };
+  const purpose = result.data?.purpose === "signup" ? "signup" : "login";
+  return { ok: true, message: result.message, email, purpose };
 }
 
 export async function verifySignupCodeAction(_prev: ActionState, formData: FormData): Promise<ActionState> {

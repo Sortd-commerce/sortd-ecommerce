@@ -9,6 +9,10 @@ class ErrorMessage:
     NOT_FOUND = "The requested resource was not found."
     THROTTLED = "Too many requests. Please try again later."
     INVALID_CREDENTIALS = "No active account found with the given credentials."
+    LOGIN_ACCOUNT_NOT_FOUND = "No account found with this email. Create an account to get started."
+    LOGIN_ACCOUNT_UNVERIFIED = (
+        "This email is not verified yet. We sent a code to finish creating your account."
+    )
     CONFLICT = "The request could not be completed because of a conflict."
     EMAIL_NOT_VERIFIED = "Verify your email before logging in."
     EMAIL_UNAVAILABLE = "Unable to send email. Please try again."

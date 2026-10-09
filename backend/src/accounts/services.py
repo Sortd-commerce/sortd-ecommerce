@@ -3,6 +3,7 @@ import hmac
 import logging
 import secrets
 from datetime import timedelta
+from typing import Literal
 from urllib.parse import urlencode
 
 from django.conf import settings
@@ -364,7 +365,7 @@ class LoginService:
             notify_new=True,
         )
 
-    def request_code(self, *, email: str) -> None:
+    def request_code(self, *, email: str) -> Literal["login", "signup"]:
         signup = self._signup or SignupService(
             clock=SystemClock(), email_sender=self._email_sender, tokens=self._tokens
         )
@@ -383,7 +384,7 @@ class LoginService:
                 )
             except EmailSendError as exc:
                 raise ServiceUnavailable(str(exc)) from exc
-            return
+            return "login"
 
         pending = User.objects.filter(email=email, email_verified_at__isnull=True, is_active=True).first()
         if pending is not None:
@@ -402,9 +403,10 @@ class LoginService:
                 )
             except EmailSendError as exc:
                 raise ServiceUnavailable(str(exc)) from exc
-            return
+            return "signup"
 
         logger.info("Login code not sent: no account for email=%s", email)
+        raise exceptions.ValidationError({"email": ErrorMessage.LOGIN_ACCOUNT_NOT_FOUND})
 
     def verify_code(
         self, *, email: str, code: str, request=None, device_id: str = ""
