@@ -7228,7 +7228,7 @@ button.deliver-signin-link {
   }
 
   body.has-product-mobile-bar .store-main {
-    padding-bottom: calc(5.25rem + env(safe-area-inset-bottom));
+    padding-bottom: calc(6rem + env(safe-area-inset-bottom));
   }
 
   .product-mobile-bar {
@@ -7241,6 +7241,11 @@ button.deliver-signin-link {
     grid-template-columns: auto 1fr;
     gap: 0.65rem;
     align-items: center;
+    padding: 0.625rem 0.7rem;
+    border: 1.5px solid color-mix(in srgb, var(--leaf) 38%, var(--line));
+    border-radius: 1.125rem;
+    background: color-mix(in srgb, var(--mint) 32%, var(--sand));
+    box-shadow: 0 10px 32px rgb(20 53 3 / 0.14);
   }
 
   .product-mobile-bar-basket {
@@ -7250,10 +7255,10 @@ button.deliver-signin-link {
     height: 3rem;
     align-items: center;
     justify-content: center;
-    border: 1px solid var(--line);
+    border: 1px solid color-mix(in srgb, var(--forest) 28%, var(--line));
     border-radius: 0.85rem;
-    background: #fff;
-    color: var(--ink);
+    background: color-mix(in srgb, var(--paper) 92%, white);
+    color: var(--forest);
     cursor: pointer;
   }
 
@@ -7273,20 +7278,38 @@ button.deliver-signin-link {
     text-align: center;
   }
 
-  .product-mobile-bar-cta.btn {
+  .product-mobile-bar-cta.btn,
+  .product-mobile-bar-cta.btn-primary {
     width: 100%;
     min-height: 3rem;
     border-radius: 999px;
-    background: var(--ink);
-    border-color: var(--ink);
+    border: 1px solid color-mix(in srgb, var(--forest) 22%, var(--line));
+    background: var(--paper);
+    color: var(--ink);
     font-size: 0.9375rem;
-    font-weight: 600;
+    font-weight: 700;
     letter-spacing: 0;
     text-transform: none;
+    box-shadow: 0 2px 0 rgb(20 53 3 / 0.06);
   }
 
-  .product-mobile-bar-cta.btn:hover:not(:disabled) {
-    background: color-mix(in srgb, var(--ink) 88%, #000);
+  .product-mobile-bar-cta.btn:hover:not(:disabled),
+  .product-mobile-bar-cta.btn-primary:hover:not(:disabled) {
+    background: #fff;
+    border-color: color-mix(in srgb, var(--forest) 45%, var(--line));
+    color: var(--ink);
+  }
+
+  .product-mobile-bar .buy-in-cart--row {
+    grid-column: 1 / -1;
+    padding: 0.15rem 0.05rem 0;
+  }
+
+  .product-mobile-bar .buy-in-cart-view {
+    background: var(--paper);
+    border-color: color-mix(in srgb, var(--forest) 22%, var(--line));
+    color: var(--ink);
+    font-weight: 700;
   }
 
   body.has-product-mobile-bar.has-floating-cart .store-main {
