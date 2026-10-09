@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { apiFetch } from "@/lib/api";
+import { absoluteStorefrontUrl } from "@/lib/site-origin";
 
 const PAYMENT_PENDING = /payment has not completed/i;
 
@@ -17,7 +18,7 @@ function wait(ms: number) {
 export async function GET(request: NextRequest) {
   const sessionId = request.nextUrl.searchParams.get("session_id")?.trim();
   if (!sessionId) {
-    return NextResponse.redirect(new URL("/checkout", request.url));
+    return NextResponse.redirect(absoluteStorefrontUrl(request, "/checkout"));
   }
 
   let result = await completeCheckout(sessionId);
@@ -27,12 +28,12 @@ export async function GET(request: NextRequest) {
   }
 
   if (result.ok && result.data?.number) {
-    const success = new URL(`/orders/${result.data.number}`, request.url);
+    const success = absoluteStorefrontUrl(request, `/orders/${result.data.number}`);
     success.searchParams.set("placed", "1");
     return NextResponse.redirect(success);
   }
 
-  const fallback = new URL("/checkout", request.url);
+  const fallback = absoluteStorefrontUrl(request, "/checkout");
   fallback.searchParams.set("payment_error", "1");
   return NextResponse.redirect(fallback);
 }
