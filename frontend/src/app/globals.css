@@ -7383,6 +7383,7 @@ button.deliver-signin-link {
   position: fixed;
   inset: 0;
   z-index: 80;
+  overflow: hidden;
   background: #0e1a14;
 }
 
@@ -7427,7 +7428,7 @@ button.deliver-signin-link {
   scroll-snap-align: center;
   scroll-snap-stop: always;
   display: flex;
-  align-items: stretch;
+  align-items: center;
   justify-content: center;
   padding: 3.5rem 0.75rem calc(2.5rem + env(safe-area-inset-bottom));
   box-sizing: border-box;
@@ -7435,14 +7436,14 @@ button.deliver-signin-link {
 
 .product-lightbox-zoom {
   width: min(100%, 720px);
-  flex: 1;
-  min-height: 0;
-  max-height: 100%;
+  max-height: calc(100dvh - 5.5rem - env(safe-area-inset-top) - env(safe-area-inset-bottom));
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior-y: contain;
   touch-action: pan-y pinch-zoom;
   -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: rgb(255 255 255 / 0.35) transparent;
 }
 
 .product-lightbox-img {
