@@ -36,7 +36,7 @@ export function OrderPlacedSuccess({ order }: { order: OrderPlacedSummary }) {
         <span className="order-placed-icon-wrap" aria-hidden>
           <CheckCircle size={52} weight="fill" className="order-placed-icon" />
         </span>
-        <p className="order-placed-kicker">Order confirmed</p>
+        <p className="order-placed-kicker">Order placed</p>
         <h1 className="order-placed-title">Thanks — we&apos;re on it.</h1>
         <p className="order-placed-number">{order.number}</p>
       </div>

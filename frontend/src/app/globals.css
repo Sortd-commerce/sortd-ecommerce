@@ -7510,6 +7510,60 @@ button.deliver-signin-link {
   animation: order-placed-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
+@media (min-width: 800px) {
+  .order-placed-page {
+    max-width: min(44rem, 100%);
+    padding-block: 2.5rem 4rem;
+  }
+
+  .order-placed {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr);
+    grid-template-areas:
+      "hero card"
+      "footnote card"
+      "actions actions";
+    column-gap: 2rem;
+    row-gap: 1.25rem;
+    align-items: start;
+  }
+
+  .order-placed-hero {
+    grid-area: hero;
+    text-align: left;
+    padding-top: 0.35rem;
+  }
+
+  .order-placed-icon-wrap {
+    margin-inline: 0;
+    width: 5rem;
+    height: 5rem;
+  }
+
+  .order-placed-title {
+    font-size: clamp(2rem, 3.2vw, 2.65rem);
+    max-width: 14ch;
+  }
+
+  .order-placed-card {
+    grid-area: card;
+    padding: 1.35rem 1.5rem;
+  }
+
+  .order-placed-footnote {
+    grid-area: footnote;
+    text-align: left;
+    align-self: end;
+    max-width: 22rem;
+  }
+
+  .order-placed-actions {
+    grid-area: actions;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+    margin-top: 0.35rem;
+  }
+}
+
 .order-placed-hero {
   text-align: center;
 }
