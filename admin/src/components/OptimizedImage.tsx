@@ -24,7 +24,11 @@ export function OptimizedImage({
       alt={alt}
       loading={loading ?? (priority ? undefined : "lazy")}
       decoding={decoding ?? "async"}
-      unoptimized={unoptimized ?? isSvg(props.src)}
+      unoptimized={
+        unoptimized ??
+        (isSvg(props.src) ||
+          (typeof props.src === "string" && props.src.startsWith("/") && !props.src.startsWith("//")))
+      }
     />
   );
 }

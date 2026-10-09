@@ -84,21 +84,20 @@ export function ProductLightbox({
           else goTo(index - 1);
         }}
       >
-        {images.map((image, slideIndex) => (
-          <div key={`${image.url}-${slideIndex}`} className="product-lightbox-slide">
-            <div className="product-lightbox-zoom">
-              <OptimizedImage
-                src={image.url}
-                alt={image.alt}
-                width={1200}
-                height={1200}
-                sizes="100vw"
-                className="product-lightbox-img"
-                priority={slideIndex === index}
-              />
-            </div>
+        <div className="product-lightbox-slide">
+          <div className="product-lightbox-zoom">
+            <OptimizedImage
+              key={images[index]?.url ?? index}
+              src={images[index]?.url ?? ""}
+              alt={images[index]?.alt ?? ""}
+              width={1200}
+              height={1200}
+              sizes="100vw"
+              className="product-lightbox-img"
+              priority
+            />
           </div>
-        ))}
+        </div>
       </div>
       {images.length > 1 ? (
         <div className="product-lightbox-dots" aria-hidden>

@@ -1,4 +1,5 @@
 import Image, { type ImageProps } from "next/image";
+import { cloudinaryDeliveryUrl } from "@/lib/image-loader";
 
 function isSvg(src: ImageProps["src"]) {
   if (typeof src === "string") return src.endsWith(".svg");
@@ -9,6 +10,14 @@ function isSvg(src: ImageProps["src"]) {
 }
 
 export type OptimizedImageProps = ImageProps;
+
+function shouldBypassOptimizer(src: ImageProps["src"]) {
+  if (isSvg(src)) return true;
+  if (typeof src === "string" && src.startsWith("/") && !src.startsWith("//")) {
+    return true;
+  }
+  return false;
+}
 
 export function OptimizedImage({
   priority,
@@ -24,7 +33,12 @@ export function OptimizedImage({
       alt={alt}
       loading={loading ?? (priority ? undefined : "lazy")}
       decoding={decoding ?? "async"}
-      unoptimized={unoptimized ?? isSvg(props.src)}
+      unoptimized={unoptimized ?? shouldBypassOptimizer(props.src)}
     />
   );
+}
+
+/** Direct CDN URL when you need a sized asset outside `<Image />` (e.g. preload). */
+export function sizedImageUrl(src: string, width: number, quality?: number) {
+  return cloudinaryDeliveryUrl(src, width, quality);
 }
