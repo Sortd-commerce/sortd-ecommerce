@@ -184,6 +184,10 @@ class DjangoEmailSender:
     def send_order_confirmation(self, *, to: str, order: dict, first_name: str = "") -> None:
         name = first_name.strip() or "there"
         number = order.get("number") or ""
+        subtotal = order.get("subtotal") or "0.00"
+        discount_amount = order.get("discount_amount") or "0.00"
+        discount_code = order.get("discount_code") or ""
+        delivery_fee = order.get("delivery_fee") or "0.00"
         total = order.get("total") or "0.00"
         delivery = order.get("delivery_date") or ""
         subject = f"Order {number} confirmed"
@@ -192,9 +196,15 @@ class DjangoEmailSender:
             f"- {row.get('title')} × {row.get('quantity')} — AED {row.get('line_total')}" for row in lines
         )
         address = (order.get("address") or {}).get("formatted_address") or (order.get("address") or {}).get("line1") or ""
+        has_discount = float(discount_amount) > 0
+        delivery_label = f"AED {delivery_fee}" if float(delivery_fee) > 0 else "Free"
+        discount_text = f"Coupon {discount_code}: -AED {discount_amount}\n" if has_discount else ""
         body = (
             f"Hi {name},\n\n"
             f"We received your Sortd order {number}.\n"
+            f"Subtotal: AED {subtotal}\n"
+            f"{discount_text}"
+            f"Delivery: {delivery_label}\n"
             f"Total: AED {total}\n"
             f"Delivery: {delivery}\n"
             f"{text_lines}\n\n"
@@ -211,12 +221,24 @@ class DjangoEmailSender:
             )
             for row in lines
         )
+        summary_rows = (
+            f'<tr><td style="padding:3px 0;">Subtotal</td><td style="padding:3px 0;text-align:right;">AED {escape(str(subtotal))}</td></tr>'
+            + (
+                f'<tr style="color:{FOREST};"><td style="padding:3px 0;">Coupon {escape(str(discount_code))}</td><td style="padding:3px 0;text-align:right;">− AED {escape(str(discount_amount))}</td></tr>'
+                if has_discount
+                else ""
+            )
+            + f'<tr><td style="padding:3px 0;">Delivery</td><td style="padding:3px 0;text-align:right;">{escape(delivery_label)}</td></tr>'
+        )
         extra = (
             '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:20px;">'
             '<tr style="color:#5b675f;font-size:12px;letter-spacing:0.08em;text-transform:uppercase;">'
             '<td style="padding-bottom:8px;">Item</td><td style="padding-bottom:8px;text-align:center;">Qty</td>'
             '<td style="padding-bottom:8px;text-align:right;">Total</td></tr>'
             f"{rows_html}</table>"
+            '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" '
+            f'style="margin-top:16px;font-family:Arial,sans-serif;font-size:14px;color:{INK};">'
+            f"{summary_rows}</table>"
             f'<p style="margin:18px 0 0;font-family:Arial,sans-serif;font-size:16px;font-weight:700;color:{FOREST};">AED {escape(str(total))}</p>'
             f'<p style="margin:8px 0 0;font-family:Arial,sans-serif;font-size:14px;color:{INK};">Delivery {escape(str(delivery))}<br>{escape(str(address))}</p>'
             '<p style="margin:8px 0 0;font-family:Arial,sans-serif;font-size:14px;color:#5b675f;">Cash on delivery.</p>'

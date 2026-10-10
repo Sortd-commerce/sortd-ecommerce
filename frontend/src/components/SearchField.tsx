@@ -86,8 +86,9 @@ export function SearchField({
     router.push(`/?q=${encodeURIComponent(value)}`);
   }
 
-  function closeAndNavigate() {
+  function closeAndNavigate(href: string) {
     setOpen(false);
+    startRouteLoading(href);
   }
 
   return (
@@ -127,7 +128,12 @@ export function SearchField({
               item.kind === "product" ? `/products/${item.slug}` : `/?aisle=${encodeURIComponent(item.slug)}`;
             return (
               <li key={`${item.kind}-${item.slug}`} role="option" aria-selected={false}>
-                <Link href={href} className="search-suggestion" onClick={closeAndNavigate}>
+                <Link
+                  href={href}
+                  className="search-suggestion"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => closeAndNavigate(href)}
+                >
                   <span className="search-suggestion-thumb">
                     {item.image_url ? (
                       <OptimizedImage src={item.image_url} alt="" width={36} height={36} sizes="36px" className="object-cover" />

@@ -41,6 +41,7 @@ function toSelected(check: DeliveryCheck, fallbackLabel = ""): SelectedPlace {
 export function AddressPicker({
   addressId,
   isDefault = true,
+  defaultLabel = "other",
   showPrimaryToggle = false,
   submitLabel = "Save address",
   initialQuery = "",
@@ -50,6 +51,7 @@ export function AddressPicker({
 }: {
   addressId?: number;
   isDefault?: boolean;
+  defaultLabel?: AddressLabelValue;
   showPrimaryToggle?: boolean;
   submitLabel?: string;
   initialQuery?: string;
@@ -81,7 +83,7 @@ export function AddressPicker({
   const [addressLabel, setAddressLabel] = useState<AddressLabelValue>(
     ADDRESS_LABELS.some((row) => row.value === initialDetails?.label)
       ? (initialDetails?.label as AddressLabelValue)
-      : "other",
+      : defaultLabel,
   );
   const [community, setCommunity] = useState(initialDetails?.community || "");
   const [building, setBuilding] = useState(initialDetails?.building || "");
@@ -291,7 +293,7 @@ export function AddressPicker({
                 onChange={() => setAddressLabel(row.value)}
               />
               {row.title}
-              {"isDefault" in row && row.isDefault ? <small>Default</small> : null}
+              {row.value === defaultLabel ? <small>Default</small> : null}
             </label>
           ))}
         </div>
@@ -339,21 +341,23 @@ export function AddressPicker({
               >
                 <X size={18} weight="bold" />
               </button>
-            ) : null}
-            <button
-              type="button"
-              className="address-search-btn"
-              onClick={useMyLocation}
-              disabled={locating || pending || verifying}
-              aria-label={locating ? "Locating" : "Use my location"}
-              title="Use my location"
-            >
-              {locating || pending || verifying ? (
-                <SpinnerGap size={20} className="animate-spin" />
-              ) : (
-                <Crosshair size={20} weight="bold" />
-              )}
-            </button>
+            ) :
+              (<button
+                type="button"
+                className="address-search-btn"
+                onClick={useMyLocation}
+                disabled={locating || pending || verifying}
+                aria-label={locating ? "Locating" : "Use my location"}
+                title="Use my location"
+              >
+                {locating || pending || verifying ? (
+                  <SpinnerGap size={20} className="animate-spin" />
+                ) : (
+                  <Crosshair size={20} weight="bold" />
+                )}
+              </button>)
+            }
+
           </span>
           {open && suggestions.length ? (
             <ul

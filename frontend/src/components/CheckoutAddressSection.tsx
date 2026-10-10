@@ -9,6 +9,7 @@ import { useToast } from "@/components/Toast";
 import { useCheckoutSelection } from "@/components/CheckoutSelectionContext";
 import { setPrimaryAddressAction } from "@/lib/actions";
 import { formatAddressDetails, formatAddressLabel } from "@/lib/address";
+import type { AddressLabelValue } from "@/lib/address";
 
 function addressTitle(address: CheckoutAddress) {
   return formatAddressLabel(address.label);
@@ -66,6 +67,12 @@ export function CheckoutAddressSection({ addresses }: { addresses: CheckoutAddre
   const { selectedAddress: contextAddress, setSelectedAddress } = useCheckoutSelection();
   const [settingPrimary, startPrimary] = useTransition();
   const defaultAddress = addresses.find((row) => row.is_default) || addresses[0];
+  const savedLabels = new Set(addresses.map((address) => address.label?.toLowerCase()));
+  const defaultLabel: AddressLabelValue = !savedLabels.has("home")
+    ? "home"
+    : !savedLabels.has("work")
+      ? "work"
+      : "other";
   const [addressId, setAddressId] = useState<number | "">(defaultAddress?.id || "");
   const [panel, setPanel] = useState<"pick" | "add" | "edit">(addresses.length ? "pick" : "add");
   const [addressOpen, setAddressOpen] = useState(false);
@@ -135,6 +142,7 @@ export function CheckoutAddressSection({ addresses }: { addresses: CheckoutAddre
         <p className="fine-print">We deliver across Dubai. Search for your building or use your location.</p>
         <AddressPicker
           isDefault={addresses.length === 0}
+          defaultLabel={defaultLabel}
           showPrimaryToggle={addresses.length > 0}
           submitLabel={addresses.length === 0 ? "Save primary address" : "Save address"}
           onSaved={onAddressSaved}

@@ -537,6 +537,16 @@ class CheckoutTests(ApiTestCase):
             **self.auth,
         )
         self.assertEqual(first_order.status_code, 201)
+        order_data = first_order.json()["data"]
+        self.assertEqual(order_data["discount_code"], "WELCOME10")
+        self.assertEqual(order_data["discount_amount"], "1.69")
+        self.assertIn("Coupon WELCOME10: -AED 1.69", mail.outbox[-1].body)
+        self.assertIn("Coupon WELCOME10", mail.outbox[-1].alternatives[0].content)
+
+        retrieved = self.client.get(f"/api/v1/orders/{order_data['number']}", **self.auth)
+        self.assertEqual(retrieved.status_code, 200)
+        self.assertEqual(retrieved.json()["data"]["discount_code"], "WELCOME10")
+        self.assertEqual(retrieved.json()["data"]["discount_amount"], "1.69")
 
         self._add_to_cart(1)
         repeat_quote = post_json(

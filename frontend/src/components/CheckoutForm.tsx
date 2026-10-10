@@ -281,7 +281,7 @@ function CheckoutFormInner({
   if (mobile) {
     return (
       <div className={`checkout-page checkout-page--mobile${step === "pay" ? " checkout-page--pay" : ""}`}>
-        <CheckoutMobileHeader step={step} onBack={onBack} />
+        <CheckoutMobileHeader step={step} onBack={onBack} onStepChange={setStep} />
         {step === "basket" ? <CheckoutBasketStep onContinue={() => setStep("delivery")} /> : null}
         {step === "delivery" || step === "pay" ? (
           <div className={`checkout-delivery-stage${step === "pay" ? " checkout-delivery-stage--pay-open" : ""}`}>

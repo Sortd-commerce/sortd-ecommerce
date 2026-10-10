@@ -62,12 +62,13 @@ export function BuyBox({
   hasLabReport: boolean;
 }) {
   const mobile = useMobileViewport();
-  const { count } = useCart();
+  const { count, items } = useCart();
   const { openBasket } = useBasket();
   const offers = variants.filter((row) => row.is_active);
   const [variantId, setVariantId] = useState(offers[0]?.id);
   const [addQty, setAddQty] = useState(1);
   const selected = useMemo(() => offers.find((row) => row.id === variantId) || offers[0], [offers, variantId]);
+  const selectedInCart = selected ? items.some((item) => item.variant_id === selected.id) : false;
   const inStock = (selected?.on_hand || 0) > 0;
   const perUnit = selected ? unitPrice(selected.price, selected.unit_count) : null;
   const maxOrder =
@@ -180,14 +181,16 @@ export function BuyBox({
 
       <div className="buy-actions buy-actions--inline">
         <div className="buy-actions-row">
-          <QuantityStepper
-            value={addQty}
-            max={maxOrder}
-            min={1}
-            disabled={!inStock}
-            variant="buy"
-            onChange={setAddQty}
-          />
+          {!selectedInCart ? (
+            <QuantityStepper
+              value={addQty}
+              max={maxOrder}
+              min={1}
+              disabled={!inStock}
+              variant="buy"
+              onChange={setAddQty}
+            />
+          ) : null}
           {selected ? (
             <AddToCartButton
               variantId={selected.id}

@@ -9,6 +9,10 @@ import { formatOrderStatus } from "@/lib/orders";
 type Order = {
   number: string;
   status: string;
+  subtotal: string;
+  discount_amount: string;
+  discount_code: string;
+  delivery_fee: string;
   total: string;
   note: string;
   created_at: string;
@@ -71,6 +75,10 @@ export default async function OrderDetailPage({
         <OrderPlacedSuccess
           order={{
             number: order.number,
+            subtotal: order.subtotal,
+            discount_amount: order.discount_amount,
+            discount_code: order.discount_code,
+            delivery_fee: order.delivery_fee,
             total: order.total,
             delivery_date: order.delivery_date,
             delivery_start: order.delivery_start,
@@ -108,9 +116,25 @@ export default async function OrderDetailPage({
             <p className="font-semibold"><DirhamIcon /> {line.line_total}</p>
           </div>
         ))}
-        <div className="flex justify-between px-6 py-4 font-semibold text-forest">
-          <p>Total</p>
-          <p><DirhamIcon /> {order.total}</p>
+        <div className="space-y-2 px-6 py-4 text-sm">
+          <div className="flex justify-between">
+            <p>Subtotal</p>
+            <p><DirhamIcon /> {order.subtotal}</p>
+          </div>
+          {Number(order.discount_amount) > 0 ? (
+            <div className="flex justify-between text-forest">
+              <p>Discount{order.discount_code ? ` · ${order.discount_code}` : ""}</p>
+              <p>− <DirhamIcon /> {order.discount_amount}</p>
+            </div>
+          ) : null}
+          <div className="flex justify-between">
+            <p>Delivery</p>
+            <p>{Number(order.delivery_fee) > 0 ? <><DirhamIcon /> {order.delivery_fee}</> : "Free"}</p>
+          </div>
+          <div className="flex justify-between border-t border-line pt-3 font-semibold text-forest">
+            <p>Total</p>
+            <p><DirhamIcon /> {order.total}</p>
+          </div>
         </div>
       </section>
     </div>

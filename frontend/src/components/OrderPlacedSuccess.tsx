@@ -6,6 +6,10 @@ import { DirhamIcon } from "@/components/DirhamIcon";
 
 export type OrderPlacedSummary = {
   number: string;
+  subtotal: string;
+  discount_amount: string;
+  discount_code: string;
+  delivery_fee: string;
   total: string;
   delivery_date: string;
   delivery_start: string;
@@ -65,6 +69,11 @@ export function OrderPlacedSuccess({ order }: { order: OrderPlacedSummary }) {
           </span>
           <strong><DirhamIcon /> {order.total}</strong>
         </div>
+        {Number(order.discount_amount) > 0 ? (
+          <p className="order-placed-row-value">
+            Coupon {order.discount_code || "applied"} saved <DirhamIcon /> {order.discount_amount}
+          </p>
+        ) : null}
       </section>
 
       <p className="order-placed-footnote">Every item in this order passed all four gates.</p>

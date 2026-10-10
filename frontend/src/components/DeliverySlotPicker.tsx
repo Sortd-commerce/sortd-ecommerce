@@ -55,16 +55,16 @@ function slotLabel(slot: CheckoutSlot) {
 }
 
 function confirmationCopy(slot: CheckoutSlot) {
-  const parsed = new Date(`${slot.date}T12:00:00`);
-  const offset = dayOffsetFromToday(slot.date);
-  const day =
-    offset === 0 ? "today" : offset === 1 ? "tomorrow" : parsed.toLocaleDateString("en-GB", { weekday: "long" });
-  const start = slot.start_time.slice(0, 5);
-  const end = slot.end_time.slice(0, 5);
-  const [sh] = start.split(":").map(Number);
-  const [eh] = end.split(":").map(Number);
-  const range = `${sh % 12 || 12} and ${eh % 12 || 12} ${eh >= 12 ? "PM" : "AM"}`;
-  return `Arriving ${day} between ${range}. We'll message you when the rider is 10 minutes away.`;
+  // const parsed = new Date(`${slot.date}T12:00:00`);
+  // const offset = dayOffsetFromToday(slot.date);
+  // const day =
+    // offset === 0 ? "today" : offset === 1 ? "tomorrow" : parsed.toLocaleDateString("en-GB", { weekday: "long" });
+  // const start = slot.start_time.slice(0, 5);
+  // const end = slot.end_time.slice(0, 5);
+  // const [sh] = start.split(":").map(Number);
+  // const [eh] = end.split(":").map(Number);
+  // const range = `${sh % 12 || 12} and ${eh % 12 || 12} ${eh >= 12 ? "PM" : "AM"}`;
+  return `We'll message you when the rider is 10 minutes away.`;
 }
 
 function dayHasAvailability(daySlots: CheckoutSlot[]) {

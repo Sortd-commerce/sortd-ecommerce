@@ -5000,17 +5000,22 @@ aside.basket-drawer {
   text-transform: uppercase;
 }
 
-.checkout-stepper > span {
+.checkout-stepper > button {
   display: flex;
   flex-direction: column;
   align-items: stretch;
   gap: 0.45rem;
   min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
   text-align: center;
   color: rgb(14 26 20 / 0.38);
+  cursor: pointer;
 }
 
-.checkout-stepper > span::before {
+.checkout-stepper > button::before {
   content: "";
   display: block;
   width: 100%;
@@ -5019,23 +5024,29 @@ aside.basket-drawer {
   background: rgb(14 26 20 / 0.16);
 }
 
-.checkout-stepper > span.checkout-stepper-on {
+.checkout-stepper > button.checkout-stepper-on {
   color: var(--forest);
   font-weight: 600;
 }
 
-.checkout-stepper > span.checkout-stepper-on::before {
+.checkout-stepper > button.checkout-stepper-on::before {
   height: 3px;
   background: var(--forest);
 }
 
-.checkout-stepper > span.checkout-stepper-done {
+.checkout-stepper > button.checkout-stepper-done {
   color: color-mix(in srgb, var(--forest) 72%, rgb(14 26 20 / 0.38));
   font-weight: 600;
 }
 
-.checkout-stepper > span.checkout-stepper-done::before {
+.checkout-stepper > button.checkout-stepper-done::before {
   background: color-mix(in srgb, var(--forest) 55%, transparent);
+}
+
+.checkout-stepper > button:focus-visible {
+  outline: 2px solid var(--forest);
+  outline-offset: 3px;
+  border-radius: 0.2rem;
 }
 
 .checkout-savings-banner {

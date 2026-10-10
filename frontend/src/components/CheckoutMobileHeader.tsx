@@ -39,9 +39,11 @@ function stepClass(current: CheckoutStep, step: CheckoutStep) {
 export function CheckoutMobileHeader({
   step,
   onBack,
+  onStepChange,
 }: {
   step: CheckoutStep;
   onBack?: () => void;
+  onStepChange?: (step: CheckoutStep) => void;
 }) {
   const { quote } = usePricing();
   const { selectedAddress } = useCheckoutSelection();
@@ -73,15 +75,30 @@ export function CheckoutMobileHeader({
       </div>
 
       <nav className="checkout-stepper" aria-label="Checkout progress">
-        <span className={stepClass(step, "basket")} aria-current={step === "basket" ? "step" : undefined}>
+        <button
+          type="button"
+          className={stepClass(step, "basket")}
+          aria-current={step === "basket" ? "step" : undefined}
+          onClick={() => onStepChange?.("basket")}
+        >
           1 BASKET
-        </span>
-        <span className={stepClass(step, "delivery")} aria-current={step === "delivery" ? "step" : undefined}>
+        </button>
+        <button
+          type="button"
+          className={stepClass(step, "delivery")}
+          aria-current={step === "delivery" ? "step" : undefined}
+          onClick={() => onStepChange?.("delivery")}
+        >
           2 DELIVERY
-        </span>
-        <span className={stepClass(step, "pay")} aria-current={step === "pay" ? "step" : undefined}>
+        </button>
+        <button
+          type="button"
+          className={stepClass(step, "pay")}
+          aria-current={step === "pay" ? "step" : undefined}
+          onClick={() => onStepChange?.("pay")}
+        >
           3 PAY
-        </span>
+        </button>
       </nav>
 
       {savings > 0 ? (

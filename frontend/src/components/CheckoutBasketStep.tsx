@@ -113,11 +113,11 @@ export function CheckoutBasketStep({ onContinue }: { onContinue: () => void }) {
       <section className="checkout-panel checkout-coupons">
         <h3>Coupons &amp; offers</h3>
         <CouponField />
-        {couponPreviews.length ? (
+        {/* {couponPreviews.length ? (
           <button type="button" className="text-action checkout-coupons-all">
             View all coupons ›
           </button>
-        ) : null}
+        ) : null} */}
       </section>
 
       <section className="checkout-panel checkout-bill-block">
