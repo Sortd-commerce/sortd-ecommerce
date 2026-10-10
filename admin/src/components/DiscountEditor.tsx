@@ -2,6 +2,7 @@
 
 import { deleteDiscountAction, updateDiscountAction } from "@/lib/actions";
 import { ActionForm, SubmitButton } from "@/components/ActionForm";
+import { DirhamIcon } from "@/components/DirhamIcon";
 
 export type DiscountRow = {
   id: number;
@@ -41,7 +42,7 @@ export function DiscountEditor({
         <div>
           <p className="font-semibold">{discount.name}</p>
           <p className="mt-1 text-sm text-muted">
-            {scopeLabel} · {discount.kind === "percent" ? `${discount.value}%` : `د.إ ${discount.value}`}
+            {scopeLabel} · {discount.kind === "percent" ? `${discount.value}%` : <><DirhamIcon /> {discount.value}</>}
             {discount.code ? ` · Code ${discount.code}` : " · Automatic"}
           </p>
         </div>

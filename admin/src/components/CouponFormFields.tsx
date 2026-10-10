@@ -1,4 +1,5 @@
 import type { DiscountRow } from "@/components/DiscountEditor";
+import { DirhamIcon } from "@/components/DirhamIcon";
 
 export function CouponFormFields({ coupon }: { coupon?: DiscountRow }) {
   return (
@@ -27,7 +28,7 @@ export function CouponFormFields({ coupon }: { coupon?: DiscountRow }) {
         <input
           name="detail"
           defaultValue={coupon?.detail}
-          placeholder="Up to د.إ 30 off · first order only"
+          placeholder="Up to AED 30 off · first order only"
         />
       </label>
       <label className="field">
@@ -56,7 +57,7 @@ export function CouponFormFields({ coupon }: { coupon?: DiscountRow }) {
         />
       </label>
       <label className="field">
-        <span>Minimum order (د.إ)</span>
+        <span>Minimum order (<DirhamIcon />)</span>
         <input
           name="minimum_order"
           type="number"
@@ -67,7 +68,7 @@ export function CouponFormFields({ coupon }: { coupon?: DiscountRow }) {
         />
       </label>
       <label className="field">
-        <span>Max discount (د.إ)</span>
+        <span>Max discount (<DirhamIcon />)</span>
         <input
           name="max_discount"
           type="number"

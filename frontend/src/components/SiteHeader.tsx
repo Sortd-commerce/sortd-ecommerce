@@ -5,6 +5,7 @@ import { AuthOpenButton } from "@/components/auth/AuthOpenButton";
 import type { AuthUser } from "@/components/auth/AuthProvider";
 import { BrandMark } from "@/components/BrandMark";
 import { CartLink } from "@/components/CartLink";
+import { DirhamIcon } from "@/components/DirhamIcon";
 import { MobileAccountTrigger } from "@/components/MobileAccountTrigger";
 import { DeliverAddressMenu, type DeliverAddress } from "@/components/DeliverAddressMenu";
 import { CaretDownIcon, DeliverPinIcon } from "@/components/HeaderIcons";
@@ -18,7 +19,7 @@ type Address = DeliverAddress;
 
 function DeliverSignInPrompt() {
   return (
-    <AuthOpenButton mode="login" next="/checkout" className="deliver-signin-link">
+    <AuthOpenButton mode="login" next="/addresses" className="deliver-signin-link">
       Sign in to set your address
     </AuthOpenButton>
   );
@@ -54,7 +55,7 @@ async function DeliverBar({ signedIn }: { signedIn: boolean }) {
         {deliveryPromise || freeMinimum > 0 ? (
           <div className="deliver-promise">
             {deliveryPromise ? <span>{deliveryPromise}</span> : null}
-            {freeMinimum > 0 ? <span className="deliver-free">Free over د.إ {freeMinimum.toFixed(0)}</span> : null}
+            {freeMinimum > 0 ? <span className="deliver-free">Free over <DirhamIcon /> {freeMinimum.toFixed(0)}</span> : null}
           </div>
         ) : null}
       </div>

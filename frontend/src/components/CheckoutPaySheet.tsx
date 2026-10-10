@@ -2,6 +2,7 @@
 
 import type { CardProduct } from "@/components/catalog";
 import { CheckoutPayUpsell, CheckoutPayUpsellSkeleton } from "@/components/CheckoutPayUpsell";
+import { DirhamIcon } from "@/components/DirhamIcon";
 
 function money(value: string | number) {
   const amount = Number(value);
@@ -48,7 +49,7 @@ export function CheckoutPaySheet({
             disabled={!canPlace || payPending}
             onClick={onPay}
           >
-            {payPending ? "Redirecting to Stripe…" : `Pay د.إ ${money(total)}`}
+            {payPending ? "Redirecting to Stripe…" : <span>Pay <DirhamIcon /> {money(total)}</span>}
           </button>
           <p className="fine-print checkout-footnote checkout-footnote--sticky">
             Every item in this order passed all four gates.

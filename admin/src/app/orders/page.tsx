@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { DirhamIcon } from "@/components/DirhamIcon";
 import { ListToolbar } from "@/components/ListToolbar";
 import { PageHeader } from "@/components/PageHeader";
 import { Pagination } from "@/components/Pagination";
@@ -113,7 +114,7 @@ export default async function AdminOrdersPage({
                   </div>
                 </td>
                 <td>{order.delivery_date}</td>
-                <td className="tabular-nums">د.إ {order.total}</td>
+                <td className="tabular-nums"><DirhamIcon /> {order.total}</td>
               </tr>
             ))}
           </tbody>

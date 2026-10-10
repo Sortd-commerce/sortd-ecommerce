@@ -1,5 +1,6 @@
 import { ActionForm, SubmitButton } from "@/components/ActionForm";
 import { AddZoneDrawer } from "@/components/AddZoneDrawer";
+import { DirhamIcon } from "@/components/DirhamIcon";
 import { DiscountEditor, type DiscountRow } from "@/components/DiscountEditor";
 import { PageHeader } from "@/components/PageHeader";
 import { DeliveryZoneRow, ZoneEditor } from "@/components/ZoneEditor";
@@ -64,11 +65,11 @@ export default async function DeliveryAdminPage() {
             <span className="text-xs text-muted">Leave blank to hide this on the storefront.</span>
           </label>
           <label className="field">
-            <span>Delivery fee (د.إ)</span>
+            <span>Delivery fee (<DirhamIcon />)</span>
             <input name="delivery_fee" type="number" min="0" step="0.01" defaultValue={pricing.data?.delivery_fee || "0"} required />
           </label>
           <label className="field">
-            <span>Free delivery from (د.إ)</span>
+            <span>Free delivery from (<DirhamIcon />)</span>
             <input
               name="free_delivery_minimum"
               type="number"

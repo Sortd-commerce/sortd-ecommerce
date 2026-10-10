@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { updateOrderStatusAction } from "@/lib/actions";
 import { ActionForm, SubmitButton } from "@/components/ActionForm";
+import { DirhamIcon } from "@/components/DirhamIcon";
 import { PageHeader } from "@/components/PageHeader";
 import { StatusBadge } from "@/components/StatusBadge";
 import { apiFetch } from "@/lib/api";
@@ -104,12 +105,12 @@ export default async function AdminOrderDetailPage({ params }: { params: Promise
                   {line.sku} × {line.quantity}
                 </p>
               </div>
-              <p className="tabular-nums">د.إ {line.line_total}</p>
+              <p className="tabular-nums"><DirhamIcon /> {line.line_total}</p>
             </div>
           ))}
           <div className="flex justify-between px-5 py-4 font-semibold">
             <p>Total</p>
-            <p className="tabular-nums">د.إ {order.total}</p>
+            <p className="tabular-nums"><DirhamIcon /> {order.total}</p>
           </div>
         </section>
       </div>

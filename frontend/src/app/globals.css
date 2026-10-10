@@ -1309,7 +1309,7 @@ button {
   font-family: var(--font-mono), monospace;
   font-size: var(--figma-mono-2xs);
   font-weight: 500;
-  line-height: 0.701rem;
+  line-height: 0.761rem;
   color: var(--on-ink);
 }
 

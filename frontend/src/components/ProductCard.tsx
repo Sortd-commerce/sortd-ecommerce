@@ -7,6 +7,7 @@ import { QuantityStepper } from "@/components/QuantityStepper";
 import { useToast } from "@/components/Toast";
 import type { CardProduct } from "@/components/catalog";
 import { cardTint } from "@/lib/tints";
+import { DirhamIcon } from "./DirhamIcon";
 
 export function ProductCard({ product }: { product: CardProduct }) {
   const { items, addItem, setQuantity, removeItem } = useCart();
@@ -52,7 +53,7 @@ export function ProductCard({ product }: { product: CardProduct }) {
         <p className="product-card-detail">{variant?.title || "\u00a0"}</p>
         <div className="product-card-row">
           <p className="product-card-price">
-            <span>د.إ</span>
+            <span><DirhamIcon/></span>
             {price || "—"}
           </p>
           {variant && !soldOut ? (

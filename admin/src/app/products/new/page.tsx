@@ -1,5 +1,6 @@
 import { createCategoryAction, createProductAction } from "@/lib/actions";
 import { ActionForm, SubmitButton } from "@/components/ActionForm";
+import { DirhamIcon } from "@/components/DirhamIcon";
 import { apiFetch } from "@/lib/api";
 import { requireAdmin } from "@/lib/staff";
 
@@ -81,7 +82,7 @@ export default async function NewProductPage({
                   <input name={`offer_title_${index + 1}`} defaultValue={offer.title} />
                 </label>
                 <label className="field">
-                  <span>د.إ</span>
+                  <span><DirhamIcon /></span>
                   <input name={`offer_price_${index + 1}`} defaultValue={index === 0 ? "16.90" : ""} />
                 </label>
                 <label className="field">

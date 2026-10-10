@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { AddToCartButton } from "@/components/AddToCartButton";
 import { useBasket } from "@/components/BasketProvider";
 import { useCart } from "@/components/CartProvider";
+import { DirhamIcon } from "@/components/DirhamIcon";
 import { ViewportLazyImage } from "@/components/ViewportLazyImage";
 import { QuantityStepper } from "@/components/QuantityStepper";
 import { ShareProductButton } from "@/components/ShareProductButton";
@@ -104,10 +105,10 @@ export function BuyBox({
 
       <div className="buy-price-row">
         <p className="buy-price">
-          د.إ {selected?.price || "—"}
-          {selected?.compare_at_price ? <s>د.إ {selected.compare_at_price}</s> : null}
+          <DirhamIcon /> {selected?.price || "—"}
+          {selected?.compare_at_price ? <s><DirhamIcon /> {selected.compare_at_price}</s> : null}
         </p>
-        {perUnit ? <p className="buy-unit-price">د.إ {perUnit} / bar</p> : null}
+        {perUnit ? <p className="buy-unit-price"><DirhamIcon /> {perUnit} / bar</p> : null}
       </div>
 
       {highlights.length ? (
@@ -170,7 +171,7 @@ export function BuyBox({
                 {offer.unit_count > 1 ? <small>{offer.unit_count} units</small> : null}
               </span>
               <b>
-                <span>د.إ</span> {offer.price}
+                <DirhamIcon /> {offer.price}
               </b>
             </label>
           ))}
@@ -229,7 +230,7 @@ export function BuyBox({
             detail={selected.title}
             addQuantity={addQty}
             className="product-mobile-bar-cta"
-            label={`Add to basket · د.إ ${lineTotal}`}
+            label={`Add to basket · AED ${lineTotal}`}
           />
         </div>
       ) : null}

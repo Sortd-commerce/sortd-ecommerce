@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { CheckCircle, Clock, MapPin, ShoppingBag } from "@phosphor-icons/react";
+import { DirhamIcon } from "@/components/DirhamIcon";
 
 export type OrderPlacedSummary = {
   number: string;
@@ -62,7 +63,7 @@ export function OrderPlacedSuccess({ order }: { order: OrderPlacedSummary }) {
           <span>
             {itemsLabel} · Total
           </span>
-          <strong>د.إ {order.total}</strong>
+          <strong><DirhamIcon /> {order.total}</strong>
         </div>
       </section>
 

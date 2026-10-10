@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { OrderCartClear } from "@/components/OrderCartClear";
 import { OrderPlacedSuccess } from "@/components/OrderPlacedSuccess";
+import { DirhamIcon } from "@/components/DirhamIcon";
 import { apiFetch } from "@/lib/api";
 import { formatOrderStatus } from "@/lib/orders";
 
@@ -104,12 +105,12 @@ export default async function OrderDetailPage({
             <p>
               {line.title} × {line.quantity}
             </p>
-            <p className="font-semibold">د.إ {line.line_total}</p>
+            <p className="font-semibold"><DirhamIcon /> {line.line_total}</p>
           </div>
         ))}
         <div className="flex justify-between px-6 py-4 font-semibold text-forest">
           <p>Total</p>
-          <p>د.إ {order.total}</p>
+          <p><DirhamIcon /> {order.total}</p>
         </div>
       </section>
     </div>

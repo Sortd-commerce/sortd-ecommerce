@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!--
+    UAE Dirham (AED) currency symbol.
+    A capital D with two horizontal bars passing through it.
+    Uses white fill so it shows on dark backgrounds; wrap in a colored container or use CSS filter to tint.
+  -->
+  <g fill="white">
+    <!-- Left vertical stem -->
+    <rect x="14" y="12" width="10" height="76" rx="3"/>
+    <!-- Curved right side of D: filled arch -->
+    <path d="
+      M24 12
+      C24 12 74 12 74 50
+      C74 88 24 88 24 88
+      L24 78
+      C24 78 62 78 62 50
+      C62 22 24 22 24 22
+      Z
+    "/>
+    <!-- Horizontal bar 1 (upper) -->
+    <rect x="8"  y="33" width="58" height="9" rx="3"/>
+    <!-- Horizontal bar 2 (lower) -->
+    <rect x="8"  y="58" width="58" height="9" rx="3"/>
+  </g>
+</svg>

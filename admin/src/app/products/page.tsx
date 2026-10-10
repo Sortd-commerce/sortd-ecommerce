@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import Link from "next/link";
+import { DirhamIcon } from "@/components/DirhamIcon";
 import { EditProductLink } from "@/components/EditProductLink";
 import { ListToolbar } from "@/components/ListToolbar";
 import { TableSkeleton } from "@/components/loading/AdminSkeletons";
@@ -116,7 +117,7 @@ async function CatalogTable({ page, query }: { page: number; query: ListQuery })
                 <StatusBadge value={product.status} />
               </td>
               <td className="tabular-nums">{product.variants[0]?.on_hand ?? 0}</td>
-              <td className="tabular-nums">د.إ {product.variants[0]?.price ?? "—"}</td>
+              <td className="tabular-nums"><DirhamIcon /> {product.variants[0]?.price ?? "—"}</td>
               <td className="text-right">
                 <EditProductLink href={`/products/${product.id}`} title={product.title} />
               </td>

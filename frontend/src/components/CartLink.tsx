@@ -2,6 +2,7 @@
 
 import { useBasket } from "@/components/BasketProvider";
 import { useCart } from "@/components/CartProvider";
+import { DirhamIcon } from "@/components/DirhamIcon";
 
 function CartBagIcon() {
   return (
@@ -34,7 +35,7 @@ export function CartLink({ compact = false }: { compact?: boolean }) {
   const { openBasket } = useBasket();
   const displayAmount = count ? subtotal : "0.00";
   const label = count
-    ? `Basket, ${count} items, د.إ ${money(displayAmount)}`
+    ? `Basket, ${count} items, AED ${money(displayAmount)}`
     : "Basket";
 
   const compactLabel =
@@ -56,7 +57,7 @@ export function CartLink({ compact = false }: { compact?: boolean }) {
           <span className="cart-pill-count">
             {count} {count === 1 ? "ITEM" : "ITEMS"}
           </span>
-          <span className="cart-pill-total">{money(displayAmount) + "  " + "د.إ "}</span>
+          <span className="cart-pill-total"><DirhamIcon /> {money(displayAmount)}</span>
         </span>
       )}
     </button>

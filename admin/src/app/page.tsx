@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { DirhamIcon } from "@/components/DirhamIcon";
 import { PageHeader } from "@/components/PageHeader";
 import { apiFetch } from "@/lib/api";
 import { requireAdmin } from "@/lib/staff";
@@ -35,11 +36,18 @@ export default async function DashboardPage() {
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {[
-          ["Open orders", data?.orders_open ?? "—"],
-          ["Revenue 30d", `د.إ ${data?.revenue_30d ?? "0.00"}`],
-          ["Active products", data?.products_active ?? "—"],
-          ["Customers", data?.customers ?? "—"],
-        ].map(([label, value]) => (
+          { label: "Open orders", value: <>{data?.orders_open ?? "—"}</> },
+          {
+            label: "Revenue 30d",
+            value: (
+              <span className="tabular-nums">
+                <DirhamIcon /> {data?.revenue_30d ?? "0.00"}
+              </span>
+            ),
+          },
+          { label: "Active products", value: <>{data?.products_active ?? "—"}</> },
+          { label: "Customers", value: <>{data?.customers ?? "—"}</> },
+        ].map(({ label, value }) => (
           <div key={label} className="panel p-4">
             <p className="text-sm text-muted">{label}</p>
             <p className="mt-2 text-2xl font-semibold tabular-nums">{value}</p>

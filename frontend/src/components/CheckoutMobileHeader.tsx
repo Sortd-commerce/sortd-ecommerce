@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { ArrowLeft, CaretDown } from "@phosphor-icons/react";
 import { useCheckoutSelection } from "@/components/CheckoutSelectionContext";
+import { DirhamIcon } from "@/components/DirhamIcon";
 import { usePricing } from "@/components/PricingProvider";
 import { formatAddressDetails, formatAddressLabel } from "@/lib/address";
 
@@ -85,7 +86,7 @@ export function CheckoutMobileHeader({
 
       {savings > 0 ? (
         <p className="checkout-savings-banner">
-          You&apos;re saving <strong>د.إ {money(savings)}</strong> on this order
+          You&apos;re saving <strong><DirhamIcon /> {money(savings)}</strong> on this order
         </p>
       ) : null}
     </header>

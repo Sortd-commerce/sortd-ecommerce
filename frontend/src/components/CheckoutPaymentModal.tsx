@@ -1,6 +1,7 @@
 "use client";
 
 import { X } from "@phosphor-icons/react";
+import { DirhamIcon } from "@/components/DirhamIcon";
 import { StripePaymentForm } from "@/components/StripePaymentForm";
 
 export function CheckoutPaymentModal({
@@ -46,7 +47,7 @@ export function CheckoutPaymentModal({
         <p className="step-index">03</p>
         <h2 id="checkout-pay-title">Complete payment</h2>
         <p className="fine-print checkout-pay-total">
-          Total due: <strong>د.إ {total}</strong>
+          Total due: <strong><DirhamIcon /> {total}</strong>
         </p>
         <StripePaymentForm
           clientSecret={clientSecret}

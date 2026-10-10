@@ -11,6 +11,7 @@ import { CheckoutMobileHeader, type CheckoutStep } from "@/components/CheckoutMo
 import { CheckoutProcessingOverlay } from "@/components/CheckoutProcessingOverlay";
 import { CheckoutSelectionProvider, useCheckoutSelection } from "@/components/CheckoutSelectionContext";
 import { DeliverySlotPicker } from "@/components/DeliverySlotPicker";
+import { DirhamIcon } from "@/components/DirhamIcon";
 import { OpenBasketLink } from "@/components/OpenBasketLink";
 import { OrderSummary } from "@/components/OrderSummary";
 import { OptimizedImage } from "@/components/OptimizedImage";
@@ -253,10 +254,10 @@ function CheckoutFormInner({
             <span>
               <strong>{item.title}</strong>
               <small>
-                {item.quantity} × د.إ {item.unit_price}
+                {item.quantity} × <DirhamIcon /> {item.unit_price}
               </small>
             </span>
-            <b>د.إ {lineTotal(item.unit_price, item.quantity)}</b>
+            <b><DirhamIcon /> {lineTotal(item.unit_price, item.quantity)}</b>
           </li>
         ))}
         {!items.length ? <li className="order-empty">Your basket is empty.</li> : null}
@@ -269,7 +270,7 @@ function CheckoutFormInner({
         onClick={() => void openStripeCheckout()}
       >
         <span>{payPending ? "Redirecting to Stripe…" : "Pay now"}</span>
-        <span className="checkout-submit-amount">د.إ {quote.total} <span className="checkout-submit-arrow">→</span></span>
+        <span className="checkout-submit-amount"><DirhamIcon /> {quote.total} <span className="checkout-submit-arrow">→</span></span>
       </button>
       <p className="fine-print checkout-footnote">
         Every item in this order passed all four gates. Lab reports are on each product page.
@@ -293,13 +294,13 @@ function CheckoutFormInner({
                   <div className="checkout-sticky-foot-row">
                     <div className="checkout-sticky-total" aria-hidden>
                       <small>TO PAY</small>
-                      <strong>د.إ {money(quote.total)}</strong>
+                      <strong><DirhamIcon /> {money(quote.total)}</strong>
                     </div>
                     <button
                       type="button"
                       className="btn btn-primary checkout-continue-btn"
                       disabled={!canContinueDelivery}
-                      aria-label={`Continue to payment, total د.إ ${money(quote.total)}`}
+                      aria-label={`Continue to payment, total AED ${money(quote.total)}`}
                       onClick={() => setStep("pay")}
                     >
                       <span className="checkout-continue-copy">

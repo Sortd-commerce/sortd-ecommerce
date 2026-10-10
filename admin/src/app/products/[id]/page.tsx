@@ -9,6 +9,7 @@ import {
 import { apiFetch } from "@/lib/api";
 import { requireAdmin } from "@/lib/staff";
 import { ActionForm, SubmitButton } from "@/components/ActionForm";
+import { DirhamIcon } from "@/components/DirhamIcon";
 import { ProductImageGallery } from "@/components/ProductImageGallery";
 
 type Product = {
@@ -242,7 +243,7 @@ export default async function AdminProductDetailPage({
                 <input name="title" defaultValue={variant.title} required />
               </label>
               <label className="field">
-                <span>د.إ</span>
+                <span><DirhamIcon /></span>
                 <input name="price" defaultValue={variant.price} required />
               </label>
               <label className="field">

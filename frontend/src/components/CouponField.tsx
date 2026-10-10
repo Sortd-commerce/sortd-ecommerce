@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Tag, Ticket } from "@phosphor-icons/react";
+import { DirhamIcon } from "@/components/DirhamIcon";
 import { usePricing } from "@/components/PricingProvider";
 
 function money(value: string) {
@@ -12,14 +13,14 @@ function money(value: string) {
 function offerDetail(offer: { kind: string; value: string; detail: string }) {
   if (offer.detail) return offer.detail;
   if (offer.kind === "percent") return `${Number(offer.value)}% off`;
-  return `د.إ ${money(offer.value)} off`;
+  return <><DirhamIcon /> {money(offer.value)} off</>;
 }
 
 function offerStatus(offer: { eligible?: boolean; ineligible_reason?: string; amount_needed?: string }) {
   if (offer.eligible !== false) return null;
   if (offer.ineligible_reason === "sign_in_required") return "Sign in to use this code.";
   if (offer.ineligible_reason === "minimum_not_met" && offer.amount_needed) {
-    return `Add د.إ ${money(offer.amount_needed)} more to qualify.`;
+    return <span>Add <DirhamIcon /> {money(offer.amount_needed)} more to qualify.</span>;
   }
   return "Not available for this order.";
 }
@@ -80,7 +81,7 @@ export function CouponField() {
           </button>
         </div>
         {saved ? (
-          <p className="coupon-saved">You saved د.إ {money(quote.discount_amount)} on this order.</p>
+          <p className="coupon-saved">You saved <DirhamIcon /> {money(quote.discount_amount)} on this order.</p>
         ) : null}
       </div>
     );

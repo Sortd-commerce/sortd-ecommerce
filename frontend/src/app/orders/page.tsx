@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { DirhamIcon } from "@/components/DirhamIcon";
 import { apiFetch } from "@/lib/api";
 import { formatOrderStatus } from "@/lib/orders";
 
@@ -33,7 +34,7 @@ export default async function OrdersPage() {
                 {formatOrderStatus(order.status)} · {order.delivery_date}
               </p>
             </div>
-            <p className="orders-row-total">د.إ {order.total}</p>
+            <p className="orders-row-total"><DirhamIcon /> {order.total}</p>
           </Link>
         ))}
         {!orders.data?.results?.length ? <p className="orders-empty">No orders yet.</p> : null}

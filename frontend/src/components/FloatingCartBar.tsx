@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { useBasket } from "@/components/BasketProvider";
 import { useCart } from "@/components/CartProvider";
+import { DirhamIcon } from "@/components/DirhamIcon";
 import { useMobileViewport } from "@/lib/use-mobile-viewport";
 
 function money(value: string) {
@@ -33,7 +34,7 @@ export function FloatingCartBar() {
           <span className="floating-cart-bar-kicker">
             {count} {count === 1 ? "ITEM" : "ITEMS"}
           </span>
-          <strong>د.إ {money(subtotal)}</strong>
+          <strong><DirhamIcon/> {money(subtotal)}</strong>
         </span>
         <span className="floating-cart-bar-action">View basket →</span>
       </button>

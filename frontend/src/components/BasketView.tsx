@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { X } from "@phosphor-icons/react";
 import { BasketClockIcon } from "@/components/HeaderIcons";
+import { DirhamIcon } from "@/components/DirhamIcon";
 import { OptimizedImage } from "@/components/OptimizedImage";
 import { OrderSummary } from "@/components/OrderSummary";
 import { usePricing } from "@/components/PricingProvider";
@@ -75,7 +76,7 @@ export function BasketView({
 
       {minimum > 0 && remaining > 0 && items.length ? (
         <div className="delivery-progress">
-          <p>Add د.إ {money(quote.amount_until_free_delivery)} more for free delivery</p>
+          <p>Add <DirhamIcon /> {money(quote.amount_until_free_delivery)} more for free delivery</p>
           <div className="delivery-progress-bar" aria-hidden>
             <span style={{ width: `${progress}%` }} />
           </div>
@@ -113,7 +114,7 @@ export function BasketView({
               </div>
               <div className="basket-line-side">
                 <p className="basket-price">
-                  <span className="basket-price-currency">د.إ</span>{" "}
+                  <span className="basket-price-currency"><DirhamIcon /></span>{" "}
                   {money(Number(item.unit_price) * item.quantity)}
                 </p>
                 <QuantityStepper
@@ -155,7 +156,7 @@ export function BasketView({
           <div className="basket-foot">
             <Link href="/checkout" className="btn btn-primary basket-checkout" onClick={onClose}>
               <span>
-                <strong>د.إ {money(quote.total)}</strong>
+                <strong><DirhamIcon /> {money(quote.total)}</strong>
                 <small>
                   TOTAL · {count} {count === 1 ? "ITEM" : "ITEMS"}
                 </small>
