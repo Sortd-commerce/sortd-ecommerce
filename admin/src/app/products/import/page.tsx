@@ -10,7 +10,7 @@ export default async function CatalogImportPage() {
     <div className="space-y-6">
       <PageHeader
         title="Import catalog"
-        description="Upload the Sortd product listing workbook. Rows are validated for required fields, duplicate SKUs, and image URLs before anything is written."
+        description="Upload the Sortd product listing workbook. Product data is imported separately from image uploads."
         actions={
           <Link href="/products" className="btn-ghost">
             Back to catalog
@@ -22,10 +22,11 @@ export default async function CatalogImportPage() {
         <div className="border-b border-line px-4 py-4">
           <h2 className="font-semibold">Excel workbook</h2>
           <p className="mt-1 text-sm text-muted">
-            Use the Launch range sheet for products and the optional Aisles sheet for storefront aisle hero images.
-            Main image, gallery, aisle image, and lab report PDF columns accept public https links — Google Drive
-            share links are supported. Files are downloaded during import and stored in Cloudinary when configured.
+            Use the Launch range sheet for product data. Main image, gallery, aisle image, and lab report URL columns are not processed during this import. Upload product images separately from Catalog → Image uploader; it accepts up to 10 image rows and returns an output CSV with stored image URLs.
           </p>
+          <Link href="/products/images" className="mt-3 inline-flex text-sm text-accent underline underline-offset-2">
+            Open product image uploader
+          </Link>
         </div>
         <div className="space-y-4 p-4">
           <CatalogImportForm />

@@ -20,6 +20,7 @@ from accounts.staff import ROLE_ADMIN, ROLE_MEMBER, STAFF_ROLES, admin_queryset,
 from pydantic import Field, field_validator, model_validator
 
 from catalog.excel_importer import ExcelCatalogImporter, ExcelImportError, ExcelImportResult
+from catalog.excel_image_importer import ProductImageSheetError, process_product_image_sheet
 from catalog.images import apply_image_order, make_image_first, sync_image_order
 from catalog.models import Category, Product, ProductImage, ProductStatus, ProductVariant
 from catalog.schemas import serialize_category, serialize_image
@@ -860,7 +861,7 @@ class AdminController(ControllerBase):
             raise ValidationError({"file": "Upload an .xlsx workbook."})
         importer = ExcelCatalogImporter()
         try:
-            result = importer.import_file(file, dry_run=dry_run, force_active=force_active)
+            result = importer.import_file(file, dry_run=dry_run, force_active=force_active, skip_images=True)
         except ExcelImportError as exc:
             raise ValidationError({"file": str(exc)}) from exc
 
@@ -878,6 +879,21 @@ class AdminController(ControllerBase):
         return success(
             f"Imported {result.created + result.updated} product row(s).",
             payload,
+        )
+
+    @route.post(
+        "/catalog/images/import",
+        response={200: SuccessResponse, **_ERROR_RESPONSES},
+        summary="Upload product images from a spreadsheet",
+    )
+    def import_product_images_sheet(self, file: UploadedFile = File(...)):
+        try:
+            result = process_product_image_sheet(file)
+        except ProductImageSheetError as exc:
+            raise ValidationError({"file": str(exc)}) from exc
+        return success(
+            f"Uploaded {result['uploaded']} of {result['row_count']} image(s).",
+            result,
         )
 
     @route.get("/products", response={200: SuccessResponse, **_ERROR_RESPONSES}, summary="List products for admin")

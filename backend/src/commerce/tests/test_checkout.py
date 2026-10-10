@@ -1,6 +1,7 @@
 from datetime import timedelta
 from decimal import Decimal
 import json
+from unittest.mock import patch
 
 from django.core import mail
 from django.test import override_settings
@@ -208,6 +209,29 @@ class CheckoutTests(ApiTestCase):
         response = post_json(self.client, "/api/v1/orders/validate", payload, **self.auth)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["data"]["total"], "16.90")
+
+    def test_stripe_checkout_rejects_totals_below_aed_minimum(self):
+        self.variant.price = Decimal("1.00")
+        self.variant.save(update_fields=["price"])
+        PaymentMethod.objects.update_or_create(
+            code="card",
+            defaults={"name": "Card", "is_active": True},
+        )
+        self._add_to_cart(1)
+        payload = self._order_payload(total="1.00", payment_method="card")
+
+        with override_settings(STRIPE_SECRET_KEY="sk_test_checkout_minimum", DEFAULT_CURRENCY="AED"):
+            with patch("commerce.stripe_payments.stripe.checkout.Session.create") as stripe_create:
+                response = post_json(
+                    self.client,
+                    "/api/v1/payments/stripe/checkout-session",
+                    payload,
+                    **self.auth,
+                )
+
+        self.assertIn(response.status_code, {400, 422})
+        self.assertIn("minimum total of AED 2.00", response.json()["message"])
+        stripe_create.assert_not_called()
 
     def test_validate_rejects_unserviceable_address(self):
         self._add_to_cart(1)

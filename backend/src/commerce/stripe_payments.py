@@ -12,6 +12,7 @@ from commerce.models import Order, PaymentStatus
 logger = logging.getLogger(__name__)
 
 STRIPE_CHECKOUT_METHODS = frozenset({"card", "apple_pay"})
+STRIPE_AED_MINIMUM = Decimal("2.00")
 
 
 class StripeNotConfigured(Exception):
@@ -36,6 +37,8 @@ def _client() -> stripe:
 
 def _amount_minor(total: Decimal, currency: str) -> int:
     code = currency.upper()
+    if code == "AED" and total < STRIPE_AED_MINIMUM:
+        raise ValidationError({"amount": "Online payments require a minimum total of AED 2.00."})
     if code in {"JPY", "KRW"}:
         return int(total)
     return int(total * 100)
@@ -50,6 +53,7 @@ def create_hosted_checkout_session(
     success_url: str,
     cancel_url: str,
 ) -> stripe.checkout.Session:
+    amount = _amount_minor(total, currency)
     client = _client()
     return client.checkout.Session.create(
         mode="payment",
@@ -57,7 +61,7 @@ def create_hosted_checkout_session(
             {
                 "price_data": {
                     "currency": currency.lower(),
-                    "unit_amount": _amount_minor(total, currency),
+                    "unit_amount": amount,
                     "product_data": {"name": "Sortd order"},
                 },
                 "quantity": 1,
@@ -85,9 +89,10 @@ def payment_intent_id_from_session(session: stripe.checkout.Session) -> str:
 
 
 def create_checkout_intent(*, total: Decimal, currency: str, user_id: int) -> stripe.PaymentIntent:
+    amount = _amount_minor(total, currency)
     client = _client()
     return client.PaymentIntent.create(
-        amount=_amount_minor(total, currency),
+        amount=amount,
         currency=currency.lower(),
         metadata={"user_id": str(user_id)},
         automatic_payment_methods={"enabled": True},
@@ -95,9 +100,10 @@ def create_checkout_intent(*, total: Decimal, currency: str, user_id: int) -> st
 
 
 def create_payment_intent(order: Order) -> stripe.PaymentIntent:
+    amount = _amount_minor(order.total, order.currency)
     client = _client()
     return client.PaymentIntent.create(
-        amount=_amount_minor(order.total, order.currency),
+        amount=amount,
         currency=order.currency.lower(),
         metadata={"order_number": order.number, "order_id": str(order.id)},
         automatic_payment_methods={"enabled": True},

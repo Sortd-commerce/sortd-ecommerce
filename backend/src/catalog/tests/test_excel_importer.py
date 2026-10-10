@@ -116,6 +116,32 @@ class ExcelImporterTests(TestCase):
         self.assertEqual(import_images.call_args[0][0].pk, product.pk)
         self.assertTrue(Category.objects.filter(slug="snacks-bars").exists())
 
+    def test_skip_images_import_does_not_require_or_validate_image_urls(self):
+        payload = build_workbook(
+            [
+                {
+                    "sortd_sku": "SRT-SNK-011",
+                    "status": "Live",
+                    "product_name": "Oat Bar",
+                    "brand": "Sortd",
+                    "aisle": "Snacks & bars",
+                    "price": "12.00",
+                    "pack_line": "Single bar",
+                    "short_desc": "A simple oat bar.",
+                    "main_image": "not-a-valid-image-reference",
+                    "ing1_name": "Oats",
+                    "label_template": "Protein & snack bars",
+                }
+            ]
+        )
+        importer = ExcelCatalogImporter()
+        with patch.object(importer, "_import_images") as import_images, patch.object(importer, "_import_lab_report") as import_report:
+            result = importer.import_file(BytesIO(payload), skip_images=True)
+        self.assertTrue(result.valid)
+        self.assertEqual(result.created, 1)
+        import_images.assert_not_called()
+        import_report.assert_not_called()
+
     def test_import_updates_aisle_images_from_aisles_sheet(self):
         workbook = Workbook()
         products = workbook.active

@@ -199,7 +199,7 @@ export async function createWindowAction(_prev: ActionState, formData: FormData)
     },
   });
   if (!result.ok) return replied(false, result.message);
-  return replied(true, "Delivery window added.", "/delivery");
+  return replied(true, "Delivery window added.", "/delivery/windows");
 }
 
 export async function updateWindowAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
@@ -216,14 +216,14 @@ export async function updateWindowAction(_prev: ActionState, formData: FormData)
     },
   });
   if (!result.ok) return replied(false, result.message);
-  return replied(true, "Delivery window updated.", "/delivery");
+  return replied(true, "Delivery window updated.", "/delivery/windows");
 }
 
 export async function deleteWindowAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const windowId = String(formData.get("window_id") || "");
   const result = await apiFetch(`/admin/delivery/windows/${windowId}`, { method: "DELETE" });
   if (!result.ok) return replied(false, result.message);
-  return replied(true, "Delivery window removed.", "/delivery");
+  return replied(true, "Delivery window removed.", "/delivery/windows");
 }
 
 function parsePolygonField(formData: FormData) {
@@ -253,7 +253,7 @@ export async function createDeliveryZoneAction(_prev: ActionState, formData: For
     },
   });
   if (!result.ok) return replied(false, result.message);
-  return replied(true, "Delivery zone added.", "/delivery");
+  return replied(true, "Delivery zone added.", "/delivery/zones");
 }
 
 export async function updateDeliveryZoneAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
@@ -279,7 +279,7 @@ export async function updateDeliveryZoneAction(_prev: ActionState, formData: For
     body,
   });
   if (!result.ok) return replied(false, result.message);
-  return replied(true, "Delivery zone updated.", "/delivery");
+  return replied(true, "Delivery zone updated.", "/delivery/zones");
 }
 
 export async function toggleDeliveryZoneAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
@@ -291,14 +291,14 @@ export async function toggleDeliveryZoneAction(_prev: ActionState, formData: For
     },
   });
   if (!result.ok) return replied(false, result.message);
-  return replied(true, "Delivery zone updated.", "/delivery");
+  return replied(true, "Delivery zone updated.", "/delivery/zones");
 }
 
 export async function deleteDeliveryZoneAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const zoneId = String(formData.get("zone_id") || "");
   const result = await apiFetch(`/admin/delivery/zones/${zoneId}`, { method: "DELETE" });
   if (!result.ok) return replied(false, result.message);
-  return replied(true, "Delivery zone removed.", "/delivery");
+  return replied(true, "Delivery zone removed.", "/delivery/zones");
 }
 
 export async function updatePricingAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
@@ -311,7 +311,7 @@ export async function updatePricingAction(_prev: ActionState, formData: FormData
     },
   });
   if (!result.ok) return replied(false, result.message);
-  return replied(true, "Pricing updated.", "/delivery");
+  return replied(true, "Pricing updated.", "/delivery/configuration");
 }
 
 function optionalAmount(formData: FormData, key: string) {
@@ -339,7 +339,7 @@ function discountPayload(formData: FormData) {
 }
 
 export async function createDiscountAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
-  const redirectTo = String(formData.get("redirect_to") || "/delivery");
+  const redirectTo = String(formData.get("redirect_to") || "/delivery/discounts");
   const result = await apiFetch("/admin/discounts", {
     method: "POST",
     body: discountPayload(formData),
@@ -350,7 +350,7 @@ export async function createDiscountAction(_prev: ActionState, formData: FormDat
 
 export async function updateDiscountAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const discountId = String(formData.get("discount_id") || "");
-  const redirectTo = String(formData.get("redirect_to") || "/delivery");
+  const redirectTo = String(formData.get("redirect_to") || "/delivery/discounts");
   const result = await apiFetch(`/admin/discounts/${discountId}`, {
     method: "PATCH",
     body: discountPayload(formData),
@@ -361,7 +361,7 @@ export async function updateDiscountAction(_prev: ActionState, formData: FormDat
 
 export async function removeDiscountAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const discountId = String(formData.get("discount_id") || "");
-  const redirectTo = String(formData.get("redirect_to") || "/delivery");
+  const redirectTo = String(formData.get("redirect_to") || "/delivery/discounts");
   const result = await apiFetch(`/admin/discounts/${discountId}`, { method: "DELETE" });
   if (!result.ok) return replied(false, result.message);
   return replied(true, "Coupon deleted.", redirectTo);
@@ -369,7 +369,7 @@ export async function removeDiscountAction(_prev: ActionState, formData: FormDat
 
 export async function deleteDiscountAction(formData: FormData) {
   const discountId = String(formData.get("discount_id") || "");
-  const redirectTo = String(formData.get("redirect_to") || "/delivery");
+  const redirectTo = String(formData.get("redirect_to") || "/delivery/discounts");
   const result = await apiFetch(`/admin/discounts/${discountId}`, { method: "DELETE" });
   if (!result.ok) fail(redirectTo, result.message);
   redirect(redirectTo);
@@ -610,6 +610,46 @@ export async function importCatalogAction(_prev: CatalogImportState, formData: F
     ok: true,
     message: result.message,
     result: data,
+  };
+}
+
+export type ProductImageSheetRow = {
+  row: number;
+  product_id: string;
+  image_url: string;
+  cloudinary_url: string;
+  status: "uploaded" | "error";
+  error: string;
+};
+
+export type ProductImageSheetState = ActionState & {
+  result: { row_count: number; uploaded: number; results: ProductImageSheetRow[] } | null;
+};
+
+export async function uploadProductImageSheetAction(
+  _prev: ProductImageSheetState,
+  formData: FormData,
+): Promise<ProductImageSheetState> {
+  const file = formData.get("file");
+  if (!(file instanceof File) || !file.size) {
+    return { ok: false, message: "Choose an .xlsx or .csv image sheet.", result: null };
+  }
+
+  const payload = new FormData();
+  payload.append("file", file);
+  const response = await apiForm<{ row_count: number; uploaded: number; results: ProductImageSheetRow[] }>(
+    "/admin/catalog/images/import",
+    payload,
+  );
+  if (!response.ok || !response.data) {
+    return { ok: false, message: response.message, result: null };
+  }
+
+  revalidatePath("/products");
+  return {
+    ok: response.data.uploaded === response.data.row_count,
+    message: `Uploaded ${response.data.uploaded} of ${response.data.row_count} image(s).`,
+    result: response.data,
   };
 }
 

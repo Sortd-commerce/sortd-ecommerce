@@ -149,7 +149,8 @@ class ExcelCatalogImporter:
         rows = self._parse_product_rows(workbook)
         aisle_rows = self._parse_aisle_rows(workbook)
         result = self.validate_rows(rows)
-        self._validate_aisle_rows(aisle_rows, result)
+        if not skip_images:
+            self._validate_aisle_rows(aisle_rows, result)
         result.dry_run = dry_run
         if dry_run or result.errors:
             return result
@@ -331,41 +332,42 @@ class ExcelCatalogImporter:
                     "Live products need a pack line or net quantity + unit.",
                 )
 
-            main_image = self._cell_text(row.get("main_image"))
-            if status == ProductStatus.ACTIVE and not main_image:
-                self._add_issue(result, row_no, sku, "main_image", "Live products need a main image URL.")
-            elif main_image:
-                self._validate_image_reference(
-                    result,
-                    row_no,
-                    sku,
-                    "main_image",
-                    main_image,
-                    required=status == ProductStatus.ACTIVE,
-                )
+            if not getattr(self, "_skip_images", False):
+                main_image = self._cell_text(row.get("main_image"))
+                if status == ProductStatus.ACTIVE and not main_image:
+                    self._add_issue(result, row_no, sku, "main_image", "Live products need a main image URL.")
+                elif main_image:
+                    self._validate_image_reference(
+                        result,
+                        row_no,
+                        sku,
+                        "main_image",
+                        main_image,
+                        required=status == ProductStatus.ACTIVE,
+                    )
 
-            for index, url in enumerate(split_image_urls(self._cell_text(row.get("gallery"))), start=1):
-                self._validate_image_reference(
-                    result,
-                    row_no,
-                    sku,
-                    "gallery",
-                    url,
-                    required=False,
-                    label=f"Gallery image {index}",
-                )
+                for index, url in enumerate(split_image_urls(self._cell_text(row.get("gallery"))), start=1):
+                    self._validate_image_reference(
+                        result,
+                        row_no,
+                        sku,
+                        "gallery",
+                        url,
+                        required=False,
+                        label=f"Gallery image {index}",
+                    )
 
-            lab_report_url = self._cell_text(row.get("lab_report_url"))
-            if lab_report_url:
-                self._validate_image_reference(
-                    result,
-                    row_no,
-                    sku,
-                    "lab_report_url",
-                    lab_report_url,
-                    required=False,
-                    label="Lab report PDF",
-                )
+                lab_report_url = self._cell_text(row.get("lab_report_url"))
+                if lab_report_url:
+                    self._validate_image_reference(
+                        result,
+                        row_no,
+                        sku,
+                        "lab_report_url",
+                        lab_report_url,
+                        required=False,
+                        label="Lab report PDF",
+                    )
 
             if self._has_price(price):
                 try:
@@ -498,7 +500,7 @@ class ExcelCatalogImporter:
         for meta in row_meta:
             if not getattr(self, "_skip_images", False):
                 self._import_images(meta["product"], meta["row"])
-            self._import_lab_report(meta["product"], meta["row"])
+                self._import_lab_report(meta["product"], meta["row"])
             if meta["created"]:
                 result.created += 1
             else:

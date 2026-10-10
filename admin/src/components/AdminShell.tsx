@@ -19,7 +19,6 @@ import type { StaffProfile } from "@/lib/staff";
 const TOP_NAV = [
   { href: "/", label: "Overview", icon: ChartLine, admin: true },
   { href: "/orders", label: "Orders", icon: ShoppingBag, admin: false },
-  { href: "/delivery", label: "Delivery", icon: Truck, admin: true },
   { href: "/coupons", label: "Coupons", icon: Ticket, admin: true },
   { href: "/members", label: "Members", icon: Users, admin: true },
 ];
@@ -27,8 +26,16 @@ const TOP_NAV = [
 const CATALOG_NAV = [
   { href: "/products", label: "Products" },
   { href: "/products/import", label: "Product import" },
+  { href: "/products/images", label: "Image uploader" },
   { href: "/products/categories", label: "Aisle images" },
   { href: "/products/new", label: "New product" },
+];
+
+const DELIVERY_NAV = [
+  { href: "/delivery/configuration", label: "Delivery configuration" },
+  { href: "/delivery/windows", label: "Window slots" },
+  { href: "/delivery/zones", label: "Delivery zones" },
+  { href: "/delivery/discounts", label: "Discounts" },
 ];
 
 export function AdminShell({ me, children }: { me: StaffProfile; children: React.ReactNode }) {
@@ -68,6 +75,7 @@ export function AdminShell({ me, children }: { me: StaffProfile; children: React
             );
           })}
           {isAdmin ? <NavGroup label="Catalog" icon={Package} items={CATALOG_NAV} /> : null}
+          {isAdmin ? <NavGroup label="Delivery" icon={Truck} items={DELIVERY_NAV} /> : null}
           {links.slice(2).map((link) => {
             const active = pathname.startsWith(link.href);
             const Icon = link.icon;

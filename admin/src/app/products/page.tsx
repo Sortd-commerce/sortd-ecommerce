@@ -156,17 +156,9 @@ export default async function AdminProductsPage({
         title="Catalog"
         description="Products, pack offers, and stock."
         actions={
-          <>
-            <Link href="/products/categories" className="btn-ghost">
-              Aisle images
-            </Link>
-            <Link href="/products/import" className="btn-ghost">
-              Import Excel
-            </Link>
-            <Link href="/products/new" className="btn">
-              New product
-            </Link>
-          </>
+          <Link href="/products/new" className="btn">
+            New product
+          </Link>
         }
       />
       <Suspense fallback={<TableSkeleton rows={8} />}>

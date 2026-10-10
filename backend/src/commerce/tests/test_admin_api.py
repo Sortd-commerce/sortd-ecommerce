@@ -45,6 +45,32 @@ class AdminApiTests(ApiTestCase):
         root = self.client.get("/")
         self.assertEqual(root.status_code, 200)
 
+    @patch("commerce.admin_api.process_product_image_sheet")
+    def test_admin_can_import_product_image_sheet(self, process_sheet):
+        process_sheet.return_value = {
+            "row_count": 1,
+            "uploaded": 1,
+            "results": [
+                {
+                    "row": 2,
+                    "product_id": "17",
+                    "image_url": "https://images.example/item.jpg",
+                    "cloudinary_url": "https://res.cloudinary.com/example/item.jpg",
+                    "status": "uploaded",
+                    "error": "",
+                }
+            ],
+        }
+        sheet = SimpleUploadedFile("images.csv", b"product_id,image_url\n17,https://images.example/item.jpg\n", content_type="text/csv")
+        response = self.client.post(
+            "/api/v1/admin/catalog/images/import",
+            data={"file": sheet},
+            **self.auth,
+        )
+        self.assertEqual(response.status_code, 200, response.json())
+        self.assertEqual(response.json()["data"]["uploaded"], 1)
+        process_sheet.assert_called_once()
+
     def test_superuser_without_staff_flag_still_counts_as_admin(self):
         User = get_user_model()
         root = User.objects.create_superuser(email="owner@example.com", password=PASSWORD)
