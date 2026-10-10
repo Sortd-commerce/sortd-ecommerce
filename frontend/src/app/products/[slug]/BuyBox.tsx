@@ -8,7 +8,6 @@ import { useBasket } from "@/components/BasketProvider";
 import { useCart } from "@/components/CartProvider";
 import { DirhamIcon } from "@/components/DirhamIcon";
 import { ViewportLazyImage } from "@/components/ViewportLazyImage";
-import { QuantityStepper } from "@/components/QuantityStepper";
 import { ShareProductButton } from "@/components/ShareProductButton";
 import { displayLineTitle } from "@/lib/product-title";
 import { useMobileViewport } from "@/lib/use-mobile-viewport";
@@ -62,19 +61,13 @@ export function BuyBox({
   hasLabReport: boolean;
 }) {
   const mobile = useMobileViewport();
-  const { count, items } = useCart();
+  const { count } = useCart();
   const { openBasket } = useBasket();
   const offers = variants.filter((row) => row.is_active);
   const [variantId, setVariantId] = useState(offers[0]?.id);
-  const [addQty, setAddQty] = useState(1);
   const selected = useMemo(() => offers.find((row) => row.id === variantId) || offers[0], [offers, variantId]);
-  const selectedInCart = selected ? items.some((item) => item.variant_id === selected.id) : false;
   const inStock = (selected?.on_hand || 0) > 0;
   const perUnit = selected ? unitPrice(selected.price, selected.unit_count) : null;
-  const maxOrder =
-    selected?.max_order != null && selected.max_order > 0
-      ? Math.min(selected.max_order, selected.on_hand)
-      : selected?.on_hand;
 
   const flavorOptions = useMemo(() => {
     const options: FlavorOption[] = [{ title: flavorLabel, slug: currentSlug, image: imageUrl || "" }];
@@ -90,8 +83,6 @@ export function BuyBox({
     document.body.classList.toggle("has-product-mobile-bar", mobile && inStock && Boolean(selected));
     return () => document.body.classList.remove("has-product-mobile-bar");
   }, [inStock, mobile, selected]);
-
-  const lineTotal = selected ? (Number.parseFloat(selected.price) * addQty).toFixed(2) : "0.00";
 
   return (
     <div className="buy-box">
@@ -181,16 +172,6 @@ export function BuyBox({
 
       <div className="buy-actions buy-actions--inline">
         <div className="buy-actions-row">
-          {!selectedInCart ? (
-            <QuantityStepper
-              value={addQty}
-              max={maxOrder}
-              min={1}
-              disabled={!inStock}
-              variant="buy"
-              onChange={setAddQty}
-            />
-          ) : null}
           {selected ? (
             <AddToCartButton
               variantId={selected.id}
@@ -203,7 +184,6 @@ export function BuyBox({
               maxOrder={selected.max_order}
               imageUrl={imageUrl}
               detail={selected.title}
-              addQuantity={addQty}
               className="buy-actions-btn"
             />
           ) : (
@@ -231,9 +211,8 @@ export function BuyBox({
             maxOrder={selected.max_order}
             imageUrl={imageUrl}
             detail={selected.title}
-            addQuantity={addQty}
             className="product-mobile-bar-cta"
-            label={`Add to basket · AED ${lineTotal}`}
+            label={`Add to basket · AED ${selected.price}`}
           />
         </div>
       ) : null}
