@@ -89,6 +89,31 @@ class AdminApiTests(ApiTestCase):
         response = self.client.get("/api/v1/admin/analytics/overview", **auth)
         self.assertEqual(response.status_code, 403)
 
+    def test_platform_users_list_excludes_staff_and_superusers(self):
+        User = get_user_model()
+        customer_response = signup_and_verify(self.client, email="platform@example.com")
+        customer = User.objects.get(email="platform@example.com")
+        staff = User.objects.create_user(
+            email="staff@example.com",
+            password=PASSWORD,
+            is_staff=True,
+            staff_role="member",
+        )
+        superuser = User.objects.create_superuser(email="root@example.com", password=PASSWORD)
+
+        response = self.client.get("/api/v1/admin/users?page=1&page_size=100", **self.auth)
+
+        self.assertEqual(response.status_code, 200, response.json())
+        users = response.json()["data"]["results"]
+        user_ids = {row["id"] for row in users}
+        self.assertIn(customer.pk, user_ids)
+        self.assertNotIn(self.user.pk, user_ids)
+        self.assertNotIn(staff.pk, user_ids)
+        self.assertNotIn(superuser.pk, user_ids)
+        customer_row = next(row for row in users if row["id"] == customer.pk)
+        self.assertEqual(customer_row["phone"], PHONE)
+        self.assertIn("date_joined", customer_row)
+
     def test_analytics_and_product_create(self):
         created = post_json(
             self.client,

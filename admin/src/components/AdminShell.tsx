@@ -21,6 +21,7 @@ const TOP_NAV = [
   { href: "/orders", label: "Orders", icon: ShoppingBag, admin: false },
   { href: "/coupons", label: "Coupons", icon: Ticket, admin: true },
   { href: "/members", label: "Members", icon: Users, admin: true },
+  { href: "/users", label: "Platform users", icon: Users, admin: true },
 ];
 
 const CATALOG_NAV = [

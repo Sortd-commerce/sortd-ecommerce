@@ -649,6 +649,26 @@ class AdminController(ControllerBase):
         page["results"] = [serialize_staff(user) for user in page["results"]]
         return success("Members retrieved.", page)
 
+    @route.get("/users", response={200: SuccessResponse, **_ERROR_RESPONSES}, summary="List platform users")
+    def list_platform_users(self, query: Query[PageQuery]):
+        User = get_user_model()
+        qs = User.objects.filter(is_staff=False, is_superuser=False).order_by("email")
+        page = paginate_queryset(qs, page=query.page, page_size=query.page_size)
+        page["results"] = [
+            {
+                "id": user.pk,
+                "email": user.email,
+                "first_name": user.first_name,
+                "last_name": user.last_name,
+                "phone": user.phone,
+                "is_active": user.is_active,
+                "email_verified_at": user.email_verified_at,
+                "date_joined": user.date_joined,
+            }
+            for user in page["results"]
+        ]
+        return success("Platform users retrieved.", page)
+
     @route.post("/members", response={201: SuccessResponse, **_ERROR_RESPONSES}, summary="Add a staff member")
     def create_member(self, payload: MemberIn):
         User = get_user_model()
