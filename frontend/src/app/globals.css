@@ -328,20 +328,19 @@ button {
 
 .brand-mark {
   display: inline-flex;
-  align-items: baseline;
-  color: var(--ink);
-  font-family: var(--font-brand), "Libre Baskerville", Georgia, "Times New Roman", serif;
-  font-size: 1.875rem;
-  font-weight: 700;
-  font-style: normal;
-  letter-spacing: -0.04em;
-  line-height: 1;
-  text-transform: none;
+  align-items: center;
+  line-height: 0;
   white-space: nowrap;
 }
 
-.brand-sm {
-  font-size: 1.4375rem;
+.brand-mark-img {
+  display: block;
+  width: auto;
+  height: 2.125rem;
+}
+
+.brand-sm .brand-mark-img {
+  height: 1.75rem;
 }
 
 .tone-cream {
@@ -2110,12 +2109,21 @@ button {
   cursor: pointer;
 }
 
+/* Address summary card uses flex-start so Edit/Change stay near the top */
+.pick-card.address-summary {
+  align-items: flex-start;
+}
+
 .pick-card input[type="radio"] {
   flex-shrink: 0;
   width: 1.125rem;
   height: 1.125rem;
   margin: 0;
   accent-color: var(--forest);
+}
+
+.pick-card.address-summary input[type="radio"] {
+  margin-top: 0.15rem;
 }
 
 .pick-card strong,
@@ -3555,6 +3563,10 @@ aside.basket-drawer {
   color: rgb(14 26 20 / 0.58);
 }
 
+.addresses-head {
+  margin-bottom: 1.5rem;
+}
+
 .addresses-head h1 {
   margin: 0;
   color: var(--forest);
@@ -3593,6 +3605,11 @@ aside.basket-drawer {
   background: white;
 }
 
+.addresses-row > div:first-child {
+  min-width: 0;
+  flex: 1;
+}
+
 .addresses-row--primary {
   border-color: color-mix(in srgb, var(--forest) 24%, var(--line));
   background: color-mix(in srgb, var(--mint) 28%, white);
@@ -3612,6 +3629,46 @@ aside.basket-drawer {
   margin: 0.25rem 0 0;
   font-size: 0.9375rem;
   line-height: 1.45;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (min-width: 32rem) {
+  .addresses-row-text {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+  }
+}
+
+.addresses-row-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.addresses-row-badge {
+  color: var(--text-faint);
+  font-family: var(--font-mono), monospace;
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.addresses-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.addresses-row .text-action {
+  margin-top: 0;
 }
 
 .addresses-empty {
@@ -3625,6 +3682,13 @@ aside.basket-drawer {
   margin-top: 2rem;
   padding-top: 1.5rem;
   border-top: 1px solid var(--line);
+}
+
+/* No divider when the form is the very first child (no list above it) */
+.addresses-panel > .addresses-add:first-child {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
 }
 
 .addresses-add-head {
@@ -3651,6 +3715,11 @@ aside.basket-drawer {
   flex-wrap: wrap;
   gap: 0.75rem;
   margin-top: 1.25rem;
+}
+
+.addresses-guest {
+  padding-block: 2rem;
+  max-width: 38rem;
 }
 
 .account-kicker {
@@ -4019,8 +4088,6 @@ aside.basket-drawer {
 .address-summary .text-action,
 .address-change {
   margin-top: 0;
-  margin-left: auto;
-  align-self: center;
 }
 
 .address-picker-list {
@@ -4028,7 +4095,114 @@ aside.basket-drawer {
 }
 
 .address-search-wrap {
+  position: relative;
   z-index: 1;
+}
+
+.address-search-input {
+  padding-right: 5.25rem;
+}
+
+.address-search-actions {
+  position: absolute;
+  top: 50%;
+  right: 0.4rem;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 0.1rem;
+  transform: translateY(-50%);
+}
+
+.address-search-btn {
+  display: grid;
+  place-items: center;
+  width: 2.1rem;
+  height: 2.1rem;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--forest);
+  cursor: pointer;
+}
+
+.address-search-btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--sand) 70%, white);
+}
+
+.address-search-btn:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+.address-label-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.field .address-label-chip,
+.address-label-chip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.55rem 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: white;
+  color: var(--forest);
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.field .address-label-chip input,
+.address-label-chip input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+  appearance: none;
+  box-shadow: none;
+  background: transparent;
+}
+
+.address-label-chip small {
+  color: var(--text-faint);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.address-label-chip.is-on {
+  border-color: var(--forest);
+  background: var(--tint-2);
+}
+
+.address-label-chip.is-on small {
+  color: var(--forest);
+}
+
+.address-detail-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: 0.75rem;
+}
+
+.address-summary-actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 0.75rem;
+  margin-left: auto;
+  padding-top: 0.1rem;
 }
 
 .address-suggestions {
@@ -4039,9 +4213,78 @@ aside.basket-drawer {
   z-index: 40;
 }
 
+@media (max-width: 40rem) {
+  .address-detail-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .pick-card > span {
   flex: 1;
   min-width: 0;
+}
+
+/* Actions span inside address-summary should not grow — it sits at the far right */
+.pick-card.address-summary > .address-summary-actions {
+  flex: 0 0 auto;
+}
+
+/* Icon buttons for Edit / Change inside the address summary card */
+.addr-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.35rem 0.65rem;
+  border-radius: 999px;
+  border: 1.5px solid transparent;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 180ms ease, border-color 180ms ease, transform 180ms ease;
+}
+
+.addr-icon-btn--edit {
+  color: var(--forest);
+  background: color-mix(in srgb, var(--forest) 10%, white);
+  border-color: color-mix(in srgb, var(--forest) 22%, var(--line));
+}
+
+.addr-icon-btn--edit:hover {
+  background: color-mix(in srgb, var(--forest) 16%, white);
+  border-color: color-mix(in srgb, var(--forest) 40%, var(--line));
+  transform: translateY(-1px);
+}
+
+.addr-icon-btn--change {
+  color: var(--ink);
+  background: color-mix(in srgb, var(--sand) 55%, white);
+  border-color: var(--line);
+}
+
+.addr-icon-btn--change:hover {
+  background: color-mix(in srgb, var(--sand) 80%, white);
+  border-color: color-mix(in srgb, var(--ink) 22%, var(--line));
+  transform: translateY(-1px);
+}
+
+/* On mobile: wrap so buttons sit below the address text, full-width card stays tidy */
+@media (max-width: 30rem) {
+  .pick-card.address-summary {
+    flex-wrap: wrap;
+  }
+
+  .pick-card.address-summary > span:first-of-type {
+    flex-basis: calc(100% - 1.875rem - 0.75rem); /* fill row next to radio */
+  }
+
+  .address-summary-actions {
+    width: 100%;
+    padding-top: 0.5rem;
+    padding-left: calc(1.125rem + 0.75rem); /* align under text, past radio + gap */
+    margin-left: 0;
+  }
 }
 
 .when-grid {
@@ -4112,6 +4355,17 @@ aside.basket-drawer {
   font-size: 0.75rem;
   line-height: 1.45;
   text-align: center;
+}
+
+.checkout-submit-amount {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.checkout-submit-arrow {
+  opacity: 0.75;
+  font-size: 1.05em;
 }
 
 .order-lines small {
@@ -5682,13 +5936,10 @@ aside.basket-drawer {
 
   .header-main .brand-mark {
     grid-area: logo;
-    font-size: 1.5rem;
-    line-height: 1.5rem;
   }
 
-  .header-main .brand-sm {
-    font-size: 1.375rem;
-    line-height: 1.375rem;
+  .header-main .brand-mark-img {
+    height: 1.65rem;
   }
 
   .header-main .header-nav--mobile {

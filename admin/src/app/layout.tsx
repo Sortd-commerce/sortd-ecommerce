@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { IBM_Plex_Sans, Libre_Baskerville } from "next/font/google";
+import { IBM_Plex_Sans } from "next/font/google";
 import { AdminShell } from "@/components/AdminShell";
 import { getStaffProfile } from "@/lib/staff";
 import "./globals.css";
@@ -11,12 +11,6 @@ const body = IBM_Plex_Sans({
   variable: "--font-body",
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
-});
-
-const brand = Libre_Baskerville({
-  variable: "--font-brand",
-  subsets: ["latin"],
-  weight: ["700"],
 });
 
 export const metadata: Metadata = {
@@ -41,7 +35,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
 
   return (
     <html lang="en" style={{ colorScheme: "dark" }}>
-      <body className={`${body.variable} ${brand.variable} antialiased`}>
+      <body className={`${body.variable} antialiased`}>
         <a href="#main" className="skip-link">
           Skip to content
         </a>

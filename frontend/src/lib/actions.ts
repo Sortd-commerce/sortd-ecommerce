@@ -274,11 +274,22 @@ export async function quoteCartAction(
 
 export async function fetchDefaultAddressAction(): Promise<{ ok: boolean; deliverTo?: string }> {
   const result = await apiFetch<
-    Array<{ line1: string; city: string; formatted_address: string; is_default?: boolean }>
+    Array<{
+      line1: string;
+      city: string;
+      formatted_address: string;
+      is_default?: boolean;
+      building?: string;
+      community?: string;
+    }>
   >("/addresses");
   if (!result.ok || !result.data?.length) return { ok: false };
   const saved = result.data.find((row) => row.is_default) || result.data[0];
-  const deliverTo = saved.line1 || saved.city || saved.formatted_address;
+  const deliverTo =
+    [saved.building, saved.community].filter(Boolean).join(", ") ||
+    saved.line1 ||
+    saved.city ||
+    saved.formatted_address;
   return { ok: true, deliverTo };
 }
 
@@ -381,6 +392,11 @@ export async function saveAddressAction(_prev: ActionState, formData: FormData):
     latitude: latitude || null,
     longitude: longitude || null,
     is_default: String(formData.get("is_default") || "") !== "false",
+    label: String(formData.get("label") || "other"),
+    community: String(formData.get("community") || ""),
+    building: String(formData.get("building") || ""),
+    unit: String(formData.get("unit") || ""),
+    floor: String(formData.get("floor") || ""),
   };
   const result = addressId
     ? await apiFetch(`/addresses/${addressId}`, { method: "PATCH", body: payload })
@@ -404,6 +420,11 @@ type SavedAddress = {
   formatted_address: string;
   latitude?: string | null;
   longitude?: string | null;
+  label?: string;
+  community?: string;
+  building?: string;
+  unit?: string;
+  floor?: string;
 };
 
 export async function setPrimaryAddressAction(addressId: number): Promise<ActionState> {
@@ -425,6 +446,11 @@ export async function setPrimaryAddressAction(addressId: number): Promise<Action
       latitude: row.latitude || null,
       longitude: row.longitude || null,
       is_default: true,
+      label: row.label || "other",
+      community: row.community || "",
+      building: row.building || "",
+      unit: row.unit || "",
+      floor: row.floor || "",
     },
   });
   if (!result.ok) return { ok: false, message: result.message };

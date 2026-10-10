@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ArrowLeft, CaretDown } from "@phosphor-icons/react";
 import { useCheckoutSelection } from "@/components/CheckoutSelectionContext";
 import { usePricing } from "@/components/PricingProvider";
+import { formatAddressDetails, formatAddressLabel } from "@/lib/address";
 
 export type CheckoutStep = "basket" | "delivery" | "pay";
 
@@ -12,8 +13,18 @@ function money(value: string | number) {
   return Number.isFinite(amount) ? amount.toFixed(2) : "0.00";
 }
 
-function addressLabel(address: { is_default?: boolean; line1: string; city: string }) {
-  return address.is_default ? "Home" : address.line1 || address.city || "Address";
+function addressLabel(address: {
+  is_default?: boolean;
+  line1: string;
+  city: string;
+  label?: string;
+  building?: string;
+  unit?: string;
+  floor?: string;
+  community?: string;
+  formatted_address?: string;
+}) {
+  return formatAddressLabel(address.label);
 }
 
 const STEP_ORDER: Record<CheckoutStep, number> = { basket: 0, delivery: 1, pay: 2 };
@@ -34,9 +45,9 @@ export function CheckoutMobileHeader({
   const { quote } = usePricing();
   const { selectedAddress } = useCheckoutSelection();
   const savings = Number(quote.discount_amount);
-  const addressText =
-    selectedAddress?.formatted_address ||
-    (selectedAddress ? `${selectedAddress.line1}, ${selectedAddress.city}` : "Add your delivery address");
+  const addressText = selectedAddress
+    ? formatAddressDetails(selectedAddress)
+    : "Add your delivery address";
 
   return (
     <header className="checkout-mobile-header">

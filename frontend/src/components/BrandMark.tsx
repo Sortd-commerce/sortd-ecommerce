@@ -10,15 +10,19 @@ export function BrandMark({
   href?: string | null;
 }) {
   const className = `brand-mark tone-${tone}${size === "sm" ? " brand-sm" : ""}`;
-  const word = (
-    <>
-      Sortd<span className="brand-period">.</span>
-    </>
+  const mark = (
+    <img
+      src="/images/sortd-wordmark.svg"
+      alt={href ? "" : "Sortd"}
+      width={148}
+      height={44}
+      className="brand-mark-img"
+    />
   );
-  if (!href) return <span className={className}>{word}</span>;
+  if (!href) return <span className={className}>{mark}</span>;
   return (
     <Link href={href} className={className} aria-label="Sortd home">
-      {word}
+      {mark}
     </Link>
   );
 }

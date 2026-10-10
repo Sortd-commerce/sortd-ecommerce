@@ -27,6 +27,11 @@ export type CheckoutAddress = {
   latitude?: string | null;
   longitude?: string | null;
   postal_code?: string;
+  label?: string;
+  community?: string;
+  building?: string;
+  unit?: string;
+  floor?: string;
 };
 
 export const fetchCheckoutWindows = unstable_cache(

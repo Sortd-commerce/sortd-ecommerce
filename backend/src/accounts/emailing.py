@@ -70,8 +70,8 @@ def _email_logo_html() -> str:
     return (
         f'<tr><td style="padding:8px 8px 20px;">'
         f'<a href="{shop}" style="text-decoration:none;display:inline-block;">'
-        f'<img src="{logo_url}" alt="Sortd" width="108" height="28" '
-        f'style="display:block;border:0;outline:none;text-decoration:none;max-width:108px;height:auto;" />'
+        f'<img src="{logo_url}" alt="Sortd" width="148" height="44" '
+        f'style="display:block;border:0;outline:none;text-decoration:none;max-width:148px;height:auto;" />'
         f"</a>"
         f'<p style="display:none;max-height:0;overflow:hidden;margin:0;font-family:Georgia,serif;font-size:28px;'
         f'font-weight:700;color:{FOREST};">Sortd<span style="color:{STOP};">.</span></p>'

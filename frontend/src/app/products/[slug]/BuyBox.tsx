@@ -9,6 +9,7 @@ import { useCart } from "@/components/CartProvider";
 import { ViewportLazyImage } from "@/components/ViewportLazyImage";
 import { QuantityStepper } from "@/components/QuantityStepper";
 import { ShareProductButton } from "@/components/ShareProductButton";
+import { displayLineTitle } from "@/lib/product-title";
 import { useMobileViewport } from "@/lib/use-mobile-viewport";
 
 type Offer = {
@@ -189,7 +190,7 @@ export function BuyBox({
           {selected ? (
             <AddToCartButton
               variantId={selected.id}
-              title={title}
+              title={displayLineTitle(title, selected.title)}
               brand={brand}
               sku={selected.sku}
               unitPrice={selected.price}
@@ -217,7 +218,7 @@ export function BuyBox({
           </button>
           <AddToCartButton
             variantId={selected.id}
-            title={title}
+            title={displayLineTitle(title, selected.title)}
             brand={brand}
             sku={selected.sku}
             unitPrice={selected.price}

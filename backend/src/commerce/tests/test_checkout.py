@@ -3,6 +3,7 @@ from decimal import Decimal
 import json
 
 from django.core import mail
+from django.test import override_settings
 from django.utils import timezone
 
 from accounts.tests.helpers import ApiTestCase, bearer, post_json, signup_and_verify
@@ -20,6 +21,7 @@ from commerce.models import (
 from core.messages import ErrorMessage
 
 
+@override_settings(GEOCODER_PROVIDER="fixture")
 class CheckoutTests(ApiTestCase):
     def setUp(self):
         super().setUp()
@@ -149,6 +151,10 @@ class CheckoutTests(ApiTestCase):
             {
                 "place_id": "fixture-dubai-marina",
                 "is_default": True,
+                "community": "Dubai Marina",
+                "building": "Marina Gate 1",
+                "unit": "1204",
+                "floor": "12",
             },
             **self.auth,
         )
@@ -159,6 +165,36 @@ class CheckoutTests(ApiTestCase):
         self.assertTrue(data["formatted_address"])
         self.assertEqual(data["latitude"], "25.080500")
         self.assertEqual(data["longitude"], "55.140300")
+        self.assertEqual(data["label"], "other")
+        self.assertEqual(data["community"], "Dubai Marina")
+        self.assertEqual(data["building"], "Marina Gate 1")
+        self.assertEqual(data["unit"], "1204")
+        self.assertEqual(data["floor"], "12")
+
+    def test_address_save_requires_delivery_details(self):
+        response = post_json(
+            self.client,
+            "/api/v1/addresses",
+            {"place_id": "fixture-dubai-marina", "is_default": True},
+            **self.auth,
+        )
+        self.assertEqual(response.status_code, 400)
+
+    def test_address_save_accepts_home_label(self):
+        response = post_json(
+            self.client,
+            "/api/v1/addresses",
+            {
+                "place_id": "fixture-dubai-marina",
+                "label": "home",
+                "community": "Jumeirah",
+                "building": "Villa 12",
+                "unit": "12",
+            },
+            **self.auth,
+        )
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.json()["data"]["label"], "home")
 
     def test_validate_checkout_before_payment(self):
         self._add_to_cart(1)

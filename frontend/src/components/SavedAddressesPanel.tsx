@@ -5,22 +5,9 @@ import { useState, useTransition } from "react";
 import { AddressPicker } from "@/components/AddressPicker";
 import { useToast } from "@/components/Toast";
 import { setPrimaryAddressAction } from "@/lib/actions";
+import { formatAddressDetails, formatAddressLabel, type DeliveryAddress } from "@/lib/address";
 
-export type SavedAddressRow = {
-  id: number;
-  line1: string;
-  city: string;
-  formatted_address: string;
-  is_default?: boolean;
-  place_id?: string;
-  latitude?: string | null;
-  longitude?: string | null;
-  postal_code?: string;
-};
-
-function formatAddress(address: SavedAddressRow) {
-  return address.formatted_address || `${address.line1}, ${address.city}`;
-}
+export type SavedAddressRow = DeliveryAddress;
 
 export function SavedAddressesPanel({ addresses }: { addresses: SavedAddressRow[] }) {
   const router = useRouter();
@@ -28,9 +15,12 @@ export function SavedAddressesPanel({ addresses }: { addresses: SavedAddressRow[
   const [pending, startTransition] = useTransition();
   const [refreshing, startRefresh] = useTransition();
   const [adding, setAdding] = useState(addresses.length === 0);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const editing = addresses.find((row) => row.id === editingId) || null;
 
   function refresh() {
     setAdding(false);
+    setEditingId(null);
     startRefresh(() => {
       router.refresh();
     });
@@ -48,7 +38,7 @@ export function SavedAddressesPanel({ addresses }: { addresses: SavedAddressRow[
     });
   }
 
-  const listBusy = refreshing && !adding;
+  const listBusy = refreshing && !adding && !editing;
 
   return (
     <div className="addresses-panel">
@@ -59,24 +49,32 @@ export function SavedAddressesPanel({ addresses }: { addresses: SavedAddressRow[
           ))}
         </ul>
       ) : null}
-      {addresses.length && !adding && !listBusy ? (
+      {addresses.length && !adding && !editing && !listBusy ? (
         <ul className="addresses-list">
           {addresses.map((address) => (
             <li key={address.id} className={`addresses-row ${address.is_default ? "addresses-row--primary" : ""}`}>
               <div>
-                <p className="addresses-row-label">{address.is_default ? "Primary" : "Saved address"}</p>
-                <p className="addresses-row-text">{formatAddress(address)}</p>
+                <p className="addresses-row-meta">
+                  <span className="addresses-row-label">{formatAddressLabel(address.label)}</span>
+                  {address.is_default ? <span className="addresses-row-badge">Primary</span> : null}
+                </p>
+                <p className="addresses-row-text">{formatAddressDetails(address)}</p>
               </div>
-              {!address.is_default ? (
-                <button
-                  type="button"
-                  className="btn btn-secondary text-sm"
-                  disabled={pending}
-                  onClick={() => makePrimary(address.id)}
-                >
-                  Set as primary
+              <div className="addresses-row-actions">
+                <button type="button" className="text-action" onClick={() => setEditingId(address.id)}>
+                  Edit
                 </button>
-              ) : null}
+                {!address.is_default ? (
+                  <button
+                    type="button"
+                    className="btn btn-secondary text-sm"
+                    disabled={pending}
+                    onClick={() => makePrimary(address.id)}
+                  >
+                    Set as primary
+                  </button>
+                ) : null}
+              </div>
             </li>
           ))}
         </ul>
@@ -86,10 +84,47 @@ export function SavedAddressesPanel({ addresses }: { addresses: SavedAddressRow[
         <p className="addresses-empty">No saved addresses yet. Add one below for faster checkout.</p>
       ) : null}
 
-      {addresses.length && !adding ? (
+      {addresses.length && !adding && !editing ? (
         <button type="button" className="text-action add-address" onClick={() => setAdding(true)}>
           + Add another address
         </button>
+      ) : null}
+
+      {editing ? (
+        <section className="addresses-add">
+          <div className="addresses-add-head">
+            <div>
+              <h2>Edit {formatAddressLabel(editing.label).toLowerCase()} address</h2>
+              <p className="addresses-add-copy">Update the label, location, and building details for this delivery address.</p>
+            </div>
+            <button type="button" className="checkout-cancel" onClick={() => setEditingId(null)}>
+              Cancel
+            </button>
+          </div>
+          <AddressPicker
+            key={editing.id}
+            addressId={editing.id}
+            isDefault={Boolean(editing.is_default)}
+            showPrimaryToggle
+            submitLabel="Update address"
+            initialQuery={editing.formatted_address || editing.line1}
+            initialPlace={{
+              place_id: editing.place_id,
+              latitude: editing.latitude,
+              longitude: editing.longitude,
+              postal_code: editing.postal_code,
+              formatted_address: editing.formatted_address || editing.line1,
+            }}
+            initialDetails={{
+              label: editing.label,
+              community: editing.community,
+              building: editing.building,
+              unit: editing.unit,
+              floor: editing.floor,
+            }}
+            onSaved={refresh}
+          />
+        </section>
       ) : null}
 
       {adding ? (

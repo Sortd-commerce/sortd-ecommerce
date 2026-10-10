@@ -6,6 +6,7 @@ import json
 
 from django.conf import settings
 from django.db import IntegrityError, transaction
+from django.db.models import Prefetch
 from ninja_extra.exceptions import NotFound, ValidationError
 
 import logging
@@ -13,6 +14,7 @@ import logging
 from catalog.models import ProductStatus, ProductVariant
 from catalog.stock import StockService
 from commerce.cart import CartService, MAX_QUANTITY
+from commerce.line_titles import display_item_title, order_line_display_title
 from commerce.delivery import DeliveryService, SlotView
 from commerce.pricing import PriceQuote, quote_lines
 from commerce.geocoding import GeocodeResult
@@ -37,6 +39,10 @@ from core.messages import ErrorMessage
 from core.money import money, money_str
 
 logger = logging.getLogger(__name__)
+
+
+def order_lines_prefetch():
+    return Prefetch("lines", queryset=OrderLine.objects.select_related("variant", "variant__product"))
 
 
 @dataclass(frozen=True)
@@ -246,7 +252,7 @@ class OrderService:
                     OrderLine.objects.create(
                         order=order,
                         variant=variant,
-                        title=variant.product.title,
+                        title=display_item_title(variant.product.title, variant.title),
                         sku=variant.sku,
                         unit_price=money(variant.price),
                         quantity=qty,
@@ -264,10 +270,10 @@ class OrderService:
         return order
 
     def list_for(self, user):
-        return Order.objects.filter(user=user).prefetch_related("lines")
+        return Order.objects.filter(user=user).prefetch_related(order_lines_prefetch())
 
     def get_for(self, user, *, number: str) -> Order:
-        order = Order.objects.filter(user=user, number=number).prefetch_related("lines").first()
+        order = Order.objects.filter(user=user, number=number).prefetch_related(order_lines_prefetch()).first()
         if order is None:
             raise NotFound(ErrorMessage.NOT_FOUND)
         return order
@@ -323,7 +329,7 @@ class OrderService:
         if self._email_sender is None:
             return
         try:
-            order = Order.objects.prefetch_related("lines").get(pk=order.pk)
+            order = Order.objects.prefetch_related(order_lines_prefetch()).get(pk=order.pk)
             self._email_sender.send_order_confirmation(
                 to=user.email,
                 order=serialize_order(order),
@@ -336,7 +342,7 @@ class OrderService:
         if self._email_sender is None:
             return
         try:
-            order = Order.objects.prefetch_related("lines").get(pk=order.pk)
+            order = Order.objects.prefetch_related(order_lines_prefetch()).get(pk=order.pk)
             self._email_sender.send_order_cancellation(
                 to=user.email,
                 order=serialize_order(order),
@@ -387,7 +393,7 @@ def serialize_order(order: Order, *, client_secret: str | None = None) -> dict:
         },
         "lines": [
             {
-                "title": line.title,
+                "title": order_line_display_title(line),
                 "sku": line.sku,
                 "quantity": line.quantity,
                 "unit_price": money_str(line.unit_price),

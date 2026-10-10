@@ -269,7 +269,7 @@ function CheckoutFormInner({
         onClick={() => void openStripeCheckout()}
       >
         <span>{payPending ? "Redirecting to Stripe…" : "Pay now"}</span>
-        <span>د.إ {quote.total} →</span>
+        <span className="checkout-submit-amount">د.إ {quote.total} <span className="checkout-submit-arrow">→</span></span>
       </button>
       <p className="fine-print checkout-footnote">
         Every item in this order passed all four gates. Lab reports are on each product page.

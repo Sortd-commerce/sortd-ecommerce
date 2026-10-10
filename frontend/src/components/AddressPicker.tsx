@@ -1,11 +1,12 @@
 "use client";
 
-import { Crosshair, SpinnerGap } from "@phosphor-icons/react";
+import { Crosshair, SpinnerGap, X } from "@phosphor-icons/react";
 import { useActionState, useEffect, useId, useRef, useState, useTransition } from "react";
 import { SubmitButton, emptyActionState } from "@/components/ActionForm";
 import { useToast } from "@/components/Toast";
 import type { ActionState } from "@/lib/action-state";
 import { saveAddressAction } from "@/lib/actions";
+import { ADDRESS_LABELS, type AddressLabelValue } from "@/lib/address";
 import {
   autocompletePlaces,
   checkDeliveryPlace,
@@ -44,6 +45,7 @@ export function AddressPicker({
   submitLabel = "Save address",
   initialQuery = "",
   initialPlace,
+  initialDetails,
   onSaved,
 }: {
   addressId?: number;
@@ -58,6 +60,13 @@ export function AddressPicker({
     postal_code?: string;
     formatted_address?: string;
   };
+  initialDetails?: {
+    label?: string;
+    community?: string;
+    building?: string;
+    unit?: string;
+    floor?: string;
+  };
   onSaved?: () => void;
 }) {
   const toast = useToast();
@@ -69,6 +78,15 @@ export function AddressPicker({
   const [locating, setLocating] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [makePrimary, setMakePrimary] = useState(isDefault);
+  const [addressLabel, setAddressLabel] = useState<AddressLabelValue>(
+    ADDRESS_LABELS.some((row) => row.value === initialDetails?.label)
+      ? (initialDetails?.label as AddressLabelValue)
+      : "other",
+  );
+  const [community, setCommunity] = useState(initialDetails?.community || "");
+  const [building, setBuilding] = useState(initialDetails?.building || "");
+  const [unit, setUnit] = useState(initialDetails?.unit || "");
+  const [floor, setFloor] = useState(initialDetails?.floor || "");
   const [pending, startTransition] = useTransition();
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const skipSuggest = useRef(Boolean(initialPlace || initialQuery));
@@ -82,6 +100,18 @@ export function AddressPicker({
     }
     if (!selected.serviceable) {
       toast.error("We do not deliver to that address yet.");
+      return prev;
+    }
+    if (!String(formData.get("community") || "").trim()) {
+      toast.error("Enter the community or area.");
+      return prev;
+    }
+    if (!String(formData.get("building") || "").trim()) {
+      toast.error("Enter the building or villa name.");
+      return prev;
+    }
+    if (!String(formData.get("unit") || "").trim()) {
+      toast.error("Enter the apartment or villa number.");
       return prev;
     }
     return saveAddressAction(prev, formData);
@@ -164,6 +194,22 @@ export function AddressPicker({
     setQuery(next.formatted_address || fallbackLabel);
     setOpen(false);
     setSuggestions([]);
+
+    // Auto-fill community / building from the formatted address if not already set
+    if (next.formatted_address) {
+      const parts = next.formatted_address
+        .split(",")
+        .map((p) => p.trim())
+        .filter(Boolean);
+      // parts[0] = building/villa, parts[1] = community/area (Dubai addresses)
+      if (!building.trim() && parts[0] && !["dubai", "uae", "united arab emirates"].includes(parts[0].toLowerCase())) {
+        setBuilding(parts[0]);
+      }
+      if (!community.trim() && parts[1] && !["dubai", "uae", "united arab emirates"].includes(parts[1].toLowerCase())) {
+        setCommunity(parts[1]);
+      }
+    }
+
     if (next.serviceable) {
       toast.success(next.zone_name ? `We deliver to ${next.zone_name}.` : "We deliver to this address.");
     } else {
@@ -191,6 +237,15 @@ export function AddressPicker({
     }
   }
 
+  function clearSearch() {
+    skipSuggest.current = true;
+    setQuery("");
+    setSelected(null);
+    setSuggestions([]);
+    setOpen(false);
+    inputRef.current?.focus();
+  }
+
   function useMyLocation() {
     if (!navigator.geolocation) {
       toast.error("Location is not available on this device.");
@@ -216,12 +271,32 @@ export function AddressPicker({
     );
   }
 
-  const canSave = Boolean(selected?.serviceable);
+  const detailsReady = Boolean(community.trim() && building.trim() && unit.trim());
+  const canSave = Boolean(selected?.serviceable) && detailsReady;
   const validity =
     selected?.serviceable === true ? "valid" : selected && !selected.serviceable ? "invalid" : query.trim() && !selected ? "pending" : "";
 
   return (
     <div className="mt-4 grid gap-3" ref={rootRef}>
+      <div className="field">
+        <span>Address label</span>
+        <div className="address-label-row" role="radiogroup" aria-label="Address label">
+          {ADDRESS_LABELS.map((row) => (
+            <label key={row.value} className={`address-label-chip ${addressLabel === row.value ? "is-on" : ""}`}>
+              <input
+                type="radio"
+                name="address_label_choice"
+                value={row.value}
+                checked={addressLabel === row.value}
+                onChange={() => setAddressLabel(row.value)}
+              />
+              {row.title}
+              {"isDefault" in row && row.isDefault ? <small>Default</small> : null}
+            </label>
+          ))}
+        </div>
+      </div>
+
       <label className="field">
         <span>Search address</span>
         <span className="address-search-wrap relative block">
@@ -251,22 +326,35 @@ export function AddressPicker({
             aria-autocomplete="list"
             aria-invalid={validity === "invalid" || undefined}
             aria-busy={verifying || undefined}
-            className={`pr-12 ${validity === "valid" ? "field-valid" : validity === "invalid" ? "field-invalid" : ""}`}
+            className={`address-search-input ${validity === "valid" ? "field-valid" : validity === "invalid" ? "field-invalid" : ""}`}
           />
-          <button
-            type="button"
-            className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-forest transition hover:bg-sand disabled:opacity-50"
-            onClick={useMyLocation}
-            disabled={locating || pending || verifying}
-            aria-label={locating ? "Locating" : "Use my location"}
-            title="Use my location"
-          >
-            {locating || pending || verifying ? (
-              <SpinnerGap size={20} className="animate-spin" />
-            ) : (
-              <Crosshair size={20} weight="bold" />
-            )}
-          </button>
+          <span className="address-search-actions">
+            {query ? (
+              <button
+                type="button"
+                className="address-search-btn"
+                onClick={clearSearch}
+                aria-label="Clear address"
+                title="Clear address"
+              >
+                <X size={18} weight="bold" />
+              </button>
+            ) : null}
+            <button
+              type="button"
+              className="address-search-btn"
+              onClick={useMyLocation}
+              disabled={locating || pending || verifying}
+              aria-label={locating ? "Locating" : "Use my location"}
+              title="Use my location"
+            >
+              {locating || pending || verifying ? (
+                <SpinnerGap size={20} className="animate-spin" />
+              ) : (
+                <Crosshair size={20} weight="bold" />
+              )}
+            </button>
+          </span>
           {open && suggestions.length ? (
             <ul
               id={listId}
@@ -302,8 +390,54 @@ export function AddressPicker({
         {verifying ? <p className="text-sm text-ink/55">Checking delivery area…</p> : null}
       </label>
 
-      <form action={formAction} className="grid gap-3">
+      <form action={formAction} className="grid gap-3 pt-1 mt-1 border-t border-dashed border-line/60">
         {addressId ? <input type="hidden" name="address_id" value={addressId} /> : null}
+        <input type="hidden" name="label" value={addressLabel} />
+        <label className="field">
+          <span>Community / Area *</span>
+          <input
+            name="community"
+            value={community}
+            onChange={(event) => setCommunity(event.target.value)}
+            placeholder="e.g. Dubai Marina"
+            required
+            autoComplete="address-level2"
+          />
+        </label>
+        <label className="field">
+          <span>Building / Villa name *</span>
+          <input
+            name="building"
+            value={building}
+            onChange={(event) => setBuilding(event.target.value)}
+            placeholder="e.g. Marina Gate 1"
+            required
+            autoComplete="address-line2"
+          />
+        </label>
+        <div className="address-detail-grid">
+          <label className="field">
+            <span>Apartment / Villa number *</span>
+            <input
+              name="unit"
+              value={unit}
+              onChange={(event) => setUnit(event.target.value)}
+              placeholder="e.g. 1204"
+              required
+              autoComplete="off"
+            />
+          </label>
+          <label className="field">
+            <span>Floor</span>
+            <input
+              name="floor"
+              value={floor}
+              onChange={(event) => setFloor(event.target.value)}
+              placeholder="e.g. 12"
+              autoComplete="off"
+            />
+          </label>
+        </div>
         {showPrimaryToggle || addressId ? (
           <label className="field-check">
             <input

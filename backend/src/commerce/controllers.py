@@ -515,16 +515,46 @@ def _save_address(*, user, payload: AddressIn, instance: Address | None = None) 
         others.update(is_default=False)
 
     address = instance or Address(user=user)
+    community = payload.community.strip()
+    building = payload.building.strip()
+    unit = payload.unit.strip()
+    floor = payload.floor.strip()
+    provided_details = bool(community or building or unit or floor)
+    if instance is not None and not provided_details:
+        community = instance.community
+        building = instance.building
+        unit = instance.unit
+        floor = instance.floor
+        label = instance.label or payload.label
+    else:
+        missing = {}
+        if not community:
+            missing["community"] = "Community / area is required."
+        if not building:
+            missing["building"] = "Building / villa name is required."
+        if not unit:
+            missing["unit"] = "Apartment / villa number is required."
+        if missing:
+            raise ValidationError(missing)
+        label = payload.label
+
     address.line1 = line1[:200]
-    address.line2 = payload.line2.strip()[:200]
+    address.line2 = payload.line2.strip()[:200] or ", ".join(
+        part for part in [unit, f"Floor {floor}" if floor else ""] if part
+    )[:200]
     address.city = city[:120]
-    address.region = region[:120]
+    address.region = region[:120] or community[:120]
     address.postal_code = postal[:20]
     address.country = (payload.country or "AE").upper()[:2]
     address.latitude = geo.latitude
     address.longitude = geo.longitude
     address.place_id = (geo.place_id or payload.place_id or "")[:256]
     address.formatted_address = (geo.formatted_address or payload.formatted_address or line1)[:400]
+    address.label = label
+    address.community = community[:120]
+    address.building = building[:120]
+    address.unit = unit[:80]
+    address.floor = floor[:40]
     if instance is None or payload.is_default:
         address.is_default = make_default
     address.save()
@@ -545,4 +575,9 @@ def _address_payload(address: Address) -> dict:
         "latitude": str(address.latitude) if address.latitude is not None else None,
         "longitude": str(address.longitude) if address.longitude is not None else None,
         "is_default": address.is_default,
+        "label": address.label,
+        "community": address.community,
+        "building": address.building,
+        "unit": address.unit,
+        "floor": address.floor,
     }

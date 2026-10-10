@@ -4,6 +4,7 @@ from django.db import transaction
 from ninja_extra.exceptions import NotFound, ValidationError
 
 from catalog.models import ProductStatus, ProductVariant
+from commerce.line_titles import display_item_title
 from commerce.models import Cart, CartItem
 from core.messages import ErrorMessage
 from core.money import money, money_str, ZERO
@@ -42,7 +43,7 @@ class CartService:
                 {
                     "id": item.id,
                     "variant_id": variant.id,
-                    "title": variant.product.title,
+                    "title": display_item_title(variant.product.title, variant.title),
                     "sku": variant.sku,
                     "quantity": item.quantity,
                     "unit_price": money_str(variant.price),

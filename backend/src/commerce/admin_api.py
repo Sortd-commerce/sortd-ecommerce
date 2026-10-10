@@ -28,7 +28,7 @@ from catalog.writer import CatalogWriteError, ProductWriter, serialize_label, se
 from commerce.pricing import clean_delivery_promise
 from commerce.delivery_zones import normalize_polygon_ring
 from commerce.models import CommerceSettings, DeliveryWindow, DeliveryZone, Discount, Order, OrderStatus
-from commerce.orders import serialize_order
+from commerce.orders import order_lines_prefetch, serialize_order
 from core.money import money, money_str
 from core.pagination import PageQuery, paginate_queryset
 from core.permissions import IsAdminStaff, IsStaff, authenticated_user
@@ -793,7 +793,7 @@ class AdminController(ControllerBase):
         sort: str | None = None,
         order: str | None = None,
     ):
-        qs = Order.objects.select_related("user").prefetch_related("lines")
+        qs = Order.objects.select_related("user").prefetch_related(order_lines_prefetch())
         qs = _filter_orders_qs(qs, status_filter=status_filter, search=search, sort=sort, order=order)
         page = paginate_queryset(qs, page=query.page, page_size=query.page_size)
         page["results"] = [
@@ -803,7 +803,7 @@ class AdminController(ControllerBase):
 
     @route.get("/orders/{number}", response={200: SuccessResponse, **_ERROR_RESPONSES}, summary="Get an order", permissions=[IsStaff()])
     def get_order(self, number: str):
-        order = Order.objects.select_related("user").prefetch_related("lines").filter(number=number).first()
+        order = Order.objects.select_related("user").prefetch_related(order_lines_prefetch()).filter(number=number).first()
         if order is None:
             raise NotFound("Order not found.")
         return success("Order retrieved.", {**serialize_order(order), "user_email": order.user.email})

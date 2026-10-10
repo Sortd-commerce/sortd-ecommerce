@@ -5,17 +5,16 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { CaretDownIcon } from "@/components/HeaderIcons";
 import { setPrimaryAddressAction } from "@/lib/actions";
+import { formatAddressDetails, formatAddressLabel, type DeliveryAddress } from "@/lib/address";
 
-export type DeliverAddress = {
-  id: number;
-  formatted_address: string;
-  line1: string;
-  city: string;
-  is_default?: boolean;
-};
+export type DeliverAddress = DeliveryAddress;
 
 function displayLine(address: DeliverAddress) {
-  return address.formatted_address || `${address.line1}, ${address.city}`;
+  return formatAddressDetails(address);
+}
+
+function displayTitle(address: DeliverAddress) {
+  return formatAddressLabel(address.label);
 }
 
 export function DeliverAddressMenu({ addresses }: { addresses: DeliverAddress[] }) {
@@ -55,7 +54,7 @@ export function DeliverAddressMenu({ addresses }: { addresses: DeliverAddress[] 
         disabled={pending}
         onClick={() => setOpen((value) => !value)}
       >
-        <span className="deliver-place-full">{displayLine(current)}</span>
+        <span className="deliver-place-full">{`${displayTitle(current)} · ${displayLine(current)}`}</span>
         <CaretDownIcon />
       </button>
       {open ? (
@@ -63,7 +62,7 @@ export function DeliverAddressMenu({ addresses }: { addresses: DeliverAddress[] 
           {addresses.map((row) => (
             <li key={row.id} role="option" aria-selected={row.id === current.id}>
               <button type="button" className="deliver-address-option" onClick={() => choose(row.id)}>
-                {displayLine(row)}
+                {`${displayTitle(row)} · ${displayLine(row)}`}
               </button>
             </li>
           ))}

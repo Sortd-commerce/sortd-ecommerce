@@ -2,14 +2,20 @@
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { PencilSimple, ArrowsLeftRight } from "@phosphor-icons/react";
 import type { CheckoutAddress } from "@/lib/checkout";
 import { AddressPicker } from "@/components/AddressPicker";
 import { useToast } from "@/components/Toast";
 import { useCheckoutSelection } from "@/components/CheckoutSelectionContext";
 import { setPrimaryAddressAction } from "@/lib/actions";
+import { formatAddressDetails, formatAddressLabel } from "@/lib/address";
 
-function addressLabel(address: CheckoutAddress) {
-  return address.is_default ? "Home" : address.line1 || address.city || "Address";
+function addressTitle(address: CheckoutAddress) {
+  return formatAddressLabel(address.label);
+}
+
+function addressDetail(address: CheckoutAddress) {
+  return formatAddressDetails(address);
 }
 
 function ChoiceCard({
@@ -163,6 +169,13 @@ export function CheckoutAddressSection({ addresses }: { addresses: CheckoutAddre
             postal_code: selectedAddress.postal_code,
             formatted_address: selectedAddress.formatted_address || selectedAddress.line1,
           }}
+          initialDetails={{
+            label: selectedAddress.label,
+            community: selectedAddress.community,
+            building: selectedAddress.building,
+            unit: selectedAddress.unit,
+            floor: selectedAddress.floor,
+          }}
           onSaved={onAddressSaved}
         />
       </>
@@ -186,12 +199,31 @@ export function CheckoutAddressSection({ addresses }: { addresses: CheckoutAddre
         <div className="pick-card pick-card-on address-summary">
           <input type="radio" checked readOnly tabIndex={-1} aria-label="Selected address" />
           <span>
-            <strong>{addressLabel(selectedAddress)}</strong>
-            <small>{selectedAddress.formatted_address || `${selectedAddress.line1}, ${selectedAddress.city}`}</small>
+            <strong>{addressTitle(selectedAddress)}</strong>
+            <small>{addressDetail(selectedAddress)}</small>
           </span>
-          <button type="button" className="text-action address-change" onClick={() => setAddressOpen(true)}>
-            Change
-          </button>
+          <span className="address-summary-actions">
+            <button
+              type="button"
+              className="addr-icon-btn addr-icon-btn--edit"
+              onClick={() => setPanel("edit")}
+              title="Edit address"
+              aria-label="Edit address"
+            >
+              <PencilSimple size={15} weight="bold" />
+              <span>Edit</span>
+            </button>
+            <button
+              type="button"
+              className="addr-icon-btn addr-icon-btn--change"
+              onClick={() => setAddressOpen(true)}
+              title="Change address"
+              aria-label="Change address"
+            >
+              <ArrowsLeftRight size={15} weight="bold" />
+              <span>Change</span>
+            </button>
+          </span>
         </div>
       ) : null}
       {panel === "pick" && addressOpen ? (
@@ -202,8 +234,8 @@ export function CheckoutAddressSection({ addresses }: { addresses: CheckoutAddre
               name="saved_address"
               value={String(address.id)}
               checked={address.id === selectedAddress?.id}
-              title={addressLabel(address)}
-              detail={address.formatted_address || address.line1}
+              title={addressTitle(address)}
+              detail={addressDetail(address)}
               onChange={() => {
                 setAddressId(address.id);
                 setAddressOpen(false);

@@ -5,6 +5,12 @@ from django.db import models
 from django.utils import timezone
 
 
+class AddressLabel(models.TextChoices):
+    HOME = "home", "Home"
+    WORK = "work", "Work"
+    OTHER = "other", "Other"
+
+
 class Address(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="addresses")
     line1 = models.CharField(max_length=200)
@@ -17,6 +23,11 @@ class Address(models.Model):
     longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     place_id = models.CharField(max_length=256, blank=True)
     formatted_address = models.CharField(max_length=400, blank=True)
+    label = models.CharField(max_length=16, choices=AddressLabel.choices, default=AddressLabel.OTHER)
+    community = models.CharField(max_length=120, blank=True)
+    building = models.CharField(max_length=120, blank=True)
+    unit = models.CharField(max_length=80, blank=True)
+    floor = models.CharField(max_length=40, blank=True)
     is_default = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 

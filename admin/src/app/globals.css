@@ -63,29 +63,18 @@ a {
 
 .brand-mark {
   display: inline-flex;
-  align-items: baseline;
-  color: var(--text);
-  font-family: var(--font-brand), "Libre Baskerville", Georgia, "Times New Roman", serif;
-  font-size: 1.75rem;
-  font-weight: 700;
-  font-style: normal;
-  letter-spacing: -0.04em;
+  align-items: center;
   line-height: 1;
-  text-transform: none;
-  white-space: nowrap;
+  flex-shrink: 0;
 }
 
-.brand-sm {
-  font-size: 1.375rem;
+/* tone controls the SVG wordmark fill via currentColor */
+.tone-light {
+  color: var(--text);
 }
 
 .tone-muted {
   color: var(--muted);
-}
-
-.brand-period {
-  color: var(--stop);
-  font-weight: 700;
 }
 
 .panel {

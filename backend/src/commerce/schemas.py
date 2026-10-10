@@ -4,6 +4,8 @@ from decimal import Decimal
 from ninja import Schema
 from pydantic import Field, field_validator, model_validator
 
+from commerce.models import AddressLabel
+
 
 class AddressIn(Schema):
     line1: str = Field(default="", max_length=200)
@@ -17,6 +19,20 @@ class AddressIn(Schema):
     latitude: Decimal | None = None
     longitude: Decimal | None = None
     is_default: bool = False
+    label: str = Field(default=AddressLabel.OTHER, max_length=16)
+    community: str = Field(default="", max_length=120)
+    building: str = Field(default="", max_length=120)
+    unit: str = Field(default="", max_length=80)
+    floor: str = Field(default="", max_length=40)
+
+    @field_validator("label")
+    @classmethod
+    def normalize_label(cls, value: str) -> str:
+        label = (value or AddressLabel.OTHER).strip().lower()
+        allowed = {choice.value for choice in AddressLabel}
+        if label not in allowed:
+            raise ValueError("label must be home, work, or other.")
+        return label
 
     @model_validator(mode="after")
     def require_location_hint(self):
@@ -41,6 +57,11 @@ class AddressOut(Schema):
     latitude: Decimal | None = None
     longitude: Decimal | None = None
     is_default: bool
+    label: str
+    community: str
+    building: str
+    unit: str
+    floor: str
 
 
 class DeliveryCheckIn(Schema):
