@@ -1,3 +1,7 @@
+import jwt
+from django.conf import settings
+from django.test import override_settings
+
 from accounts.tests.helpers import ApiTestCase, post_json, signup_and_verify
 
 
@@ -52,3 +56,38 @@ class TokenTests(ApiTestCase):
 
         self.assertEqual(response.status_code, 401)
         self.assertEqual(response.json()["status"], "error")
+
+
+class StorefrontAccessTests(ApiTestCase):
+    @override_settings(STOREFRONT_ACCESS_PASSWORD="shared-secret")
+    def test_site_access_issues_a_scoped_token_for_the_correct_password(self):
+        response = post_json(
+            self.client, "/api/v1/auth/site-access", {"password": "shared-secret"}
+        )
+
+        self.assertEqual(response.status_code, 200)
+        token = response.json()["data"]["token"]
+        claims = jwt.decode(
+            token,
+            settings.SERVICE_SIGNING_KEY,
+            algorithms=["HS256"],
+            audience="sortd-storefront",
+            issuer="sortd-api",
+        )
+        self.assertEqual(claims["token_use"], "site_access")
+
+    @override_settings(STOREFRONT_ACCESS_PASSWORD="shared-secret")
+    def test_site_access_rejects_an_incorrect_password(self):
+        response = post_json(
+            self.client, "/api/v1/auth/site-access", {"password": "wrong"}
+        )
+
+        self.assertEqual(response.status_code, 401)
+
+    @override_settings(STOREFRONT_ACCESS_PASSWORD="")
+    def test_site_access_fails_closed_when_no_password_is_configured(self):
+        response = post_json(
+            self.client, "/api/v1/auth/site-access", {"password": "anything"}
+        )
+
+        self.assertEqual(response.status_code, 503)

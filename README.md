@@ -85,6 +85,17 @@ Open http://localhost:3000
 
 `SERVICE_SIGNING_KEY` must match the backend value. The browser never sees that key; Server Actions mint a short-lived service JWT.
 
+### Optional storefront password gate
+
+The gate is off by default. To require a shared password before browsing, set
+`STOREFRONT_PASSWORD_GATE_ENABLED=true` in the storefront's server-side
+`frontend/.env.local` (and in the frontend hosting environment), then set
+`STOREFRONT_ACCESS_PASSWORD` in `backend/.env` (and the backend hosting
+environment). The password is checked only by Django; successful access is
+remembered in an HTTP-only, signed cookie for 14 days. Keep the existing
+`SERVICE_SIGNING_KEY` identical in the backend and storefront environments.
+Set the feature flag back to `false` or remove it to disable the gate.
+
 ## Admin UI
 
 ```powershell

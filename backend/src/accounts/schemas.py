@@ -159,6 +159,14 @@ class VerifyIn(Schema):
     token: str = Field(min_length=1)
 
 
+class SiteAccessIn(Schema):
+    password: str = Field(min_length=1, max_length=1024)
+
+
+class SiteAccessOut(Schema):
+    token: str
+
+
 class VerifyEmailIn(Schema):
     token: str = Field(min_length=1)
     device_id: str = Field(default="", max_length=64)

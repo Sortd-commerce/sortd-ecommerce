@@ -1,5 +1,6 @@
 "use server";
 
+import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { ActionState } from "@/lib/action-state";
@@ -8,6 +9,12 @@ import { clearAuthCookies, getRefreshToken, setAuthCookies } from "@/lib/auth";
 import type { RemoteCart } from "@/lib/cart-store";
 import type { PriceQuote, PricingRules } from "@/lib/pricing";
 import { safeRedirectPath } from "@/lib/redirect";
+import {
+  SITE_ACCESS_COOKIE,
+  SITE_ACCESS_MAX_AGE,
+  isSitePasswordGateEnabled,
+  siteAccessCookieOptions,
+} from "@/lib/site-access";
 import { normalizeDubaiMobile, validateSignupFields } from "@/lib/signup-validation";
 import { unwrapVerificationToken } from "@/lib/verification";
 
@@ -15,6 +22,28 @@ type AuthPayload = {
   user: { id: number; email: string; first_name: string; last_name: string; phone: string };
   tokens: { access: string; refresh: string };
 };
+
+export async function unlockStorefrontAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  if (!isSitePasswordGateEnabled()) {
+    return { ok: false, message: "Storefront password access is currently disabled." };
+  }
+
+  const result = await apiFetch<{ token: string }>("/auth/site-access", {
+    method: "POST",
+    auth: false,
+    body: { password: String(formData.get("password") || "") },
+  });
+  if (!result.ok || !result.data?.token) {
+    const message = result.status === 401
+      ? "That password didn’t match. Please try again."
+      : "We couldn’t verify access right now. Please try again shortly.";
+    return { ok: false, message };
+  }
+
+  const jar = await cookies();
+  jar.set(SITE_ACCESS_COOKIE, result.data.token, siteAccessCookieOptions(SITE_ACCESS_MAX_AGE));
+  redirect(safeRedirectPath(String(formData.get("next") || "")));
+}
 
 export async function signupAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const full_name = String(formData.get("full_name") || "");

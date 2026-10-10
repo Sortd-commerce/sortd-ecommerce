@@ -1,3 +1,9 @@
+import hmac
+import time
+
+import jwt
+from django.conf import settings
+from ninja.errors import HttpError
 from ninja_extra import ControllerBase, api_controller, route, status
 from ninja_extra.permissions import AllowAny, IsAuthenticated
 from accounts.auth import SessionJWTAuth
@@ -22,6 +28,8 @@ from accounts.schemas import (
     ResendVerificationIn,
     ResentOut,
     ResetPasswordIn,
+    SiteAccessIn,
+    SiteAccessOut,
     SessionOut,
     SignupIn,
     TokenPairOut,
@@ -58,6 +66,35 @@ _ERROR_RESPONSES = {
     use_unique_op_id=False,
 )
 class AuthController(ControllerBase):
+    @route.post(
+        "/site-access",
+        response={200: SuccessResponse[SiteAccessOut], **_ERROR_RESPONSES},
+        summary="Verify the storefront access password",
+    )
+    def site_access(self, payload: SiteAccessIn):
+        configured_password = settings.STOREFRONT_ACCESS_PASSWORD
+        if not configured_password:
+            raise HttpError(503, "Storefront access password is not configured.")
+        if not hmac.compare_digest(
+            configured_password.encode("utf-8"), payload.password.encode("utf-8")
+        ):
+            raise HttpError(401, "Incorrect password.")
+
+        now = int(time.time())
+        token = jwt.encode(
+            {
+                "iss": "sortd-api",
+                "aud": "sortd-storefront",
+                "token_use": "site_access",
+                "iat": now,
+                "nbf": now,
+                "exp": now + 60 * 60 * 24 * 14,
+            },
+            settings.SERVICE_SIGNING_KEY,
+            algorithm="HS256",
+        )
+        return success("Storefront access granted.", {"token": token})
+
     @route.post(
         "/signup",
         response={201: SuccessResponse[UserOut], **_ERROR_RESPONSES},
@@ -230,10 +267,7 @@ class StaffMeController(ControllerBase):
         auth=None,
     )
     def me(self):
-        from accounts.auth import SessionJWTAuth
         from accounts.staff import is_staff_user, serialize_staff
-        from core.messages import ErrorMessage
-        from ninja.errors import HttpError
         from ninja_jwt.exceptions import AuthenticationFailed, InvalidToken
 
         try:
@@ -241,8 +275,8 @@ class StaffMeController(ControllerBase):
             if not header.lower().startswith("bearer "):
                 raise HttpError(401, ErrorMessage.UNAUTHORIZED)
             user = SessionJWTAuth().jwt_authenticate(self.context.request, header.split(" ", 1)[1].strip())
-        except (InvalidToken, AuthenticationFailed, HttpError):
-            raise HttpError(401, ErrorMessage.UNAUTHORIZED)
+        except (InvalidToken, AuthenticationFailed, HttpError) as exc:
+            raise HttpError(401, ErrorMessage.UNAUTHORIZED) from exc
         if user is None:
             raise HttpError(401, ErrorMessage.UNAUTHORIZED)
         if not is_staff_user(user):

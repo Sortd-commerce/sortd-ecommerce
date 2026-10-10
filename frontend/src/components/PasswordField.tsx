@@ -6,14 +6,18 @@ export function PasswordField({
   name = "password",
   autoComplete = "current-password",
   minLength,
+  maxLength,
   required = true,
   label = "Password",
+  autoFocus = false,
 }: {
   name?: string;
   autoComplete?: string;
   minLength?: number;
+  maxLength?: number;
   required?: boolean;
   label?: string;
+  autoFocus?: boolean;
 }) {
   const [visible, setVisible] = useState(false);
   return (
@@ -25,7 +29,9 @@ export function PasswordField({
           type={visible ? "text" : "password"}
           autoComplete={autoComplete}
           minLength={minLength}
+          maxLength={maxLength}
           required={required}
+          autoFocus={autoFocus}
           className="pr-12"
         />
         <button

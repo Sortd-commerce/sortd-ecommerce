@@ -1,5 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
 import {
+  SITE_ACCESS_COOKIE,
+  isSitePasswordGateEnabled,
+  isValidSiteAccessToken,
+} from "@/lib/site-access";
+import {
   ACCESS_COOKIE,
   ACCESS_COOKIE_MAX_AGE,
   REFRESH_COOKIE,
@@ -11,6 +16,26 @@ import {
 import { getServiceToken } from "@/lib/service-token";
 
 export async function middleware(request: NextRequest) {
+  if (isSitePasswordGateEnabled()) {
+    const token = request.cookies.get(SITE_ACCESS_COOKIE)?.value;
+    const authorized = token ? await isValidSiteAccessToken(token) : false;
+    const isAccessPage = request.nextUrl.pathname === "/access";
+
+    if (isAccessPage && authorized) {
+      const next = request.nextUrl.searchParams.get("next") || "/";
+      const safeNext = next.startsWith("/") && !next.startsWith("//") && !next.startsWith("/access") ? next : "/";
+      return NextResponse.redirect(new URL(safeNext, request.url));
+    }
+
+    if (!isAccessPage && !authorized) {
+      const url = new URL("/access", request.url);
+      url.searchParams.set("next", `${request.nextUrl.pathname}${request.nextUrl.search}`);
+      const response = NextResponse.redirect(url);
+      if (token) response.cookies.delete(SITE_ACCESS_COOKIE);
+      return response;
+    }
+  }
+
   const access = request.cookies.get(ACCESS_COOKIE)?.value;
   const refresh = request.cookies.get(REFRESH_COOKIE)?.value;
 

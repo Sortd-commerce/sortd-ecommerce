@@ -23,7 +23,7 @@ export function Chrome({
 
   return (
     <>
-      {checkout ? (mobile ? null : <CheckoutHeader />) : header}
+      {checkout ? (mobile ? null : <CheckoutHeader />) : pathname === "/access" ? null : header}
       <main id="main" className={`store-main ${checkout ? "store-checkout" : ""}`}>
         {children}
       </main>
