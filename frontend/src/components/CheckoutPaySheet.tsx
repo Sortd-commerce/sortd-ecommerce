@@ -48,7 +48,7 @@ export function CheckoutPaySheet({
             disabled={!canPlace || payPending}
             onClick={onPay}
           >
-            {payPending ? "Redirecting to Stripe…" : `Pay AED ${money(total)}`}
+            {payPending ? "Redirecting to Stripe…" : `Pay د.إ ${money(total)}`}
           </button>
           <p className="fine-print checkout-footnote checkout-footnote--sticky">
             Every item in this order passed all four gates.

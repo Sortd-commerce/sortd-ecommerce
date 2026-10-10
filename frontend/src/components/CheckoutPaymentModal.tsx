@@ -46,7 +46,7 @@ export function CheckoutPaymentModal({
         <p className="step-index">03</p>
         <h2 id="checkout-pay-title">Complete payment</h2>
         <p className="fine-print checkout-pay-total">
-          Total due: <strong>AED {total}</strong>
+          Total due: <strong>د.إ {total}</strong>
         </p>
         <StripePaymentForm
           clientSecret={clientSecret}

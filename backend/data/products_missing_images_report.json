@@ -1,0 +1,128 @@
+{
+  "summary": {
+    "db_products": 117,
+    "db_with_images": 112,
+    "db_without_images": 5,
+    "zip_rows_with_folders": 112,
+    "zip_rows_without_folders": 5,
+    "assigned_folders": 112,
+    "unassigned_folders": 0
+  },
+  "client_need_product_photos": [
+    {
+      "sortd_sku": "SRT-PAN-041",
+      "brand": "Eatwise",
+      "title": "Wood Pressed Sunflower Oil",
+      "action": "Send product photos (not in WeTransfer pack).",
+      "asset_pack_note": "No link in sheet."
+    },
+    {
+      "sortd_sku": "SRT-PAN-040",
+      "brand": "Eatwise",
+      "title": "Wood Pressed Groundnut Oil",
+      "action": "Send product photos (not in WeTransfer pack).",
+      "asset_pack_note": "No link in sheet."
+    },
+    {
+      "sortd_sku": "SRT-SNK-008",
+      "brand": "The Whole Truth",
+      "title": "13g Millet Protein Bar, Almond Millet Cocoa, Almond Millet Cocoa",
+      "action": "Send product photos (not in WeTransfer pack)."
+    },
+    {
+      "sortd_sku": "SRT-SNK-005",
+      "brand": "Snack Studio",
+      "title": "Nutty Charm",
+      "action": "Send product photos (not in WeTransfer pack).",
+      "asset_pack_note": "No product called Nutty Charm exists on snackstudio.com. The energy-squares collection is Cashew Cornflake, Hazelnut Sea Salt, Peanut Cornflake, Almond Vanilla, Coconut Cranberry. Confirm which one this SKU is."
+    },
+    {
+      "sortd_sku": "SRT-DRK-007",
+      "brand": "Paper Boat",
+      "title": "Aamras",
+      "action": "Send product photos (not in WeTransfer pack).",
+      "asset_pack_note": "Not on the brand page."
+    }
+  ],
+  "db_products_with_stale_wrong_images": [],
+  "db_products_without_images": [
+    {
+      "sortd_sku": "SRT-PAN-041",
+      "brand": "Eatwise",
+      "title": "Wood Pressed Sunflower Oil",
+      "image_count": 0,
+      "asset_folder": "",
+      "asset_sku": "",
+      "reason": "No matching asset folder in Sortd_Products."
+    },
+    {
+      "sortd_sku": "SRT-PAN-040",
+      "brand": "Eatwise",
+      "title": "Wood Pressed Groundnut Oil",
+      "image_count": 0,
+      "asset_folder": "",
+      "asset_sku": "",
+      "reason": "No matching asset folder in Sortd_Products."
+    },
+    {
+      "sortd_sku": "SRT-SNK-008",
+      "brand": "The Whole Truth",
+      "title": "13g Millet Protein Bar, Almond Millet Cocoa, Almond Millet Cocoa",
+      "image_count": 0,
+      "asset_folder": "",
+      "asset_sku": "",
+      "reason": "No matching asset folder in Sortd_Products."
+    },
+    {
+      "sortd_sku": "SRT-SNK-005",
+      "brand": "Snack Studio",
+      "title": "Nutty Charm",
+      "image_count": 0,
+      "asset_folder": "",
+      "asset_sku": "",
+      "reason": "No matching asset folder in Sortd_Products."
+    },
+    {
+      "sortd_sku": "SRT-DRK-007",
+      "brand": "Paper Boat",
+      "title": "Aamras",
+      "image_count": 0,
+      "asset_folder": "",
+      "asset_sku": "",
+      "reason": "No matching asset folder in Sortd_Products."
+    }
+  ],
+  "zip_skus_without_folders": [
+    {
+      "brand": "Paper Boat",
+      "sku": "Aamras",
+      "notes": "Not on the brand page.",
+      "reason": "Not collected in asset pack."
+    },
+    {
+      "brand": "Snack Studio",
+      "sku": "Nutty Charm",
+      "notes": "No product called Nutty Charm exists on snackstudio.com. The energy-squares collection is Cashew Cornflake, Hazelnut Sea Salt, Peanut Cornflake, Almond Vanilla, Coconut Cranberry. Confirm which one this SKU is.",
+      "reason": "Not collected in asset pack."
+    },
+    {
+      "brand": "The Whole Truth",
+      "sku": "13g Millet Protein Bar \u2013 Almond Millet Cocoa",
+      "notes": "Link returns 404.",
+      "reason": "Not collected in asset pack."
+    },
+    {
+      "brand": "Eatwise",
+      "sku": "Wood Pressed Groundnut Oil",
+      "notes": "No link in sheet.",
+      "reason": "Not collected in asset pack."
+    },
+    {
+      "brand": "Eatwise",
+      "sku": "Wood Pressed Sunflower Oil",
+      "notes": "No link in sheet.",
+      "reason": "Not collected in asset pack."
+    }
+  ],
+  "zip_folders_not_in_db": []
+}

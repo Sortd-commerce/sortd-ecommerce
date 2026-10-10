@@ -54,7 +54,7 @@ async function DeliverBar({ signedIn }: { signedIn: boolean }) {
         {deliveryPromise || freeMinimum > 0 ? (
           <div className="deliver-promise">
             {deliveryPromise ? <span>{deliveryPromise}</span> : null}
-            {freeMinimum > 0 ? <span className="deliver-free">Free over AED {freeMinimum.toFixed(0)}</span> : null}
+            {freeMinimum > 0 ? <span className="deliver-free">Free over د.إ {freeMinimum.toFixed(0)}</span> : null}
           </div>
         ) : null}
       </div>

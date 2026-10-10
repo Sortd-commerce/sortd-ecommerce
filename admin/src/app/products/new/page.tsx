@@ -81,7 +81,7 @@ export default async function NewProductPage({
                   <input name={`offer_title_${index + 1}`} defaultValue={offer.title} />
                 </label>
                 <label className="field">
-                  <span>AED</span>
+                  <span>د.إ</span>
                   <input name={`offer_price_${index + 1}`} defaultValue={index === 0 ? "16.90" : ""} />
                 </label>
                 <label className="field">

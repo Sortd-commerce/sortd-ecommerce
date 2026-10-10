@@ -15,7 +15,7 @@ export async function ProductCategoryRail({ slug, categorySlug }: { slug: string
   return (
     <section className="home-section home-section--catalog product-rail-section">
       <div className="home-inner">
-        <ProductRail id="also-passed" title="Also passed our checks" count={rail.length}>
+        <ProductRail id="also-passed" title="Also passed our checks">
           {rail.map((item) => (
             <ProductCard key={item.id} product={item} />
           ))}

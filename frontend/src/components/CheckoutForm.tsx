@@ -253,10 +253,10 @@ function CheckoutFormInner({
             <span>
               <strong>{item.title}</strong>
               <small>
-                {item.quantity} × AED {item.unit_price}
+                {item.quantity} × د.إ {item.unit_price}
               </small>
             </span>
-            <b>AED {lineTotal(item.unit_price, item.quantity)}</b>
+            <b>د.إ {lineTotal(item.unit_price, item.quantity)}</b>
           </li>
         ))}
         {!items.length ? <li className="order-empty">Your basket is empty.</li> : null}
@@ -269,7 +269,7 @@ function CheckoutFormInner({
         onClick={() => void openStripeCheckout()}
       >
         <span>{payPending ? "Redirecting to Stripe…" : "Pay now"}</span>
-        <span>AED {quote.total} →</span>
+        <span>د.إ {quote.total} →</span>
       </button>
       <p className="fine-print checkout-footnote">
         Every item in this order passed all four gates. Lab reports are on each product page.
@@ -293,13 +293,13 @@ function CheckoutFormInner({
                   <div className="checkout-sticky-foot-row">
                     <div className="checkout-sticky-total" aria-hidden>
                       <small>TO PAY</small>
-                      <strong>AED {money(quote.total)}</strong>
+                      <strong>د.إ {money(quote.total)}</strong>
                     </div>
                     <button
                       type="button"
                       className="btn btn-primary checkout-continue-btn"
                       disabled={!canContinueDelivery}
-                      aria-label={`Continue to payment, total AED ${money(quote.total)}`}
+                      aria-label={`Continue to payment, total د.إ ${money(quote.total)}`}
                       onClick={() => setStep("pay")}
                     >
                       <span className="checkout-continue-copy">

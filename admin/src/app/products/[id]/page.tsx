@@ -242,7 +242,7 @@ export default async function AdminProductDetailPage({
                 <input name="title" defaultValue={variant.title} required />
               </label>
               <label className="field">
-                <span>AED</span>
+                <span>د.إ</span>
                 <input name="price" defaultValue={variant.price} required />
               </label>
               <label className="field">

@@ -8,8 +8,8 @@ import { PromoCarousel } from "@/components/PromoCarousel";
 import type { CardProduct } from "@/components/catalog";
 import { fetchCategories, fetchProductCatalog } from "@/lib/catalog";
 import { aisleTint } from "@/lib/tints";
+import { BrandRail } from "@/components/BrandRail";
 
-type ProductList = { results: CardProduct[]; count: number };
 type Category = { name: string; slug: string; image_url?: string | null };
 type BrandGroup = { brand: string; count: number; image_url?: string | null };
 
@@ -32,9 +32,16 @@ function buildBrandGroups(products: CardProduct[]): BrandGroup[] {
   return [...map.values()].sort((a, b) => b.count - a.count);
 }
 
-function findGroup(groups: Array<Category & { products: CardProduct[] }>, needles: string[]) {
+function findGroup(
+  groups: Array<Category & { products: CardProduct[] }>,
+  needles: string[],
+) {
   return groups.find((group) =>
-    needles.some((needle) => group.slug.includes(needle) || group.name.toLowerCase().includes(needle)),
+    needles.some(
+      (needle) =>
+        group.slug.includes(needle) ||
+        group.name.toLowerCase().includes(needle),
+    ),
   );
 }
 
@@ -45,7 +52,10 @@ export default async function HomePage({
 }) {
   const { q = "", aisle = "" } = await searchParams;
   const query = q.trim().toLowerCase();
-  const [products, categories] = await Promise.all([fetchProductCatalog(), fetchCategories()]);
+  const [products, categories] = await Promise.all([
+    fetchProductCatalog(),
+    fetchCategories(),
+  ]);
   const results = products.data?.results || [];
   const filtered = results.filter((product) => {
     if (
@@ -62,18 +72,24 @@ export default async function HomePage({
   const groups = (categories.data || [])
     .map((category) => ({
       ...category,
-      products: filtered.filter((product) => product.category.slug === category.slug),
+      products: filtered.filter(
+        (product) => product.category.slug === category.slug,
+      ),
     }))
     .filter((group) => group.products.length);
-  const aisleGroups = (categories.data || [])
-    .filter((category) => results.some((product) => product.category.slug === category.slug));
+  const aisleGroups = (categories.data || []).filter((category) =>
+    results.some((product) => product.category.slug === category.slug),
+  );
   const promoSource = (categories.data || [])
     .map((category) => ({
       ...category,
-      products: results.filter((product) => product.category.slug === category.slug),
+      products: results.filter(
+        (product) => product.category.slug === category.slug,
+      ),
     }))
     .filter((group) => group.products.length);
-  const breakfast = findGroup(promoSource, ["breakfast", "spread", "oat"]) || promoSource[0];
+  const breakfast =
+    findGroup(promoSource, ["breakfast", "spread", "oat"]) || promoSource[0];
   const chocolateMatch = findGroup(promoSource, ["chocolate", "cocoa"]);
   const chocolate =
     chocolateMatch && chocolateMatch.slug !== breakfast?.slug
@@ -93,7 +109,10 @@ export default async function HomePage({
       ) : null}
 
       {showLanding && aisleGroups.length ? (
-        <section className="home-section home-section--tight" aria-label="Shop by aisle">
+        <section
+          className="home-section home-section--tight"
+          aria-label="Shop by aisle"
+        >
           <div className="home-inner aisle-picker">
             <div className="aisle-head">
               <h2>Shop by aisle</h2>
@@ -103,8 +122,15 @@ export default async function HomePage({
             </div>
             <div className="aisle-row">
               {aisleGroups.map((category, index) => (
-                <a key={category.slug} href={`#aisle-${category.slug}`} className="aisle-tile">
-                  <span className="aisle-photo" style={{ background: aisleTint(index) }}>
+                <a
+                  key={category.slug}
+                  href={`#aisle-${category.slug}`}
+                  className="aisle-tile"
+                >
+                  <span
+                    className="aisle-photo"
+                    style={{ background: aisleTint(index) }}
+                  >
                     {category.image_url ? (
                       <OptimizedImage
                         src={category.image_url}
@@ -130,8 +156,17 @@ export default async function HomePage({
           <div className="home-inner">
             <PromoCarousel>
               {breakfast ? (
-                <a href={`#aisle-${breakfast.slug}`} className="promo promo-breakfast">
-                  <OptimizedImage src="/images/promo-breakfast.png" alt="" fill className="promo-bg" sizes="(max-width: 768px) 100vw, 50vw" />
+                <a
+                  href={`#aisle-${breakfast.slug}`}
+                  className="promo promo-breakfast"
+                >
+                  <OptimizedImage
+                    src="/images/promo-breakfast.png"
+                    alt=""
+                    fill
+                    className="promo-bg"
+                    sizes="(max-width: 768px) 100vw, 50vw"
+                  />
                   <div className="promo-copy">
                     <p>Breakfast</p>
                     <h2>Breakfast, sorted.</h2>
@@ -140,8 +175,17 @@ export default async function HomePage({
                 </a>
               ) : null}
               {chocolate ? (
-                <a href={`#aisle-${chocolate.slug}`} className="promo promo-chocolate">
-                  <OptimizedImage src="/images/promo-chocolate.png" alt="" fill className="promo-bg" sizes="(max-width: 768px) 100vw, 50vw" />
+                <a
+                  href={`#aisle-${chocolate.slug}`}
+                  className="promo promo-chocolate"
+                >
+                  <OptimizedImage
+                    src="/images/promo-chocolate.png"
+                    alt=""
+                    fill
+                    className="promo-bg"
+                    sizes="(max-width: 768px) 100vw, 50vw"
+                  />
                   <div className="promo-copy">
                     <p>Chocolate</p>
                     <h2>Chocolate, chosen carefully.</h2>
@@ -154,42 +198,6 @@ export default async function HomePage({
         </section>
       ) : null}
 
-      {showLanding && brandGroups.length ? (
-        <section className="home-section home-section--brands" aria-label="Shop by brand">
-          <div className="home-inner brand-picker">
-            <div className="aisle-head">
-              <h2>Shop by brand</h2>
-              <a href="#catalog" className="aisle-all">
-                ALL {brandGroups.length} →
-              </a>
-            </div>
-            <div className="brand-row">
-              {brandGroups.map((group, index) => (
-                <Link key={group.brand} href={`/?q=${encodeURIComponent(group.brand)}`} className="brand-tile">
-                  <span className="brand-photo" style={{ background: aisleTint(index + 2) }}>
-                    {group.image_url ? (
-                      <OptimizedImage
-                        src={group.image_url}
-                        alt=""
-                        fill
-                        sizes="80px"
-                        className="object-cover"
-                      />
-                    ) : (
-                      <span>{group.brand.slice(0, 1)}</span>
-                    )}
-                  </span>
-                  <strong>{group.brand}</strong>
-                  <small>
-                    {group.count} {group.count === 1 ? "product" : "products"}
-                  </small>
-                </Link>
-              ))}
-            </div>
-          </div>
-        </section>
-      ) : null}
-
       <section
         className={`home-section home-section--catalog${query || aisle ? " home-section--filtered" : ""}`}
       >
@@ -198,8 +206,11 @@ export default async function HomePage({
             <p className="filter-note">
               {query
                 ? `Results for “${q.trim()}”`
-                : aisleGroups.find((row) => row.slug === aisle)?.name || "Filtered results"}
-              {query && aisle ? ` · ${aisleGroups.find((row) => row.slug === aisle)?.name || aisle}` : ""}
+                : aisleGroups.find((row) => row.slug === aisle)?.name ||
+                  "Filtered results"}
+              {query && aisle
+                ? ` · ${aisleGroups.find((row) => row.slug === aisle)?.name || aisle}`
+                : ""}
               {" · "}
               <Link href="/">Clear</Link>
             </p>
@@ -207,21 +218,30 @@ export default async function HomePage({
         ) : null}
         <div id="catalog" className="home-inner catalog">
           {groups.map((group) => (
-            <ProductRail key={group.slug} id={`aisle-${group.slug}`} title={group.name} count={group.products.length}>
+            <ProductRail
+              key={group.slug}
+              id={`aisle-${group.slug}`}
+              title={group.name}
+            >
               {group.products.map((product) => (
                 <ProductCard key={product.id} product={product} />
               ))}
             </ProductRail>
           ))}
-          {products.ok && !results.length ? <p className="empty-catalog">Nothing here yet.</p> : null}
+          {products.ok && !results.length ? (
+            <p className="empty-catalog">Nothing here yet.</p>
+          ) : null}
           {products.ok && results.length > 0 && !groups.length ? (
             <p className="empty-catalog">Nothing matched that search.</p>
           ) : null}
         </div>
       </section>
 
-      {showLanding ? <TrustStrip /> : null}
+      {showLanding && brandGroups.length ? (
+        <BrandRail brandGroups={brandGroups} />
+      ) : null}
 
+      {showLanding ? <TrustStrip /> : null}
       <Manifesto />
     </div>
   );

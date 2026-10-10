@@ -75,7 +75,7 @@ export function BasketView({
 
       {minimum > 0 && remaining > 0 && items.length ? (
         <div className="delivery-progress">
-          <p>Add AED {money(quote.amount_until_free_delivery)} more for free delivery</p>
+          <p>Add د.إ {money(quote.amount_until_free_delivery)} more for free delivery</p>
           <div className="delivery-progress-bar" aria-hidden>
             <span style={{ width: `${progress}%` }} />
           </div>
@@ -113,7 +113,7 @@ export function BasketView({
               </div>
               <div className="basket-line-side">
                 <p className="basket-price">
-                  <span className="basket-price-currency">AED</span>{" "}
+                  <span className="basket-price-currency">د.إ</span>{" "}
                   {money(Number(item.unit_price) * item.quantity)}
                 </p>
                 <QuantityStepper
@@ -155,7 +155,7 @@ export function BasketView({
           <div className="basket-foot">
             <Link href="/checkout" className="btn btn-primary basket-checkout" onClick={onClose}>
               <span>
-                <strong>AED {money(quote.total)}</strong>
+                <strong>د.إ {money(quote.total)}</strong>
                 <small>
                   TOTAL · {count} {count === 1 ? "ITEM" : "ITEMS"}
                 </small>

@@ -30,7 +30,7 @@
   --anchor-scroll-offset: 14rem;
 
   /* Figma mobile spec (390px frame) — px÷16 */
-  --figma-mono-2xs: 0.539rem; /* 8.63px · product brand, AED prefix */
+  --figma-mono-2xs: 0.539rem; /* 8.63px · product brand, currency prefix */
   --figma-mono-xs: 0.5625rem; /* 9px · checkout steps */
   --figma-mono-sm: 0.625rem; /* 10px · section links, kickers */
   --figma-mono-md: 0.6875rem; /* 11px · basket kicker, field labels */
@@ -1184,10 +1184,22 @@ button {
   display: none;
 }
 
+.product-rail--grid {
+  grid-auto-flow: row;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 11.5rem), 1fr));
+  grid-auto-columns: auto;
+  overflow-x: visible;
+  scroll-snap-type: none;
+}
+
 @media (min-width: 800px) {
   .product-rail {
     grid-auto-columns: calc((100% - 5 * 1.25rem) / 6);
     gap: 1.25rem;
+  }
+
+  .product-rail--grid {
+    grid-template-columns: repeat(min(100%, 11.5rem), minmax(0, 1fr));
   }
 }
 
@@ -5773,6 +5785,46 @@ aside.basket-drawer {
     grid-template-columns: unset;
   }
 
+  .product-rail--grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  
+
+  /* .brand-row--grid {
+    grid-template-columns: repeat(min(100%, 11.5rem), minmax(0, 1fr)) !important;
+  } */
+
+  .brand-row--grid {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 1rem 0.5rem;
+    width: 100%;
+    overflow: visible;
+  }
+
+  .brand-row--grid .brand-tile {
+    width: 100%;
+    min-width: 0;
+    flex: initial;
+  }
+
+  .brand-row--grid .brand-photo {
+    width: 100%;
+    max-width: 5.5rem;
+    aspect-ratio: 1;
+    height: auto;
+    justify-self: center;
+  }
+
+  .brand-row--grid .brand-tile strong {
+    font-size: 0.85rem;
+  }
+  
+  .brand-row--grid .brand-tile small {
+    font-size: 0.75rem;
+  }
+
   .aisle-tile {
     flex: 0 0 var(--figma-aisle);
   }
@@ -5835,9 +5887,19 @@ aside.basket-drawer {
     align-items: center;
   }
 
-  .rail-nav,
-  .aisle-see-all {
+  .rail-nav {
     display: none;
+  }
+
+  .aisle-see-all {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.25rem;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    white-space: nowrap;
+    cursor: pointer;
   }
 
   .trust-strip {
@@ -6280,6 +6342,7 @@ aside.basket-drawer {
 
 .home-section--brands {
   padding-top: 0;
+  padding-bottom: 4rem;
 }
 
 .brand-row {
@@ -6297,6 +6360,15 @@ aside.basket-drawer {
 .brand-row::-webkit-scrollbar {
   display: none;
 }
+
+.brand-row--grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 9.5rem), 1fr));
+  /* grid-template-columns: repeat(10, minmax(0, 1fr)); */
+  gap: 1.25rem 0.875rem;
+  overflow: visible;
+}
+
 
 .brand-tile {
   display: grid;

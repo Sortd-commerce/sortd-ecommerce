@@ -27,7 +27,7 @@ export function CouponFormFields({ coupon }: { coupon?: DiscountRow }) {
         <input
           name="detail"
           defaultValue={coupon?.detail}
-          placeholder="Up to AED 30 off · first order only"
+          placeholder="Up to د.إ 30 off · first order only"
         />
       </label>
       <label className="field">
@@ -56,7 +56,7 @@ export function CouponFormFields({ coupon }: { coupon?: DiscountRow }) {
         />
       </label>
       <label className="field">
-        <span>Minimum order (AED)</span>
+        <span>Minimum order (د.إ)</span>
         <input
           name="minimum_order"
           type="number"
@@ -67,7 +67,7 @@ export function CouponFormFields({ coupon }: { coupon?: DiscountRow }) {
         />
       </label>
       <label className="field">
-        <span>Max discount (AED)</span>
+        <span>Max discount (د.إ)</span>
         <input
           name="max_discount"
           type="number"

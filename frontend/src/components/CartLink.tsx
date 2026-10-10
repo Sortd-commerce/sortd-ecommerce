@@ -26,7 +26,7 @@ export function CartLink({ compact = false }: { compact?: boolean }) {
   const { count, subtotal } = useCart();
   const { openBasket } = useBasket();
   const displayAmount = count ? subtotal : "0.00";
-  const label = count ? `Basket, ${count} items, AED ${money(displayAmount)}` : "Basket";
+  const label = count ? `Basket, ${count} items, د.إ ${money(displayAmount)}` : "Basket";
 
   const compactLabel =
     count > 0 ? `${count} ${count === 1 ? "item" : "items"}` : "Basket";
@@ -47,7 +47,7 @@ export function CartLink({ compact = false }: { compact?: boolean }) {
           <span className="cart-pill-count">
             {count} {count === 1 ? "ITEM" : "ITEMS"}
           </span>
-          <span className="cart-pill-total">AED {money(displayAmount)}</span>
+          <span className="cart-pill-total">د.إ {money(displayAmount)}</span>
         </span>
       )}
     </button>

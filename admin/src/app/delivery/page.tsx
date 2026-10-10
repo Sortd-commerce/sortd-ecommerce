@@ -64,11 +64,11 @@ export default async function DeliveryAdminPage() {
             <span className="text-xs text-muted">Leave blank to hide this on the storefront.</span>
           </label>
           <label className="field">
-            <span>Delivery fee (AED)</span>
+            <span>Delivery fee (د.إ)</span>
             <input name="delivery_fee" type="number" min="0" step="0.01" defaultValue={pricing.data?.delivery_fee || "0"} required />
           </label>
           <label className="field">
-            <span>Free delivery from (AED)</span>
+            <span>Free delivery from (د.إ)</span>
             <input
               name="free_delivery_minimum"
               type="number"

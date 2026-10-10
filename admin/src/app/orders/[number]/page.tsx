@@ -104,12 +104,12 @@ export default async function AdminOrderDetailPage({ params }: { params: Promise
                   {line.sku} × {line.quantity}
                 </p>
               </div>
-              <p className="tabular-nums">AED {line.line_total}</p>
+              <p className="tabular-nums">د.إ {line.line_total}</p>
             </div>
           ))}
           <div className="flex justify-between px-5 py-4 font-semibold">
             <p>Total</p>
-            <p className="tabular-nums">AED {order.total}</p>
+            <p className="tabular-nums">د.إ {order.total}</p>
           </div>
         </section>
       </div>

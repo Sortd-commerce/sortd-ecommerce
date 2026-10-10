@@ -74,7 +74,7 @@ export function CheckoutMobileHeader({
 
       {savings > 0 ? (
         <p className="checkout-savings-banner">
-          You&apos;re saving <strong>AED {money(savings)}</strong> on this order
+          You&apos;re saving <strong>د.إ {money(savings)}</strong> on this order
         </p>
       ) : null}
     </header>

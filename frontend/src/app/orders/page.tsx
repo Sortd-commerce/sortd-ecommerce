@@ -33,7 +33,7 @@ export default async function OrdersPage() {
                 {formatOrderStatus(order.status)} · {order.delivery_date}
               </p>
             </div>
-            <p className="orders-row-total">AED {order.total}</p>
+            <p className="orders-row-total">د.إ {order.total}</p>
           </Link>
         ))}
         {!orders.data?.results?.length ? <p className="orders-empty">No orders yet.</p> : null}

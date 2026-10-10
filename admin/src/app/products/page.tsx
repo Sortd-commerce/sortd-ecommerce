@@ -116,7 +116,7 @@ async function CatalogTable({ page, query }: { page: number; query: ListQuery })
                 <StatusBadge value={product.status} />
               </td>
               <td className="tabular-nums">{product.variants[0]?.on_hand ?? 0}</td>
-              <td className="tabular-nums">AED {product.variants[0]?.price ?? "—"}</td>
+              <td className="tabular-nums">د.إ {product.variants[0]?.price ?? "—"}</td>
               <td className="text-right">
                 <EditProductLink href={`/products/${product.id}`} title={product.title} />
               </td>

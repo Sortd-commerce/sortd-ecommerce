@@ -61,7 +61,7 @@ export function CheckoutBasketStep({ onContinue }: { onContinue: () => void }) {
               </div>
               <div className="checkout-basket-side">
                 <p className="checkout-basket-price">
-                  <span className="checkout-basket-price-currency">AED</span>{" "}
+                  <span className="checkout-basket-price-currency">د.إ</span>{" "}
                   {money(Number(item.unit_price) * item.quantity)}
                 </p>
                 <QuantityStepper
@@ -99,12 +99,12 @@ export function CheckoutBasketStep({ onContinue }: { onContinue: () => void }) {
 
       {minimum > 0 && remaining > 0 ? (
         <div className="checkout-milestone">
-          <p>Add AED {money(remaining)} more for free delivery</p>
+          <p>Add د.إ {money(remaining)} more for free delivery</p>
           <div className="delivery-progress-bar" aria-hidden>
             <span style={{ width: `${progress}%` }} />
           </div>
           <div className="checkout-milestone-labels">
-            <span>Free delivery at AED {money(minimum)}</span>
+            <span>Free delivery at د.إ {money(minimum)}</span>
           </div>
         </div>
       ) : null}
@@ -128,12 +128,12 @@ export function CheckoutBasketStep({ onContinue }: { onContinue: () => void }) {
         <section className="checkout-savings-block">
           <div className="checkout-savings-head">
             <h3>Savings on this order</h3>
-            <span className="checkout-savings-pill">AED {money(savings)}</span>
+            <span className="checkout-savings-pill">د.إ {money(savings)}</span>
           </div>
           {quote.discount_code ? (
             <div className="checkout-savings-row">
               <span>Coupon {quote.discount_code}</span>
-              <span>− AED {money(savings)}</span>
+              <span>− د.إ {money(savings)}</span>
             </div>
           ) : null}
         </section>
@@ -143,7 +143,7 @@ export function CheckoutBasketStep({ onContinue }: { onContinue: () => void }) {
         <div className="checkout-sticky-foot-row">
           <div className="checkout-sticky-total" aria-hidden>
             <small>TO PAY</small>
-            <strong>AED {money(quote.total)}</strong>
+            <strong>د.إ {money(quote.total)}</strong>
           </div>
           <button type="button" className="btn btn-primary checkout-continue-btn" disabled={!items.length} onClick={onContinue}>
             <span className="checkout-continue-copy">

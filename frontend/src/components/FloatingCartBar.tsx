@@ -33,7 +33,7 @@ export function FloatingCartBar() {
           <span className="floating-cart-bar-kicker">
             {count} {count === 1 ? "ITEM" : "ITEMS"}
           </span>
-          <strong>AED {money(subtotal)}</strong>
+          <strong>د.إ {money(subtotal)}</strong>
         </span>
         <span className="floating-cart-bar-action">View basket →</span>
       </button>

@@ -30,30 +30,30 @@ export function OrderSummary({
       <div className={`order-bill${isBasket ? " order-bill--basket" : ""}`}>
         <div className="order-bill-row">
           <span className="order-bill-label">Item total</span>
-          <span className="order-bill-value">AED {money(quote.subtotal)}</span>
+          <span className="order-bill-value">د.إ {money(quote.subtotal)}</span>
         </div>
         {hasDiscount ? (
           <div className="order-bill-row order-discount">
             <span className="order-bill-label">
               {quote.discount_code ? `Coupon · ${quote.discount_code}` : "Discount"}
             </span>
-            <span className="order-bill-value">- AED {money(quote.discount_amount)}</span>
+            <span className="order-bill-value">- د.إ {money(quote.discount_amount)}</span>
           </div>
         ) : null}
         <div className="order-bill-row">
           <span className="order-bill-label">Delivery fee</span>
           <span className={`order-bill-value${deliveryFree ? " order-fee-free" : ""}`}>
-            {deliveryFree ? "Free" : `AED ${money(quote.delivery_fee)}`}
+            {deliveryFree ? "Free" : `د.إ ${money(quote.delivery_fee)}`}
           </span>
         </div>
         <div className="order-bill-row order-due">
           <span className="order-bill-label">To pay</span>
-          <span className="order-bill-value">AED {money(quote.total)}</span>
+          <span className="order-bill-value">د.إ {money(quote.total)}</span>
         </div>
       </div>
       {!isBasket && remaining > 0 ? (
         <p className="delivery-note-line delivery-note-banner">
-          Add AED {money(quote.amount_until_free_delivery)} more and delivery is free.
+          Add د.إ {money(quote.amount_until_free_delivery)} more and delivery is free.
         </p>
       ) : !isBasket && Number(quote.free_delivery_minimum) > 0 && deliveryFree ? (
         <p className="delivery-note-line delivery-note-banner">Delivery is free on this order.</p>

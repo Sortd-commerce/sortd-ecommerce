@@ -104,12 +104,12 @@ export default async function OrderDetailPage({
             <p>
               {line.title} × {line.quantity}
             </p>
-            <p className="font-semibold">AED {line.line_total}</p>
+            <p className="font-semibold">د.إ {line.line_total}</p>
           </div>
         ))}
         <div className="flex justify-between px-6 py-4 font-semibold text-forest">
           <p>Total</p>
-          <p>AED {order.total}</p>
+          <p>د.إ {order.total}</p>
         </div>
       </section>
     </div>

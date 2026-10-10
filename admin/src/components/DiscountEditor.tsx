@@ -41,7 +41,7 @@ export function DiscountEditor({
         <div>
           <p className="font-semibold">{discount.name}</p>
           <p className="mt-1 text-sm text-muted">
-            {scopeLabel} · {discount.kind === "percent" ? `${discount.value}%` : `AED ${discount.value}`}
+            {scopeLabel} · {discount.kind === "percent" ? `${discount.value}%` : `د.إ ${discount.value}`}
             {discount.code ? ` · Code ${discount.code}` : " · Automatic"}
           </p>
         </div>

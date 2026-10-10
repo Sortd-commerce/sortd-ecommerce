@@ -103,10 +103,10 @@ export function BuyBox({
 
       <div className="buy-price-row">
         <p className="buy-price">
-          AED {selected?.price || "—"}
-          {selected?.compare_at_price ? <s>AED {selected.compare_at_price}</s> : null}
+          د.إ {selected?.price || "—"}
+          {selected?.compare_at_price ? <s>د.إ {selected.compare_at_price}</s> : null}
         </p>
-        {perUnit ? <p className="buy-unit-price">AED {perUnit} / bar</p> : null}
+        {perUnit ? <p className="buy-unit-price">د.إ {perUnit} / bar</p> : null}
       </div>
 
       {highlights.length ? (
@@ -169,7 +169,7 @@ export function BuyBox({
                 {offer.unit_count > 1 ? <small>{offer.unit_count} units</small> : null}
               </span>
               <b>
-                <span>AED</span> {offer.price}
+                <span>د.إ</span> {offer.price}
               </b>
             </label>
           ))}
@@ -228,7 +228,7 @@ export function BuyBox({
             detail={selected.title}
             addQuantity={addQty}
             className="product-mobile-bar-cta"
-            label={`Add to basket · AED ${lineTotal}`}
+            label={`Add to basket · د.إ ${lineTotal}`}
           />
         </div>
       ) : null}

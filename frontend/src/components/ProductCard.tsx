@@ -52,7 +52,7 @@ export function ProductCard({ product }: { product: CardProduct }) {
         <p className="product-card-detail">{variant?.title || "\u00a0"}</p>
         <div className="product-card-row">
           <p className="product-card-price">
-            <span>AED</span>
+            <span>د.إ</span>
             {price || "—"}
           </p>
           {variant && !soldOut ? (

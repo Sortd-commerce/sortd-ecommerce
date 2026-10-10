@@ -113,7 +113,7 @@ export default async function AdminOrdersPage({
                   </div>
                 </td>
                 <td>{order.delivery_date}</td>
-                <td className="tabular-nums">AED {order.total}</td>
+                <td className="tabular-nums">د.إ {order.total}</td>
               </tr>
             ))}
           </tbody>

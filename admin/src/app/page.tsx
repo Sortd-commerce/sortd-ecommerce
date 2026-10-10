@@ -36,7 +36,7 @@ export default async function DashboardPage() {
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {[
           ["Open orders", data?.orders_open ?? "—"],
-          ["Revenue 30d", `AED ${data?.revenue_30d ?? "0.00"}`],
+          ["Revenue 30d", `د.إ ${data?.revenue_30d ?? "0.00"}`],
           ["Active products", data?.products_active ?? "—"],
           ["Customers", data?.customers ?? "—"],
         ].map(([label, value]) => (

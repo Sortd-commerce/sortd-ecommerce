@@ -62,7 +62,7 @@ export function OrderPlacedSuccess({ order }: { order: OrderPlacedSummary }) {
           <span>
             {itemsLabel} · Total
           </span>
-          <strong>AED {order.total}</strong>
+          <strong>د.إ {order.total}</strong>
         </div>
       </section>
 
